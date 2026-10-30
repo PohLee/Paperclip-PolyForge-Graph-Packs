@@ -1,5 +1,11 @@
 # Core integration
 
+## Organization and cross-graph routing
+
+The organization manifest makes `head-of-design` the standalone executive. A host that activates both `creative-team` and ADLC must call `resolveOrganization(activePacks)` and use its returned roles when assembling the company chart. For ADLC versions `>=0.2.4 <0.3.0`, the returned `head-of-design.reportsToRole` is `adlc:cpo`. This is a manager relationship; UI and brand decisions stay with Creative Team roles.
+
+Start each Graph as its own Core run. Pass exact artifact IDs, versions, digests and decision references between runs. A host may automate the handoff when it has authenticated pack activation and artifact provenance. The Pack does not create nested runs or register an ADLC handoff bridge by itself.
+
 ## Load and start
 
 `index.mjs` exports a JSON-serializable `pack`, `loadPack()`, the callable artifact validators, and `createCreativeHostApi()`. Register the pack once with the current Core `GraphEngine`, then route all creative transitions through the host API. Direct `engine.submitNode()` or `engine.decideNode()` calls bypass pack enforcement.

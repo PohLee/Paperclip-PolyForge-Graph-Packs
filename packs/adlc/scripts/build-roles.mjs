@@ -6,7 +6,7 @@ import { roleCatalog, roleResponsibilities, decisionTypes } from '../roles/catal
 const root = resolve(fileURLToPath(new URL('..', import.meta.url)));
 const modes = ['manual', 'assisted', 'autonomous'];
 const alwaysHuman = new Set(['product-scope-change', 'product-decision-replacement', 'discovery-disposition', 'release-process-start', 'release-process-outcome']);
-const assistedHuman = new Set(['architecture-acceptance', 'code-delivery-disposition', 'design-selection', 'verification-acceptance', 'implementation-acceptance']);
+const assistedHuman = new Set(['architecture-acceptance', 'code-delivery-disposition', 'verification-acceptance', 'implementation-acceptance']);
 
 for (const role of roleCatalog) {
   const dir = resolve(root, 'roles', role.id);

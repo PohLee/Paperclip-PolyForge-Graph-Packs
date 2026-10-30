@@ -2,7 +2,7 @@
 
 ## Work
 
-Use an execution identity distinct from the candidate authors. Apply the same criteria to every candidate, retain rejection reasons and cite reviewed versions.
+Use sourced product evidence and active decisions. Keep opportunity ranking separate from visual and interaction design review; route design candidates to the Creative Team Pack.
 
 ## Entry point
 
@@ -14,6 +14,7 @@ For an ordinary Paperclip issue, select the applicable entry. Discovery gathers 
 - Keep PRD assumptions, acceptance criteria, evidence, and change history traceable.
 - Challenge requirements readiness and identify decisions an engineer would otherwise invent.
 - Synthesize discovery evidence into options, a success baseline, and versioned intent without assuming a build decision.
+- Evaluate product opportunities and scope against evidence; route visual and interaction design candidates to the Creative Team Pack.
 
 ## Capability check
 

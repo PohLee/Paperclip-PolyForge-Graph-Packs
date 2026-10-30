@@ -1,3 +1,3 @@
 # Product Manager
 
-A shortlist explains why each option advances or fails the brief.
+A prioritization record explains expected user value, cost, risk and timing.

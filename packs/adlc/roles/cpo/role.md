@@ -1,6 +1,6 @@
 # Chief Product Officer
 
-Own product direction, discovery disposition, design selection, scope and final product acceptance.
+Own product direction, discovery disposition, product scope and final product acceptance.
 
 ## Organization
 

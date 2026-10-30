@@ -10,11 +10,11 @@ export const graphs = [
     task('read-context','design-ops-producer','Inventory the request and available product, brand, design, research, and technical context.',{produces:['context_inventory']}),
     task('clarify-brief','design-researcher','Ask no more than three high-value questions by default, reusing known answers; preserve unanswered items as unknown.',{produces:['clarification_record']}),
     task('synthesize-brief','product-designer','Create a sourced brief separating facts, preferences, constraints, assumptions, and open questions.',{produces:['creative_brief']}),
-    decision('route-work','head-of-design','creative-routing',['brand','concept','web-design','saas-feature','system','assurance','campaign','needs-information','no-design-work']),
+    decision('route-work','head-of-design','creative-routing',['brand','concept','web-design','product-design-discovery','ui-candidate-sprint','ui-prototype-experiment','minor-ui-change','saas-feature','system','assurance','campaign','needs-information','no-design-work']),
     end('brief-ready','brief_ready'), end('needs-information','needs_information'), end('no-design-work','no_design_work'),
-    ...['brand','concept','web-design','saas-feature','system','assurance','campaign'].map(x=>end(`route-${x}`,`route:${x}`))
+    ...['brand','concept','web-design','product-design-discovery','ui-candidate-sprint','ui-prototype-experiment','minor-ui-change','saas-feature','system','assurance','campaign'].map(x=>end(`route-${x}`,`route:${x}`))
   ], [edge('read-context','clarify-brief'),edge('clarify-brief','synthesize-brief'),edge('synthesize-brief','route-work'),
-    ...['brand','concept','web-design','saas-feature','system','assurance','campaign'].map(x=>edge('route-work',`route-${x}`,x)),
+    ...['brand','concept','web-design','product-design-discovery','ui-candidate-sprint','ui-prototype-experiment','minor-ui-change','saas-feature','system','assurance','campaign'].map(x=>edge('route-work',`route-${x}`,x)),
     edge('route-work','needs-information','needs-information'),edge('route-work','no-design-work','no-design-work'),edge('route-work','brief-ready','brief-ready')]),
 
   graph('brand-foundation','brand-evidence',[
@@ -94,6 +94,88 @@ export const graphs = [
     task('publish-campaign-package','design-ops-producer','Publish the exact reviewed campaign assets, brand baseline, concept, and acceptance decision.',{produces:['campaign_final_package']}),
     end('campaign-ready','campaign_assets_ready'),end('campaign-revision','revision_required'),end('campaign-incomplete','verification_incomplete')
   ],[edge('read-campaign-brief','campaign-concept'),edge('campaign-concept','produce-assets'),edge('produce-assets','campaign-review'),edge('campaign-review','campaign-disposition'),edge('campaign-disposition','publish-campaign-package','ready'),edge('publish-campaign-package','campaign-ready'),edge('campaign-disposition','campaign-revision','revision-required'),edge('campaign-disposition','campaign-incomplete','incomplete')],{compatibility:{requiredCapabilities:{'asset-production':'*'}}})
+];
+
+// UI/UX flows split from ADLC ui-ux-design@0.1.2. Each remains an independent
+// Core DAG and hands the next Graph an immutable, versioned artifact reference.
+const candidateIds=['a1','a2','a3','a4','b1','b2','b3','b4'];
+const uiCandidateNodes=candidateIds.flatMap(id=>[
+  task(`design-${id}`,'product-designer',`Produce representative UI candidate ${id} from the selected product direction; include key states, accessibility, and implementation-relevant layout.`,{requiredInputs:['product_design_direction'],produces:[`ui_candidate_${id}`]}),
+  task(`freeze-${id}`,'design-ops-producer',`Freeze UI candidate ${id} with an immutable version and content digest.`,{produces:[`frozen_ui_candidate_${id}`]}),
+  task(`qc-${id}`,'design-qa-accessibility',`Independently review frozen UI candidate ${id} against the pinned brief, direction, design baseline, states, and accessibility criteria.`,{independentOf:[`design-${id}`],produces:[`ui_candidate_review_${id}`]})
+]);
+const uiCandidateEdges=candidateIds.flatMap(id=>[
+  edge('select-candidate-directions',`design-${id}`,id[0]==='a'?['a','both']:['b','both']),
+  edge(`design-${id}`,`freeze-${id}`),edge(`freeze-${id}`,`qc-${id}`),edge(`qc-${id}`,'candidate-reviews-ready')
+]);
+
+export const productDesignGraphs=[
+  graph('minor-ui-change','pin-current-design',[
+    task('pin-current-design','design-ops-producer','Pin the accepted design baseline, changed requirement, affected screen/state, and product decision references.',{requiredInputs:['creative_brief'],produces:['ui_change_context']}),
+    task('make-minor-change','product-designer','Make only the bounded UI change; preserve unrelated approved behavior and identify all affected states.',{requiredInputs:['ui_change_context'],produces:['minor_ui_candidate']}),
+    task('independent-evaluation','design-qa-accessibility','Independently check requirement fit, interaction states, accessibility, and visual continuity on the exact candidate version.',{independentOf:['make-minor-change'],requiredInputs:['minor_ui_candidate'],produces:['minor_ui_evaluation']}),
+    decision('minor-disposition','design-director','minor-ui-design-disposition',['accepted','revision-required','incomplete']),
+    task('publish-minor-change','design-ops-producer','Publish the accepted candidate, baseline delta, evaluation, and Design Director decision as a versioned handoff.',{produces:['minor_ui_design_package']}),
+    end('minor-ready','minor_ui_change_ready'),end('minor-revision','revision_required'),end('minor-incomplete','verification_incomplete')
+  ],[
+    edge('pin-current-design','make-minor-change'),edge('make-minor-change','independent-evaluation'),edge('independent-evaluation','minor-disposition'),
+    edge('minor-disposition','publish-minor-change','accepted'),edge('publish-minor-change','minor-ready'),edge('minor-disposition','minor-revision','revision-required'),edge('minor-disposition','minor-incomplete','incomplete')
+  ]),
+
+  graph('product-design-discovery','research-user-needs',[
+    task('research-user-needs','design-researcher','Research the approved brief, users, patterns, constraints, and relevant design principles; cite sources and mark uncertainty.',{requiredInputs:['creative_brief'],produces:['product_design_research']}),
+    task('wireframe-a','product-designer','Create wireframe direction A from the same research and approved requirements.',{requiredInputs:['product_design_research'],produces:['wireframe_a']}),
+    task('wireframe-b','product-designer','Create a structurally distinct wireframe direction B from the same research and requirements.',{requiredInputs:['product_design_research'],produces:['wireframe_b']}),
+    join('wireframes-ready'),
+    task('design-norms-review','design-qa-accessibility','Check anonymized directions against usability, design-system, and accessibility criteria.',{independentOf:['wireframe-a','wireframe-b'],requiredInputs:['wireframe_a','wireframe_b'],produces:['direction_norms_review']}),
+    task('requirement-fit-review','design-researcher','Assess both directions against sourced user needs, accepted requirements, and product decision references.',{independentOf:['wireframe-a','wireframe-b'],requiredInputs:['wireframe_a','wireframe_b'],produces:['direction_fit_review']}),
+    task('blind-direction-evaluation','design-qa-accessibility','Compare anonymized directions against the same predeclared criteria; retain scores and rejection reasons.',{independentOf:['wireframe-a','wireframe-b'],requiredInputs:['wireframe_a','wireframe_b'],produces:['blind_direction_evaluation']}),
+    join('direction-reviews-ready'),
+    decision('promote-directions','design-director','product-design-direction-disposition',['a','b','both','revision-required','incomplete']),
+    task('freeze-product-direction','design-ops-producer','Freeze the promoted wireframe direction set with exact research, criteria, review, requirement, and decision references.',{requiredInputs:['direction_norms_review','direction_fit_review','blind_direction_evaluation'],produces:['product_design_direction']}),
+    end('direction-ready','product_design_direction_ready'),end('direction-revision','revision_required'),end('direction-incomplete','verification_incomplete')
+  ],[
+    edge('research-user-needs','wireframe-a'),edge('research-user-needs','wireframe-b'),edge('wireframe-a','wireframes-ready'),edge('wireframe-b','wireframes-ready'),
+    edge('wireframes-ready','design-norms-review'),edge('wireframes-ready','requirement-fit-review'),edge('wireframes-ready','blind-direction-evaluation'),
+    edge('design-norms-review','direction-reviews-ready'),edge('requirement-fit-review','direction-reviews-ready'),edge('blind-direction-evaluation','direction-reviews-ready'),
+    edge('direction-reviews-ready','promote-directions'),edge('promote-directions','freeze-product-direction',['a','b','both']),edge('freeze-product-direction','direction-ready'),
+    edge('promote-directions','direction-revision','revision-required'),edge('promote-directions','direction-incomplete','incomplete')
+  ]),
+
+  graph('ui-candidate-sprint','pin-product-direction',[
+    task('pin-product-direction','design-ops-producer','Pin the exact promoted product direction, brief, requirements, and any optional visual concept selection.',{requiredInputs:['product_design_direction'],produces:['pinned_ui_design_context']}),
+    decision('select-candidate-directions','design-director','ui-candidate-direction-selection',['a','b','both']),
+    ...uiCandidateNodes,
+    join('candidate-reviews-ready'),
+    task('shortlist-ui-candidates','design-researcher','Compare only frozen, QC-passing candidates against shared criteria; retain every rejection reason and shortlist at most two.',{independentOf:candidateIds.map(id=>`design-${id}`),requiredInputs:['pinned_ui_design_context'],produces:['ui_candidate_shortlist']}),
+    decision('candidate-disposition','design-director','ui-candidate-set-disposition',['ready','revision-required','incomplete']),
+    task('freeze-ui-candidate-set','design-ops-producer','Freeze the exact reviewed shortlist and source candidates as a versioned handoff for optional prototyping or implementation.',{requiredInputs:['ui_candidate_shortlist'],produces:['ui_candidate_set']}),
+    end('candidates-ready','ui_candidate_set_ready'),end('candidates-revision','revision_required'),end('candidates-incomplete','verification_incomplete')
+  ],[
+    edge('pin-product-direction','select-candidate-directions'),...uiCandidateEdges,
+    edge('candidate-reviews-ready','shortlist-ui-candidates'),edge('shortlist-ui-candidates','candidate-disposition'),
+    edge('candidate-disposition','freeze-ui-candidate-set','ready'),edge('freeze-ui-candidate-set','candidates-ready'),
+    edge('candidate-disposition','candidates-revision','revision-required'),edge('candidate-disposition','candidates-incomplete','incomplete')
+  ],{visualCandidatePolicy:{minPerDirection:2,defaultPerDirection:4,maxPerDirection:5,instantiatedPerDirection:4,maxFinalists:2}}),
+
+  graph('ui-prototype-experiment','pin-ui-shortlist',[
+    task('pin-ui-shortlist','design-ops-producer','Pin the exact UI candidate set, its criteria, and each finalist version before deciding whether a prototype experiment is useful.',{requiredInputs:['ui_candidate_set'],produces:['pinned_ui_finalists']}),
+    decision('prototype-route','design-director','ui-prototype-route',['direct','prototype','revision-required','incomplete']),
+    task('record-no-prototype','product-designer','Record why direct selection is adequate and bind the rationale to the exact shortlisted candidates and criteria.',{requiredInputs:['pinned_ui_finalists'],produces:['ui_no_prototype_record']}),
+    task('prototype-a','design-engineer','Build finalist A in a separate prototype execution context against predeclared evaluation tasks.',{requiredInputs:['pinned_ui_finalists'],isolation:'ui-prototype-a',produces:['ui_prototype_a']}),
+    task('prototype-b','design-engineer','Build finalist B in a separate prototype execution context against the same evaluation tasks.',{requiredInputs:['pinned_ui_finalists'],isolation:'ui-prototype-b',produces:['ui_prototype_b']}),
+    join('prototypes-ready'),
+    task('compare-prototypes','design-researcher','Compare observed outcomes against predeclared criteria and exact prototype versions; identify missing user evidence as unknown.',{independentOf:['prototype-a','prototype-b'],requiredInputs:['ui_prototype_a','ui_prototype_b'],produces:['ui_prototype_comparison']}),
+    join('selection-evidence-ready'),
+    decision('select-final-ui','design-director','ui-design-selection-disposition',['selected','revision-required','incomplete']),
+    task('freeze-ui-selection','design-ops-producer','Freeze the selected finalist and either the prototype comparison or explicit no-prototype rationale as a versioned design identity.',{produces:['ui_design_selection']}),
+    end('selection-ready','ui_design_selection_ready'),end('selection-revision','revision_required'),end('selection-incomplete','verification_incomplete')
+  ],[
+    edge('pin-ui-shortlist','prototype-route'),edge('prototype-route','record-no-prototype','direct'),edge('prototype-route','prototype-a','prototype'),edge('prototype-route','prototype-b','prototype'),
+    edge('record-no-prototype','selection-evidence-ready'),edge('prototype-a','prototypes-ready'),edge('prototype-b','prototypes-ready'),edge('prototypes-ready','compare-prototypes'),edge('compare-prototypes','selection-evidence-ready'),
+    edge('selection-evidence-ready','select-final-ui'),edge('select-final-ui','freeze-ui-selection','selected'),edge('freeze-ui-selection','selection-ready'),
+    edge('prototype-route','selection-revision','revision-required'),edge('prototype-route','selection-incomplete','incomplete'),edge('select-final-ui','selection-revision','revision-required'),edge('select-final-ui','selection-incomplete','incomplete')
+  ],{compatibility:{optionalCapabilities:{'prototype-build':'*','user-research':'*'}}})
 ];
 
 export default graphs;

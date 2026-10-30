@@ -4,7 +4,7 @@ import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { roleCatalog, roleSkills } from './roles/catalog.mjs';
 import { skillCatalog } from './skills/catalog.mjs';
-import { graphs } from './graphs/catalog.mjs';
+import { graphs, productDesignGraphs } from './graphs/catalog.mjs';
 import { validateCreativeArtifact, assertCreativeArtifact } from './contracts/validate.mjs';
 export { INTERVIEW_ARTIFACT_SCHEMA, validateInterviewArtifact, createInterviewArtifact, projectRequirements, renderInterviewHtml } from './adapters/interview/index.mjs';
 export { CONCEPT_SET_ARTIFACT_SCHEMA, CONCEPT_SELECTION_SCHEMA, validateConceptSet, validateSelection, createSelection, createImageProviderAdapter, inspectStaticImage, validateStaticImage, renderGalleryHtml, assembleGallery } from './adapters/concept-gallery/index.mjs';
@@ -12,6 +12,7 @@ export { CONCEPT_SET_ARTIFACT_SCHEMA, CONCEPT_SELECTION_SCHEMA, validateConceptS
 const root = dirname(fileURLToPath(import.meta.url));
 const digest = value => createHash('sha256').update(value).digest('hex');
 const roleDocs = ['soul','role','goal','instruction','decision_model'];
+const allGraphs=[...graphs,...productDesignGraphs];
 
 function readRole(spec) {
   const documents = Object.fromEntries(roleDocs.map(name => [name, readFileSync(resolve(root,'roles',spec.id,`${name}.md`),'utf8')]));
@@ -41,7 +42,7 @@ const decisionRules = Object.values(roles).flatMap(role => role.decisionModel.ru
     continueWhen:policy.continueWhen,escalateWhen:policy.escalateWhen,
     source:`roles/${role.id}/decision_model.md`,sourceDigest:role.documentDigests.decision_model
   }))));
-const graphDecisionNodes = graphs.flatMap(item => item.nodes.filter(node => node.type === 'decision').map(node => ({...node,graphId:item.id})));
+const graphDecisionNodes = allGraphs.flatMap(item => item.nodes.filter(node => node.type === 'decision').map(node => ({...node,graphId:item.id})));
 for (const node of graphDecisionNodes) for (const mode of ['manual','assisted','autonomous']) {
   const rule=decisionRules.find(rule => rule.type === node.decisionType && rule.mode === mode);
   if (!rule) {
@@ -68,23 +69,42 @@ const sourceSnapshot = Object.freeze({
 
 export const runtimeRequirements = Object.freeze({
   execution: 'Host dispatches ready tasks and submits outputs using authenticated Core actor context. The pack does not execute agents.',
-  capabilityIds: ['image-generation','image-inspection','html-file-write','design-rendering','project-source-read','be-contract-read','browser-render','asset-production'],
+  capabilityIds: ['image-generation','image-inspection','html-file-write','design-rendering','project-source-read','be-contract-read','browser-render','asset-production','prototype-build','user-research'],
   artifactValidation: 'Host must use createCreativeHostApi startRun, submitNode, and decideNode methods. Direct Core transitions bypass pack-level checks; Core does not enforce these schemas.',
   independentReview: 'Reviewer must run in a distinct trusted execution identity. Core independentOf constraints and the wrapper verify identity for declared run-local or trusted external subjects.',
   trustedHostServices: ['artifactRootForRun','loadExternalArtifact','getArtifactProvenance','resolveDecisionEvidence','hasImageProvider','decodeImage'],
-  adlcBridge: 'No ADLC integration or handoff is activated by this pack version.'
+  adlcBridge: 'No automatic ADLC graph handoff is activated. When both packs are active, resolveOrganization(activePacks) returns the Head of Design reporting line to adlc:cpo; cross-graph starts remain host-controlled.'
 });
 
+const conditionalReportingLines=[{when:{packId:'adlc',minVersion:'0.2.4',maxExclusiveVersion:'0.3.0'},roleId:'head-of-design',reportsToRole:'adlc:cpo'}];
+export const organization=Object.freeze({executiveRole:'head-of-design',roleScope:'design',packRolesNamespace:'creative-team',conditionalReportingLines});
+
+export function resolveOrganization(activePacks=[]) {
+  const hasCompatibleAdlc=activePacks.some(item=>{
+    if(item?.id!=='adlc'||typeof item.version!=='string') return false;
+    const match=item.version.match(/^(\d+)\.(\d+)\.(\d+)/);
+    if(!match) return false;
+    const [,major,minor,patch]=match.map(Number);
+    return major===0&&minor===2&&patch>=4;
+  });
+  const resolvedRoles=Object.fromEntries(Object.entries(roles).map(([id,role])=>[
+    id,id==='head-of-design'&&hasCompatibleAdlc?{...role,reportsToRole:'adlc:cpo'}:role
+  ]));
+  return {executiveRole:organization.executiveRole,roleScope:organization.roleScope,packRolesNamespace:organization.packRolesNamespace,
+    roles:resolvedRoles,appliedReportingLines:hasCompatibleAdlc?conditionalReportingLines:[]};
+}
+
 export const pack = Object.freeze({
-  id:'creative-team',version:'0.1.0',schemaVersion:1,
+  id:'creative-team',version:'0.2.0',schemaVersion:1,
   compatibility:{coreRange:'>=0.8.4 <0.9.0',contracts:{graph:1,decision:1,evidence:1}},
-  graphs,roles,skills,decisionRules,policyDocuments,policyDocumentDigests,sourceSnapshot,runtimeRequirements,
+  organization,graphs:allGraphs,roles,skills,decisionRules,policyDocuments,policyDocumentDigests,sourceSnapshot,runtimeRequirements,
   policies:{decisionTraceRequired:false,artifactValidation:'host-callable-pack-validator',review:{independentExecutionRequired:true},
     conceptSprint:{minCount:3,maxCount:5,completionRequiresRealImages:true,oneGallery:true}},
-  release:{digest:'sha256:bf887b86701a5ee276b5d63d35c21147e4d00e21ddf318a727ecc3f865ed81f7',builtAt:'2026-10-30T00:00:00.000Z',status:'candidate'},
+  release:{digest:'sha256:6da8b2c25622b66596ccc227f2716495ca7f138735f21ceca9c16ba96680c8f1',builtAt:'2026-10-30T00:00:00.000Z',status:'candidate'},
 });
 
 export function loadPack() { return pack; }
 export { validateCreativeArtifact, assertCreativeArtifact };
+export { productDesignGraphs };
 export { createCreativeHostApi } from './runtime/host-api.mjs';
 export default pack;

@@ -3,7 +3,6 @@ import { fileURLToPath } from 'node:url';
 import { resolve } from 'node:path';
 import { createHash } from 'node:crypto';
 import { engineeringGraphs } from './engineering-graphs.mjs';
-import { designGraph } from './design-graph.mjs';
 import { lifecycleGraphs } from './lifecycle-graphs.mjs';
 import { architectureDeliveryGraphs } from './architecture-delivery-graphs.mjs';
 import { designAssuranceGraphs } from './design-assurance-graphs.mjs';
@@ -14,12 +13,11 @@ const root = fileURLToPath(new URL('.', import.meta.url));
 const docs = ['soul', 'role', 'goal', 'instruction', 'decision_model'];
 const digest = value => createHash('sha256').update(value).digest('hex');
 const roleSkills = {
-  'cpo': ['product-memory', 'design-evaluation', 'conflict-resolution', 'versioned-evidence', 'product-direction', 'lifecycle-orchestration', 'product-discovery'],
+  'cpo': ['product-memory', 'conflict-resolution', 'versioned-evidence', 'product-direction', 'lifecycle-orchestration', 'product-discovery'],
   'internal-product-analyst': ['product-memory', 'versioned-evidence', 'research-brief', 'requirements-discovery', 'product-discovery', 'request-triage'],
-  'external-product-analyst': ['design-evaluation', 'versioned-evidence', 'research-brief', 'requirements-discovery', 'product-discovery', 'request-triage'],
-  'product-manager': ['product-memory', 'design-evaluation', 'versioned-evidence', 'product-definition', 'requirements-discovery', 'product-discovery', 'ticket-planning'],
+  'external-product-analyst': ['versioned-evidence', 'research-brief', 'requirements-discovery', 'product-discovery', 'request-triage'],
+  'product-manager': ['product-memory', 'versioned-evidence', 'product-definition', 'requirements-discovery', 'product-discovery', 'ticket-planning'],
   'product-owner': ['product-memory', 'versioned-evidence', 'product-definition', 'requirements-discovery', 'lifecycle-orchestration', 'product-discovery', 'release-process', 'request-triage', 'ticket-planning'],
-  'ui-ux-designer-lead': ['product-memory', 'design-evaluation', 'review-handoff', 'design-delivery'],
   'cto-caio': ['product-memory', 'conflict-resolution', 'review-handoff', 'versioned-evidence', 'engineering-delivery', 'lifecycle-orchestration', 'release-process', 'production-monitoring'],
   'principal-engineer': ['product-memory', 'review-handoff', 'versioned-evidence', 'engineering-delivery', 'development-loop', 'systematic-debugging', 'release-process', 'ticket-planning', 'correction-guardrails'],
   'lead-engineer': ['product-memory', 'review-handoff', 'versioned-evidence', 'engineering-delivery', 'development-loop', 'systematic-debugging', 'release-process', 'ticket-planning', 'application-verification'],
@@ -30,7 +28,7 @@ for (const role of ['cto-caio', 'principal-engineer', 'lead-engineer', 'product-
 for (const role of ['cto-caio', 'principal-engineer', 'lead-engineer', 'qa-engineer']) roleSkills[role].push('code-delivery', 'check-execution');
 for (const role of ['cto-caio', 'principal-engineer', 'lead-engineer', 'qa-engineer']) roleSkills[role].push('technical-design-review');
 for (const role of ['cto-caio', 'principal-engineer', 'lead-engineer']) roleSkills[role].push('design-drift');
-roleSkills.cpo.push('verification-review');
+  roleSkills.cpo.push('verification-review');
 for (const skillsForRole of Object.values(roleSkills)) skillsForRole.push('temporary-agent-snapshot');
 const skillIds = [...new Set(Object.values(roleSkills).flat())];
 if (skillIds.length !== Object.keys(skillCatalog).length || skillIds.some(id => !skillCatalog[id])) {
@@ -58,7 +56,7 @@ function loadRole(spec) {
 }
 
 const roles = Object.fromEntries(roleCatalog.map(spec => [spec.id, loadRole(spec)]));
-const graphs = [lifecycleGraphs[0], lifecycleGraphs[1], designGraph, ...engineeringGraphs, ...lifecycleGraphs.slice(2), ...architectureDeliveryGraphs, ...designAssuranceGraphs];
+const graphs = [lifecycleGraphs[0], lifecycleGraphs[1], ...engineeringGraphs, ...lifecycleGraphs.slice(2), ...architectureDeliveryGraphs, ...designAssuranceGraphs];
 const operatingPolicies = readFileSync(resolve(root, 'OPERATING_POLICIES.md'), 'utf8');
 const evidenceContracts = readFileSync(resolve(root, 'docs/EVIDENCE_CONTRACTS.md'), 'utf8');
 const decisionRules = Object.values(roles).flatMap(role => role.decisionModel.rules.flatMap(rule =>
@@ -71,7 +69,7 @@ const decisionRules = Object.values(roles).flatMap(role => role.decisionModel.ru
 ));
 
 export const pack = {
-  id: 'adlc', version: '0.2.4', schemaVersion: 1,
+  id: 'adlc', version: '0.2.5', schemaVersion: 1,
   compatibility: {
     coreRange: '>=0.8.5 <0.9.0',
     contracts: { graph: 1, decision: 1, evidence: 1 },
@@ -87,7 +85,7 @@ export const pack = {
       { id: 'unresolved-reviews', label: 'Unresolved severe reviews', source: 'reviews.severeOpen' }
     ],
     views: [
-      { id: 'delivery', label: 'Delivery work', kind: 'run-list', graphIds: ['product-discovery', 'ui-ux-design', 'implementation', 'verification'] },
+      { id: 'delivery', label: 'Delivery work', kind: 'run-list', graphIds: ['product-discovery', 'implementation', 'verification'] },
       { id: 'release', label: 'Release and observation', kind: 'run-list', graphIds: ['release-process', 'release-observation', 'production-monitoring'] },
       { id: 'decisions', label: 'Product decisions and history', kind: 'decision-history' }
     ]
@@ -101,7 +99,6 @@ export const pack = {
     'technical-design': ['principal-engineer', 'cto-caio', 'human-owner'],
     'design-drift': ['principal-engineer', 'cto-caio', 'human-owner'],
     'product-discovery': ['product-owner', 'cpo', 'human-owner'],
-    'ui-ux-design': ['product-owner', 'cpo', 'human-owner'],
     implementation: ['product-owner', 'principal-engineer', 'cto-caio', 'human-owner'],
     verification: ['product-owner', 'cpo', 'cto-caio', 'human-owner'],
     'release-process': ['product-owner', 'cto-caio', 'human-owner'],
@@ -127,7 +124,6 @@ export const pack = {
     improvementGuardrails: 'The host verifies that a graduated improvement blocks a real past error and passes on the corrected path.'
   },
   optionalExternalMethods: {
-    'ui-ux-designer-lead': ['impeccable and design tooling only when installed and authorized by the host'],
     'lead-engineer': ['Prime Agent, OpenCode, or Codex subagent runtimes only when installed and authorized by the host'],
     'security-engineer': ['security_review_verify, Cloudflare, or security-audit-skill only when installed and authorized by the host']
   },

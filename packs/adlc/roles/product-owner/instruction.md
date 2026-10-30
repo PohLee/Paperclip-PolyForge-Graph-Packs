@@ -2,7 +2,7 @@
 
 ## Work
 
-Read active product decisions before routing. Record why design impact is none, minor or major. When a candidate changes, identify stale evidence and start fresh verification.
+Read active product decisions before routing. Record whether a request changes approved product behavior, is a defect, or needs more information. Route visual and interaction design to the Creative Team Pack. When a candidate changes, identify stale evidence and start fresh verification.
 
 ## Entry point
 

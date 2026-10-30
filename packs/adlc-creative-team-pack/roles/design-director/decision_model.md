@@ -293,6 +293,287 @@ Decision authority for this role. The JSON block is loaded by the pack at runtim
           "escalateWhen": "Required evidence is missing, the baseline or subject version changed, or findings exceed this role's authority."
         }
       }
+    },
+    {
+      "type": "minor-ui-design-disposition",
+      "requiredEvidence": [
+        "brief_version",
+        "design_baseline_version",
+        "minor_ui_candidate",
+        "minor_ui_evaluation"
+      ],
+      "modes": {
+        "manual": {
+          "allowedRoles": [
+            "human-owner",
+            "design-director"
+          ],
+          "allowedKinds": [
+            "human"
+          ],
+          "requiresHuman": true,
+          "continueWhen": "A durable Decision Record cites the exact design, requirement, baseline, and review versions needed for this disposition.",
+          "escalateWhen": "Evidence is missing or stale, independent review is unavailable, or the choice exceeds Design Director authority."
+        },
+        "assisted": {
+          "allowedRoles": [
+            "design-director"
+          ],
+          "allowedKinds": [
+            "agent",
+            "human"
+          ],
+          "requiresHuman": false,
+          "continueWhen": "A durable Decision Record cites the exact design, requirement, baseline, and review versions needed for this disposition.",
+          "escalateWhen": "Evidence is missing or stale, independent review is unavailable, or the choice exceeds Design Director authority."
+        },
+        "autonomous": {
+          "allowedRoles": [
+            "design-director"
+          ],
+          "allowedKinds": [
+            "agent",
+            "human"
+          ],
+          "requiresHuman": false,
+          "continueWhen": "A durable Decision Record cites the exact design, requirement, baseline, and review versions needed for this disposition.",
+          "escalateWhen": "Evidence is missing or stale, independent review is unavailable, or the choice exceeds Design Director authority."
+        }
+      }
+    },
+    {
+      "type": "product-design-direction-disposition",
+      "requiredEvidence": [
+        "product_design_research",
+        "wireframe_a",
+        "wireframe_b",
+        "direction_norms_review",
+        "direction_fit_review",
+        "blind_direction_evaluation"
+      ],
+      "modes": {
+        "manual": {
+          "allowedRoles": [
+            "human-owner",
+            "design-director"
+          ],
+          "allowedKinds": [
+            "human"
+          ],
+          "requiresHuman": true,
+          "continueWhen": "A durable Decision Record cites the exact design, requirement, baseline, and review versions needed for this disposition.",
+          "escalateWhen": "Evidence is missing or stale, independent review is unavailable, or the choice exceeds Design Director authority."
+        },
+        "assisted": {
+          "allowedRoles": [
+            "design-director"
+          ],
+          "allowedKinds": [
+            "agent",
+            "human"
+          ],
+          "requiresHuman": false,
+          "continueWhen": "A durable Decision Record cites the exact design, requirement, baseline, and review versions needed for this disposition.",
+          "escalateWhen": "Evidence is missing or stale, independent review is unavailable, or the choice exceeds Design Director authority."
+        },
+        "autonomous": {
+          "allowedRoles": [
+            "design-director"
+          ],
+          "allowedKinds": [
+            "agent",
+            "human"
+          ],
+          "requiresHuman": false,
+          "continueWhen": "A durable Decision Record cites the exact design, requirement, baseline, and review versions needed for this disposition.",
+          "escalateWhen": "Evidence is missing or stale, independent review is unavailable, or the choice exceeds Design Director authority."
+        }
+      }
+    },
+    {
+      "type": "ui-candidate-direction-selection",
+      "requiredEvidence": [
+        "product_design_direction",
+        "candidate_direction_rationale",
+        "comparison_criteria"
+      ],
+      "modes": {
+        "manual": {
+          "allowedRoles": [
+            "human-owner",
+            "design-director"
+          ],
+          "allowedKinds": [
+            "human"
+          ],
+          "requiresHuman": true,
+          "continueWhen": "A durable Decision Record cites the exact design, requirement, baseline, and review versions needed for this disposition.",
+          "escalateWhen": "Evidence is missing or stale, independent review is unavailable, or the choice exceeds Design Director authority."
+        },
+        "assisted": {
+          "allowedRoles": [
+            "design-director"
+          ],
+          "allowedKinds": [
+            "agent",
+            "human"
+          ],
+          "requiresHuman": false,
+          "continueWhen": "A durable Decision Record cites the exact design, requirement, baseline, and review versions needed for this disposition.",
+          "escalateWhen": "Evidence is missing or stale, independent review is unavailable, or the choice exceeds Design Director authority."
+        },
+        "autonomous": {
+          "allowedRoles": [
+            "design-director"
+          ],
+          "allowedKinds": [
+            "agent",
+            "human"
+          ],
+          "requiresHuman": false,
+          "continueWhen": "A durable Decision Record cites the exact design, requirement, baseline, and review versions needed for this disposition.",
+          "escalateWhen": "Evidence is missing or stale, independent review is unavailable, or the choice exceeds Design Director authority."
+        }
+      }
+    },
+    {
+      "type": "ui-candidate-set-disposition",
+      "requiredEvidence": [
+        "ui_candidate_shortlist",
+        "candidate_review_refs",
+        "selection_rationale"
+      ],
+      "modes": {
+        "manual": {
+          "allowedRoles": [
+            "human-owner",
+            "design-director"
+          ],
+          "allowedKinds": [
+            "human"
+          ],
+          "requiresHuman": true,
+          "continueWhen": "A durable Decision Record cites the exact design, requirement, baseline, and review versions needed for this disposition.",
+          "escalateWhen": "Evidence is missing or stale, independent review is unavailable, or the choice exceeds Design Director authority."
+        },
+        "assisted": {
+          "allowedRoles": [
+            "design-director"
+          ],
+          "allowedKinds": [
+            "agent",
+            "human"
+          ],
+          "requiresHuman": false,
+          "continueWhen": "A durable Decision Record cites the exact design, requirement, baseline, and review versions needed for this disposition.",
+          "escalateWhen": "Evidence is missing or stale, independent review is unavailable, or the choice exceeds Design Director authority."
+        },
+        "autonomous": {
+          "allowedRoles": [
+            "design-director"
+          ],
+          "allowedKinds": [
+            "agent",
+            "human"
+          ],
+          "requiresHuman": false,
+          "continueWhen": "A durable Decision Record cites the exact design, requirement, baseline, and review versions needed for this disposition.",
+          "escalateWhen": "Evidence is missing or stale, independent review is unavailable, or the choice exceeds Design Director authority."
+        }
+      }
+    },
+    {
+      "type": "ui-prototype-route",
+      "requiredEvidence": [
+        "ui_candidate_set",
+        "finalist_candidate_refs",
+        "comparison_criteria"
+      ],
+      "modes": {
+        "manual": {
+          "allowedRoles": [
+            "human-owner",
+            "design-director"
+          ],
+          "allowedKinds": [
+            "human"
+          ],
+          "requiresHuman": true,
+          "continueWhen": "A durable Decision Record cites the exact design, requirement, baseline, and review versions needed for this disposition.",
+          "escalateWhen": "Evidence is missing or stale, independent review is unavailable, or the choice exceeds Design Director authority."
+        },
+        "assisted": {
+          "allowedRoles": [
+            "design-director"
+          ],
+          "allowedKinds": [
+            "agent",
+            "human"
+          ],
+          "requiresHuman": false,
+          "continueWhen": "A durable Decision Record cites the exact design, requirement, baseline, and review versions needed for this disposition.",
+          "escalateWhen": "Evidence is missing or stale, independent review is unavailable, or the choice exceeds Design Director authority."
+        },
+        "autonomous": {
+          "allowedRoles": [
+            "design-director"
+          ],
+          "allowedKinds": [
+            "agent",
+            "human"
+          ],
+          "requiresHuman": false,
+          "continueWhen": "A durable Decision Record cites the exact design, requirement, baseline, and review versions needed for this disposition.",
+          "escalateWhen": "Evidence is missing or stale, independent review is unavailable, or the choice exceeds Design Director authority."
+        }
+      }
+    },
+    {
+      "type": "ui-design-selection-disposition",
+      "requiredEvidence": [
+        "ui_candidate_set",
+        "selected_candidate_version",
+        "selection_evidence",
+        "design_decision_rationale"
+      ],
+      "modes": {
+        "manual": {
+          "allowedRoles": [
+            "human-owner",
+            "design-director"
+          ],
+          "allowedKinds": [
+            "human"
+          ],
+          "requiresHuman": true,
+          "continueWhen": "A durable Decision Record cites the exact design, requirement, baseline, and review versions needed for this disposition.",
+          "escalateWhen": "Evidence is missing or stale, independent review is unavailable, or the choice exceeds Design Director authority."
+        },
+        "assisted": {
+          "allowedRoles": [
+            "design-director"
+          ],
+          "allowedKinds": [
+            "agent",
+            "human"
+          ],
+          "requiresHuman": false,
+          "continueWhen": "A durable Decision Record cites the exact design, requirement, baseline, and review versions needed for this disposition.",
+          "escalateWhen": "Evidence is missing or stale, independent review is unavailable, or the choice exceeds Design Director authority."
+        },
+        "autonomous": {
+          "allowedRoles": [
+            "design-director"
+          ],
+          "allowedKinds": [
+            "agent",
+            "human"
+          ],
+          "requiresHuman": false,
+          "continueWhen": "A durable Decision Record cites the exact design, requirement, baseline, and review versions needed for this disposition.",
+          "escalateWhen": "Evidence is missing or stale, independent review is unavailable, or the choice exceeds Design Director authority."
+        }
+      }
     }
   ]
 }

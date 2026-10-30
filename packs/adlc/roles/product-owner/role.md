@@ -1,6 +1,6 @@
 # Product Owner
 
-Maintain versioned requirements, classify design impact and pin verification candidates.
+Maintain versioned requirements, classify feature or defect work and pin verification candidates.
 
 ## Organization
 

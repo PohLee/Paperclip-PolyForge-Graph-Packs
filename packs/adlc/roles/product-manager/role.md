@@ -1,6 +1,6 @@
 # Product Manager
 
-Coordinate priorities and independently evaluate design candidates.
+Coordinate priorities and assess product opportunities against evidence.
 
 ## Organization
 

@@ -7,6 +7,24 @@ const list = value => Array.isArray(value) && value.length > 0;
 const ref = value => object(value) && text(value.id ?? value.artifactId) && text(value.version);
 const required = {
   context_inventory:['summary','sources'], clarification_record:['questions','knownAnswers'], creative_brief:['objective','audience'],
+  product_design_research:['id','version','briefRef','sources','needs','constraints','unknowns'],
+  wireframe_direction:['id','version','researchRef','thesis','artifactRef'],
+  direction_review:['id','version','directionRefs','criteria','findings','reviewerExecutionId','subjectAuthorExecutionIds'],
+  product_design_direction:['id','version','researchRef','selectedDirectionRefs','reviewRefs','decisionRef'],
+  ui_change_context:['id','version','briefRef','designBaselineRef','requirementsRef'],
+  minor_ui_candidate:['id','version','contextRef','states','source'],
+  minor_ui_evaluation:['id','version','candidateRef','contextRef','reviewerExecutionId','disposition','findings'],
+  minor_ui_design_package:['id','version','candidateRef','evaluationRef','decisionRef','changes'],
+  pinned_ui_design_context:['id','version','briefRef','productDirectionRef'],
+  ui_candidate:['id','version','directionRef','thesis','surface','states','source'],
+  ui_candidate_review:['id','version','candidateRefs','directionRef','reviewerExecutionId','subjectAuthorExecutionIds','disposition','findings'],
+  ui_candidate_shortlist:['id','version','candidateRefs','reviewRefs','criteria','rejectionReasons'],
+  ui_candidate_set:['id','version','directionRef','candidateRefs','reviewRef','decisionRef'],
+  pinned_ui_finalists:['id','version','candidateSetRef','candidateRefs','criteria'],
+  ui_prototype:['id','version','candidateRef','prototypeRef','evaluationTasks'],
+  ui_prototype_comparison:['id','version','candidateRefs','prototypeRefs','criteria','findings','reviewerExecutionId'],
+  ui_no_prototype_record:['id','version','candidateRefs','criteria','reason'],
+  ui_design_selection:['id','version','selectedCandidateRef','candidateSetRef','selectionEvidenceRef','decisionRef'],
   concept_sprint_brief:['id','version','briefRef','requestedCount','explorationMode','comparisonCriteria'], concept_plan:['id','version','hypotheses'],
   concept_candidate:['id','version','title','thesis','description','choices','fit','tradeoff','image','provider'],
   concept_selection:['id','version','kind','type','disposition','setId','setVersion','candidateId','candidateVersion','imageDigest','selectedBy','createdAt'],
@@ -62,8 +80,8 @@ export function validateCreativeArtifact(kind, payload) {
       if (key.endsWith('Refs') || key === 'subjectRefs' || key === 'candidateRefs') {
         if (!list(value) || value.some(item=>!ref(item))) errors.push(`${key} must contain versioned artifact references`);
       } else if (!ref(value)) errors.push(`${key} must be a versioned artifact reference`);
-    } else if (['sources','claims','unknowns','questions','knownAnswers','comparisonCriteria','hypotheses','findings','invariants','pages','sections','states','permissions','ownerRefs','tokens','components','consumers','changes','representativePages','territories','rules','assetRefs','voice','messaging','factBoundaries','acceptanceCriteria','assets','channels','choices'].includes(key)) {
-      const mayBeEmpty=['claims','unknowns','knownAnswers','findings','questions','tokens','components','consumers'].includes(key);
+    } else if (['sources','claims','unknowns','questions','knownAnswers','comparisonCriteria','hypotheses','findings','invariants','pages','sections','states','permissions','ownerRefs','tokens','components','consumers','changes','representativePages','territories','rules','assetRefs','voice','messaging','factBoundaries','acceptanceCriteria','assets','channels','choices','needs','constraints','criteria','scores','rejectionReasons','evaluationTasks','baselineDelta'].includes(key)) {
+      const mayBeEmpty=['claims','unknowns','knownAnswers','findings','questions','tokens','components','consumers','constraints','rejectionReasons','baselineDelta'].includes(key);
       if (!Array.isArray(value)||(!mayBeEmpty&&!value.length)) errors.push(`${key} must be an ${mayBeEmpty?'array':'non-empty array'}`);
     } else if (['kind','type','disposition','setId','candidateId','candidateVersion','imageDigest','selectedBy','createdAt'].includes(key)) {
       if (!text(value)) errors.push(`${key} must be a non-empty string`);
@@ -84,7 +102,7 @@ export function validateCreativeArtifact(kind, payload) {
       if (!['brand-territory','product-structure','surface-composition'].includes(value)) errors.push('explorationMode is invalid');
     } else if (['content'].includes(key)) {
       if (!object(value)) errors.push('content must be an object containing the contract material');
-    } else if (['description','title','objective','audience','summary','scope','source','positioning','promise','proof','thesis','migrationImpact'].includes(key)) {
+    } else if (['description','title','objective','audience','summary','scope','source','positioning','promise','proof','thesis','migrationImpact','surface','reason','outcome'].includes(key)) {
       if (!text(value)) errors.push(`${key} must be a non-empty string`);
     } else if (!text(value)) errors.push(`${key} must be a non-empty string`);
   }

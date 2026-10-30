@@ -7,7 +7,7 @@ const set = count => ({ id:'set-1',version:'v1',requestedCount:count,exploration
 })) });
 
 test('pack imports and exposes all graph IDs and runtime validators',()=>{
-  assert.deepEqual(pack.graphs.map(g=>g.id),['creative-intake','brand-foundation','concept-sprint','concept-to-web-design','saas-feature-design','design-system-evolution','design-assurance','brand-campaign-assets']);
+  assert.deepEqual(pack.graphs.map(g=>g.id),['creative-intake','brand-foundation','concept-sprint','concept-to-web-design','saas-feature-design','design-system-evolution','design-assurance','brand-campaign-assets','minor-ui-change','product-design-discovery','ui-candidate-sprint','ui-prototype-experiment']);
   assert.equal(pack.roles['head-of-design'].reportsToRole,null);
   assert.ok(pack.compatibility.coreRange);
   assert.equal(JSON.parse(JSON.stringify(pack)).id,'creative-team');

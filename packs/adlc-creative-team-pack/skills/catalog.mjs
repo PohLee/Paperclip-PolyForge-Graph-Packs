@@ -1,5 +1,9 @@
 const items = [
 ['creative-intake','Creative intake and brief','Turn a request or interview into a sourced, versioned creative brief. Use for G01 when intent, scope, audience, content, constraints, or approvals are unclear.'],
+['product-design-discovery','Product design discovery','Research user needs, create distinct wireframe directions, and evaluate them against shared criteria. Use for substantial product-interface changes before visual candidates.'],
+['minor-ui-change','Minor UI change','Make and independently review one bounded interface change against its accepted baseline. Use for a narrow, low-risk UI update.'],
+['ui-candidate-sprint','UI candidate sprint','Create and shortlist versioned interface candidates from an approved product direction. Use after product design discovery when alternatives need comparison.'],
+['ui-prototype-experiment','UI prototype experiment','Compare up to two shortlisted UI candidates using isolated prototypes or a documented direct-selection rationale. Use only when a prototype can resolve a stated uncertainty.'],
 ['research-synthesis','Design research synthesis','Convert collected evidence into attributable needs, patterns, and open questions. Use when primary user or market evidence exists; do not use to invent evidence.'],
 ['brand-foundation','Brand strategy and identity','Develop positioning, promise/proof, voice, and a governed identity baseline. Use for new brands or a requested repositioning; skip for an existing brand product page.'],
 ['concept-sprint','Concept sprint and gallery','Create 3–5 distinct static concept images and package them with descriptions in one HTML gallery. Use when the user asks to compare directions.'],
@@ -14,6 +18,10 @@ const items = [
 ];
 const upstreamSources = {
   'creative-intake':[{sourceId:'designer-skills',path:'design-research/commands/discover.md'},{sourceId:'designer-skills',path:'ux-strategy/skills/design-brief/SKILL.md'}],
+  'product-design-discovery':[{sourceId:'designer-skills',path:'ux-strategy/commands/strategize.md'},{sourceId:'designer-skills',path:'interaction-design/commands/design-interaction.md'},{sourceId:'designer-skills',path:'visual-critique/commands/critique-screen.md'}],
+  'minor-ui-change':[{sourceId:'designer-skills',path:'ui-design/commands/design-screen.md'},{sourceId:'impeccable',path:'skill/reference/harden.md'}],
+  'ui-candidate-sprint':[{sourceId:'designer-skills',path:'prototyping-testing/skills/parallel-concepts/SKILL.md'},{sourceId:'designer-skills',path:'ui-design/commands/design-screen.md'},{sourceId:'taste-skill',path:'skills/taste-skill/SKILL.md'}],
+  'ui-prototype-experiment':[{sourceId:'designer-skills',path:'prototyping-testing/commands/experiment.md'},{sourceId:'designer-skills',path:'prototyping-testing/skills/a-b-test-design/SKILL.md'}],
   'research-synthesis':[{sourceId:'designer-skills',path:'design-research/skills/user-persona/SKILL.md'},{sourceId:'designer-skills',path:'design-research/commands/discover.md'}],
   'concept-sprint':[{sourceId:'designer-skills',path:'prototyping-testing/skills/parallel-concepts/SKILL.md'},{sourceId:'designer-skills',path:'prototyping-testing/skills/concept-selection/SKILL.md'},{sourceId:'designer-skills',path:'prototyping-testing/commands/explore-options.md'},{sourceId:'impeccable',path:'skill/reference/visualize.md'}],
   'web-design-expansion':[{sourceId:'designer-skills',path:'ui-design/commands/design-screen.md'},{sourceId:'taste-skill',path:'skills/taste-skill/SKILL.md'},{sourceId:'impeccable',path:'skill/reference/new-work.md'}],
