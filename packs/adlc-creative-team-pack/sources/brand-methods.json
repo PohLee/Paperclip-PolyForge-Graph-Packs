@@ -1,0 +1,9 @@
+{
+  "schemaVersion": 1,
+  "sources": [
+    {"id":"logo-design-skill","repository":"https://github.com/kaankiziltug/logo-design-skill.git","commit":"734090317a2155c5bf1ae8bd4cc85c6848a0128f","license":"MIT","use":"six copied production scripts and adapted logo method","bundledScripts":true},
+    {"id":"brand-identity-skill","repository":"https://github.com/fatihaydost/brand-identity-skill.git","commit":"850f215db5f8242b20efd744ce02bf6eb0ff5fd4","license":"MIT","use":"adapted coherent identity and measurement method; English only","bundledScripts":false},
+    {"id":"brand-skills","repository":"https://github.com/cofoundy/brand-skills.git","commit":"810e69db8971a3df75acf51261bd1b49a433e943","license":"MIT","use":"adapted context, strategy, naming, voice and guidelines methods","bundledScripts":false},
+    {"id":"brand-building-skills","repository":"https://github.com/arnabbagxd/Brand-building-skills.git","commit":"4a0a8b5b7a0f64bf0fc551978a18a591670a5223","license":"MIT","use":"adapted packaging, rollout and measurement methods","bundledScripts":false}
+  ]
+}

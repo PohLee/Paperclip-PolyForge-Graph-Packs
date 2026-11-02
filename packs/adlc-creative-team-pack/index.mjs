@@ -5,14 +5,18 @@ import { fileURLToPath } from 'node:url';
 import { roleCatalog, roleSkills } from './roles/catalog.mjs';
 import { skillCatalog } from './skills/catalog.mjs';
 import { graphs, productDesignGraphs } from './graphs/catalog.mjs';
+import { brandGraphs } from './graphs/brand-catalog.mjs';
 import { validateCreativeArtifact, assertCreativeArtifact } from './contracts/validate.mjs';
 export { INTERVIEW_ARTIFACT_SCHEMA, validateInterviewArtifact, createInterviewArtifact, projectRequirements, renderInterviewHtml } from './adapters/interview/index.mjs';
 export { CONCEPT_SET_ARTIFACT_SCHEMA, CONCEPT_SELECTION_SCHEMA, validateConceptSet, validateSelection, createSelection, createImageProviderAdapter, inspectStaticImage, validateStaticImage, renderGalleryHtml, assembleGallery } from './adapters/concept-gallery/index.mjs';
+export { auditPalette, contrastRatio } from './adapters/brand-tools/palette.mjs';
+export { buildBrandContextSnapshot, resolveBrandQuestion } from './adapters/brand-tools/context.mjs';
+export { inspectLogoSvg } from './adapters/brand-tools/svg.mjs';
 
 const root = dirname(fileURLToPath(import.meta.url));
 const digest = value => createHash('sha256').update(value).digest('hex');
 const roleDocs = ['soul','role','goal','instruction','decision_model'];
-const allGraphs=[...graphs,...productDesignGraphs];
+const allGraphs=[...graphs,...productDesignGraphs,...brandGraphs];
 
 function readRole(spec) {
   const documents = Object.fromEntries(roleDocs.map(name => [name, readFileSync(resolve(root,'roles',spec.id,`${name}.md`),'utf8')]));
@@ -66,13 +70,14 @@ const sourceSnapshot = Object.freeze({
   lockDigest:digest(sourceLockText),
   snapshots:sourceLock.sources.map(source=>({id:source.id,path:source.destination,repository:source.repository,commit:source.commit,license:source.license,treeSha256:source.treeSha256}))
 });
+const brandMethods = JSON.parse(readFileSync(resolve(root,'sources/brand-methods.json'),'utf8'));
 
 export const runtimeRequirements = Object.freeze({
   execution: 'Host dispatches ready tasks and submits outputs using authenticated Core actor context. The pack does not execute agents.',
-  capabilityIds: ['image-generation','image-inspection','html-file-write','design-rendering','project-source-read','be-contract-read','browser-render','asset-production','prototype-build','user-research'],
+  capabilityIds: ['image-generation','image-inspection','html-file-write','design-rendering','project-source-read','be-contract-read','browser-render','asset-production','prototype-build','user-research','brand-source-read','vector-render'],
   artifactValidation: 'Host must use createCreativeHostApi startRun, submitNode, and decideNode methods. Direct Core transitions bypass pack-level checks; Core does not enforce these schemas.',
   independentReview: 'Reviewer must run in a distinct trusted execution identity. Core independentOf constraints and the wrapper verify identity for declared run-local or trusted external subjects.',
-  trustedHostServices: ['artifactRootForRun','loadExternalArtifact','getArtifactProvenance','resolveDecisionEvidence','hasImageProvider','decodeImage'],
+  trustedHostServices: ['artifactRootForRun','loadExternalArtifact','getArtifactProvenance','resolveDecisionEvidence','hasImageProvider','decodeImage','loadBrandContext'],
   adlcBridge: 'No automatic ADLC graph handoff is activated. When both packs are active, resolveOrganization(activePacks) returns the Head of Design reporting line to adlc:cpo; cross-graph starts remain host-controlled.'
 });
 
@@ -95,16 +100,17 @@ export function resolveOrganization(activePacks=[]) {
 }
 
 export const pack = Object.freeze({
-  id:'creative-team',version:'0.2.1',schemaVersion:1,
+  id:'creative-team',version:'0.3.0',schemaVersion:1,
   compatibility:{coreRange:'>=0.8.4 <0.9.0',contracts:{graph:1,decision:1,evidence:1}},
-  organization,graphs:allGraphs,roles,skills,decisionRules,policyDocuments,policyDocumentDigests,sourceSnapshot,runtimeRequirements,
+  organization,graphs:allGraphs,roles,skills,decisionRules,policyDocuments,policyDocumentDigests,sourceSnapshot,brandMethods,runtimeRequirements,
   policies:{decisionTraceRequired:false,artifactValidation:'host-callable-pack-validator',review:{independentExecutionRequired:true},
     conceptSprint:{minCount:3,maxCount:5,completionRequiresRealImages:true,oneGallery:true}},
-  release:{digest:'sha256:2790b0283b061641b21c6ccca47a89bbdffc6f42f75d254a43752a277806772f',builtAt:'2026-11-02T00:00:00.000Z',status:'candidate'},
+  release:{digest:'sha256:c26621fc8fb6a5c17ba72dd23731e942c4e60c0a1c90be0092134c82053ce69a',builtAt:'2026-11-02T00:00:00.000Z',status:'candidate'},
 });
 
 export function loadPack() { return pack; }
 export { validateCreativeArtifact, assertCreativeArtifact };
 export { productDesignGraphs };
+export { brandGraphs };
 export { createCreativeHostApi } from './runtime/host-api.mjs';
 export default pack;

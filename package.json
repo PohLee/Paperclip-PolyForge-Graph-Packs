@@ -1,6 +1,6 @@
 {
   "name": "@paperclip-polyforge/packs",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "license": "LGPL-2.1-only",
   "type": "module",
   "exports": {
@@ -14,7 +14,7 @@
     "index.mjs", "catalog.mjs", "README.md", "LICENSE", "docs/**", "scripts/**", "dist/adlc/**", "dist/marketing/**", "dist/creative-team/**",
     "packs/adlc/**", "packs/marketing/**",
     "packs/adlc-creative-team-pack/index.mjs", "packs/adlc-creative-team-pack/README.md", "packs/adlc-creative-team-pack/THIRD_PARTY_NOTICES.md", "packs/adlc-creative-team-pack/package.json",
-    "packs/adlc-creative-team-pack/adapters/**", "packs/adlc-creative-team-pack/contracts/**", "packs/adlc-creative-team-pack/docs/**", "packs/adlc-creative-team-pack/graphs/**", "packs/adlc-creative-team-pack/policies/**", "packs/adlc-creative-team-pack/roles/**", "packs/adlc-creative-team-pack/runtime/**", "packs/adlc-creative-team-pack/scripts/**", "packs/adlc-creative-team-pack/skills/**", "packs/adlc-creative-team-pack/templates/**", "packs/adlc-creative-team-pack/sources/integrity.mjs", "packs/adlc-creative-team-pack/sources/upstream.lock.json", "packs/adlc-creative-team-pack/sources/README.md"
+    "packs/adlc-creative-team-pack/adapters/**", "packs/adlc-creative-team-pack/contracts/**", "packs/adlc-creative-team-pack/docs/**", "packs/adlc-creative-team-pack/graphs/**", "packs/adlc-creative-team-pack/policies/**", "packs/adlc-creative-team-pack/roles/**", "packs/adlc-creative-team-pack/runtime/**", "packs/adlc-creative-team-pack/scripts/**", "packs/adlc-creative-team-pack/skills/**", "packs/adlc-creative-team-pack/templates/**", "packs/adlc-creative-team-pack/sources/integrity.mjs", "packs/adlc-creative-team-pack/sources/upstream.lock.json", "packs/adlc-creative-team-pack/sources/brand-methods.json", "packs/adlc-creative-team-pack/sources/README.md"
   ],
   "scripts": {
     "build:roles": "node packs/adlc/scripts/build-roles.mjs && node packs/marketing/scripts/build-roles.mjs",

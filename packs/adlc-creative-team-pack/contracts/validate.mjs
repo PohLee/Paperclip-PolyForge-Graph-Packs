@@ -49,6 +49,33 @@ const required = {
   behavior_review_findings:['id','version','subjectRefs','reviewerExecutionId','subjectAuthorExecutionIds','findings'],
   design_review:['id','version','subjectRefs','reviewerExecutionId','subjectAuthorExecutionIds','scope','disposition','findings'],
   brand_evidence_ledger:['id','version','sources','claims','unknowns'], brand_strategy:['id','version','evidenceRef','audience','positioning','promise','proof'],
+  brand_context_snapshot:['id','version','projectId','fields','unknowns'],
+  brand_architecture_map:['id','version','contextRef','model','relationships','tradeoffs'],
+  brand_name_candidates:['id','version','architectureRef','territories','candidates'],
+  brand_name_screening:['id','version','candidateRef','checks','sources'],
+  brand_naming_review:['id','version','candidateRef','screeningRef','disposition','findings','reviewerExecutionId'],
+  logo_design_brief:['id','version','brandBaselineRef','name','scope','uses'],
+  logo_concept_plan:['id','version','briefRef','concepts'],
+  logo_candidate_set:['id','version','briefRef','candidates'],
+  logo_concept_selection:['id','version','candidateSetRef','candidateId','candidateVersion','selectedBy'],
+  logo_file_audit:['id','version','candidateSetRef','findings','disposition','reviewerExecutionId'],
+  logo_concept_review:['id','version','candidateSetRef','fileAuditRef','disposition','findings','reviewerExecutionId'],
+  identity_kit_context:['id','version','brandBaselineRef','candidateSetRef','selectionRef'],
+  brand_identity_options:['id','version','contextRef','options'],
+  brand_identity_checks:['id','version','optionsRef','language','measurements','findings','reviewerExecutionId'],
+  brand_identity_kit:['id','version','contextRef','optionsRef','checksRef','language','assetRefs','tokens'],
+  brand_identity_kit_review:['id','version','kitRef','checksRef','disposition','findings','reviewerExecutionId'],
+  brand_approval_context:['id','version','previousBaselineRef','kitRef','reviewRef','changeSummary'],
+  guidelines_context:['id','version','brandBaselineRef','assetRefs'],
+  brand_guidelines_draft:['id','version','contextRef','sections','assetRefs'],
+  brand_guidelines_review:['id','version','draftRef','disposition','findings','reviewerExecutionId'],
+  packaging_context:['id','version','brandBaselineRef','productRefs','unknowns'],
+  packaging_design_brief:['id','version','contextRef','structure','hierarchy','materials','sku'],
+  packaging_brief_review:['id','version','briefRef','disposition','findings','reviewerExecutionId'],
+  brand_rollout_context:['id','version','brandBaselineRef','channels','launchType'],
+  brand_rollout_plan:['id','version','contextRef','phases','dependencies'],
+  brand_measurement_plan:['id','version','contextRef','metrics','sources'],
+  brand_rollout_review:['id','version','rolloutRef','measurementRef','disposition','findings','reviewerExecutionId'],
   brand_territories:['id','version','strategyRef','territories'], brand_identity_system:['id','version','strategyRef','territoryRef','rules','assetRefs'],
   brand_voice_system:['id','version','strategyRef','voice','messaging','factBoundaries'], brand_review:['id','version','strategyRef','identityRef','voiceRef','disposition','findings'],
   brand_baseline:['id','version','strategyRef','identityRef','voiceRef','decisionRef'], campaign_brief:['id','version','brandBaselineRef','channels','claims'],
@@ -87,9 +114,11 @@ export function validateCreativeArtifact(kind, payload) {
       if (key.endsWith('Refs') || key === 'subjectRefs' || key === 'candidateRefs') {
         if (!list(value) || value.some(item=>!ref(item))) errors.push(`${key} must contain versioned artifact references`);
       } else if (!ref(value)) errors.push(`${key} must be a versioned artifact reference`);
-    } else if (['sources','claims','unknowns','questions','knownAnswers','comparisonCriteria','hypotheses','findings','invariants','pages','sections','states','permissions','ownerRefs','tokens','components','consumers','changes','representativePages','territories','rules','assetRefs','voice','messaging','factBoundaries','acceptanceCriteria','assets','channels','choices','needs','constraints','criteria','scores','rejectionReasons','evaluationTasks','baselineDelta'].includes(key)) {
-      const mayBeEmpty=['claims','unknowns','knownAnswers','findings','questions','tokens','components','consumers','constraints','rejectionReasons','baselineDelta'].includes(key);
+    } else if (['sources','claims','unknowns','questions','knownAnswers','comparisonCriteria','hypotheses','findings','invariants','pages','sections','states','permissions','ownerRefs','tokens','components','consumers','changes','representativePages','territories','rules','assetRefs','voice','messaging','factBoundaries','acceptanceCriteria','assets','channels','choices','needs','constraints','criteria','scores','rejectionReasons','evaluationTasks','baselineDelta','relationships','tradeoffs','candidates','checks','uses','concepts','options','measurements','sections','productRefs','structure','hierarchy','materials','sku','phases','dependencies','metrics'].includes(key)) {
+      const mayBeEmpty=['claims','unknowns','knownAnswers','findings','questions','tokens','components','consumers','constraints','rejectionReasons','baselineDelta','tradeoffs','checks','productRefs','sku','dependencies'].includes(key);
       if (!Array.isArray(value)||(!mayBeEmpty&&!value.length)) errors.push(`${key} must be an ${mayBeEmpty?'array':'non-empty array'}`);
+    } else if (key==='fields') {
+      if (!object(value)) errors.push('fields must be a source-qualified object');
     } else if (['kind','type','disposition','setId','candidateId','candidateVersion','imageDigest','selectedBy','createdAt'].includes(key)) {
       if (!text(value)) errors.push(`${key} must be a non-empty string`);
       if (kind==='concept_selection'&&key==='kind'&&value!=='concept_selection') errors.push('kind must be concept_selection');
@@ -109,11 +138,21 @@ export function validateCreativeArtifact(kind, payload) {
       if (!['brand-territory','product-structure','surface-composition'].includes(value)) errors.push('explorationMode is invalid');
     } else if (['content'].includes(key)) {
       if (!object(value)) errors.push('content must be an object containing the contract material');
-    } else if (['description','title','objective','audience','summary','scope','source','positioning','promise','proof','thesis','migrationImpact','surface','reason','outcome'].includes(key)) {
+    } else if (['description','title','objective','audience','summary','scope','source','positioning','promise','proof','thesis','migrationImpact','surface','reason','outcome','projectId','model','name','launchType','changeSummary'].includes(key)) {
       if (!text(value)) errors.push(`${key} must be a non-empty string`);
     } else if (!text(value)) errors.push(`${key} must be a non-empty string`);
   }
   if (payload.requestedCount && payload.candidates && payload.candidates.length !== payload.requestedCount) errors.push('candidate count must exactly equal requestedCount');
+  if (kind==='brand_context_snapshot') for (const [field,item] of Object.entries(payload.fields??{})) if(!object(item)||!['approved','unconfirmed'].includes(item.status)||!ref(item.sourceRef)||(item.status==='approved'&&!ref(item.decisionRef))) errors.push(`brand context field ${field} lacks source/status/approval`);
+  if (kind==='logo_design_brief'&&!['new','refresh','keep'].includes(payload.scope)) errors.push('logo scope must be new, refresh, or keep');
+  if (['brand_identity_checks','brand_identity_kit'].includes(kind)&&payload.language!=='en') errors.push('brand identity production is currently English only');
+  if (kind==='brand_name_screening') for(const check of Array.isArray(payload.checks)?payload.checks:[]) if(!object(check)||!['verified','conflict','unknown'].includes(check.status)||!text(check.subject)||!text(check.channel)||!text(check.checkedAt)||!ref(check.sourceRef)) errors.push('naming checks need status, subject, channel, date and source');
+  if (kind==='logo_candidate_set') {
+    const candidates=Array.isArray(payload.candidates)?payload.candidates:[];
+    if(candidates.length!==3||new Set(candidates.map(c=>c?.id)).size!==3) errors.push('logo concept set needs three distinct candidates');
+    for(const c of candidates) if(!text(c?.id)||!text(c?.version)||!text(c?.idea)||!text(c?.svg?.path)||!(/^[a-f0-9]{64}$/).test(c?.svg?.digest??'')||c.svg.path.startsWith('/')||c.svg.path.includes('\\')||c.svg.path.split('/').includes('..')) errors.push('logo candidates need safe relative SVG paths, digests and distinct ideas');
+  }
+  if (kind==='brand_identity_kit') for(const asset of Array.isArray(payload.assetRefs)?payload.assetRefs:[]) if(!ref(asset)||!text(asset.path)||!/^[a-f0-9]{64}$/.test(asset.digest??'')||asset.path.startsWith('/')||asset.path.includes('\\')||asset.path.split('/').includes('..')) errors.push('identity kit assets need exact refs, safe paths and SHA-256 digests');
   if (payload.disposition && ['complete','verified','accepted','ready'].includes(payload.disposition) && Array.isArray(payload.findings) && payload.findings.some(f=>!['resolved','accepted-exception'].includes(f.status))) errors.push('successful disposition cannot contain unresolved findings');
   if (payload.disposition && ['complete','verified','accepted','ready'].includes(payload.disposition) && payload.unverified === true) errors.push('successful disposition cannot mark evidence unverified');
   return { valid:errors.length===0,errors };

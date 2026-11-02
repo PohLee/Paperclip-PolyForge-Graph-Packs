@@ -1,6 +1,6 @@
 {
   "name": "@polyforge/adlc-creative-team-pack",
-  "version": "0.2.1",
+  "version": "0.3.0",
   "private": true,
   "type": "module",
   "description": "Standalone ADLC Creative Team Pack for PolyForge Graph Core",
@@ -9,7 +9,7 @@
   "files": [
     "index.mjs", "graphs/**", "roles/**", "skills/**", "contracts/**", "runtime/**",
     "adapters/**", "policies/**", "docs/**", "templates/**", "sources/integrity.mjs",
-    "sources/upstream.lock.json", "sources/README.md", "scripts/resolve-source.mjs",
+    "sources/upstream.lock.json", "sources/brand-methods.json", "sources/README.md", "scripts/resolve-source.mjs",
     "scripts/materialize-sources.mjs", "README.md", "THIRD_PARTY_NOTICES.md", "LICENSE"
   ],
   "scripts": {

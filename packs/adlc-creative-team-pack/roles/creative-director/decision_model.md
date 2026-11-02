@@ -196,6 +196,33 @@ Decision authority for this role. The JSON block is loaded by the pack at runtim
           "escalateWhen": "Required evidence is missing, the baseline or subject version changed, or findings exceed this role's authority."
         }
       }
+    },
+    {
+      "type": "brand-stage-disposition",
+      "requiredEvidence": ["pinned_brand_context", "current_candidate_version", "independent_review"],
+      "modes": {
+        "manual": {
+          "allowedRoles": ["human-owner", "creative-director"],
+          "allowedKinds": ["human"],
+          "requiresHuman": true,
+          "continueWhen": "Record a disposition for the exact current candidate and review versions; a stage recommendation is not final brand adoption.",
+          "escalateWhen": "Required evidence or trusted authority is missing, or review findings remain unresolved."
+        },
+        "assisted": {
+          "allowedRoles": ["creative-director"],
+          "allowedKinds": ["agent", "human"],
+          "requiresHuman": false,
+          "continueWhen": "Record a disposition for the exact current candidate and review versions; a stage recommendation is not final brand adoption.",
+          "escalateWhen": "Required evidence or trusted authority is missing, or review findings remain unresolved."
+        },
+        "autonomous": {
+          "allowedRoles": ["creative-director"],
+          "allowedKinds": ["agent", "human"],
+          "requiresHuman": false,
+          "continueWhen": "Record a disposition for the exact current candidate and review versions; a stage recommendation is not final brand adoption.",
+          "escalateWhen": "Required evidence or trusted authority is missing, or review findings remain unresolved."
+        }
+      }
     }
   ]
 }

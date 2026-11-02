@@ -2,6 +2,9 @@ import { createHash } from 'node:crypto';
 import { readFile, realpath, readdir } from 'node:fs/promises';
 import path from 'node:path';
 import { graphs, productDesignGraphs } from '../graphs/catalog.mjs';
+import { brandGraphs } from '../graphs/brand-catalog.mjs';
+import { inspectLogoSvg } from '../adapters/brand-tools/svg.mjs';
+import { buildBrandContextSnapshot } from '../adapters/brand-tools/context.mjs';
 import { renderGalleryHtml, validateConceptSet, validateSelection, validateStaticImage } from '../adapters/concept-gallery/index.mjs';
 import { assertCreativeArtifact, validateCreativeArtifact } from '../contracts/validate.mjs';
 import { createArtifactLineage } from './artifact-lineage.mjs';
@@ -18,7 +21,7 @@ function records(run) {
   return run.graph.nodes.flatMap(node=>(run.nodeStates[node.id]?.attempts??[]).flatMap(attempt=>(attempt.artifacts??[]).map(item=>({item,attempt,node, payload:attempt.output?.creativeArtifacts?.[item.kind]}))));
 }
 const exactRecord=(run,ref)=>createArtifactLineage(run).exactRecord(ref);
-function getGraph(packId,graphId) { return packId==='creative-team'?[...graphs,...productDesignGraphs].find(g=>g.id===graphId):undefined; }
+function getGraph(packId,graphId) { return packId==='creative-team'?[...graphs,...productDesignGraphs,...brandGraphs].find(g=>g.id===graphId):undefined; }
 function requestedCount(run) { return run.input.creative_brief?.requestedCount??run.input.requestedCount; }
 function asRefs(candidates) { return candidates.map(c=>({id:c.id,version:c.version})); }
 
@@ -31,13 +34,27 @@ async function insideRoot(root, relative) {
   return {realRoot,realCandidate};
 }
 
-export function createCreativeHostApi({engine,artifactRootForRun,hasImageProvider,decodeImage,loadExternalArtifact,getArtifactProvenance,resolveDecisionEvidence,resolveActor}={}) {
+export function createCreativeHostApi({engine,artifactRootForRun,hasImageProvider,decodeImage,loadExternalArtifact,getArtifactProvenance,resolveDecisionEvidence,resolveActor,authorizeBrandSelection,loadBrandContext}={}) {
   if(!engine) throw new TypeError('engine is required');
   const rootFor=async run=>{
     const root=typeof artifactRootForRun==='function'?await artifactRootForRun(run):artifactRootForRun;
     if(!root) throw new Error('Trusted artifact storage root is not configured for this run');
     return root;
   };
+  async function verifyBrandSvg(run,candidate) {
+    const {realCandidate}=await insideRoot(await rootFor(run),candidate.svg.path);
+    const bytes=await readFile(realCandidate);
+    if(digest(bytes)!==candidate.svg.digest) throw new Error('Logo SVG digest differs from the pinned candidate');
+    const result=inspectLogoSvg(bytes);
+    if(!result.valid) throw new Error(`Logo SVG structure failed: ${result.findings.join('; ')}`);
+  }
+  async function verifyBrandKitAssets(kit) {
+    if(!kit.artifactRoot) throw new Error('Brand kit needs a trusted artifact root');
+    for(const asset of kit.payload.assetRefs) {
+      const {realCandidate}=await insideRoot(kit.artifactRoot,asset.path);
+      if(digest(await readFile(realCandidate))!==asset.digest) throw new Error('Brand kit asset bytes differ from pinned digest');
+    }
+  }
   async function trustedActor(claimedActor,context) {
     if(typeof resolveActor!=='function') throw new Error('Trusted host actor resolver is required; caller-supplied actor fields are not accepted');
     const actor=await resolveActor({claimedActor,context});
@@ -139,6 +156,30 @@ export function createCreativeHostApi({engine,artifactRootForRun,hasImageProvide
     const node=run.graph.nodes.find(item=>item.id===nodeId);
     if(!node||node.type!=='decision') throw new Error('Decision evidence requested for a non-decision node');
     const prior=await engine.listDecisions({runId:run.id});
+    if(nodeId==='naming-disposition'&&outcome==='shortlist') {
+      const candidates=latestPayload(run,'develop-name-candidates','brand_name_candidates');
+      const screening=latestPayload(run,'screen-name-conflicts','brand_name_screening');
+      const review=latestPayload(run,'review-naming','brand_naming_review');
+      if(!candidates||!screening||!review||review.disposition!=='accepted'||!sameRef(screening.candidateRef,candidates)||!sameRef(review.candidateRef,candidates)||!sameRef(review.screeningRef,screening)||review.findings?.some(f=>!['resolved','accepted-exception'].includes(f.status))) throw new Error('Naming shortlist requires current screened candidates and accepted independent review');
+    }
+    if(nodeId==='logo-concept-disposition'&&outcome==='ready-for-selection') {
+      const set=latestPayload(run,'draw-logo-candidates','logo_candidate_set');
+      const audit=latestPayload(run,'audit-logo-files','logo_file_audit');
+      const review=latestPayload(run,'review-logo-concepts','logo_concept_review');
+      if(!set||!audit||!review||audit.disposition!=='complete'||review.disposition!=='accepted'||!sameRef(audit.candidateSetRef,set)||!sameRef(review.candidateSetRef,set)||!sameRef(review.fileAuditRef,audit)||[...audit.findings,...review.findings].some(f=>!['resolved','accepted-exception'].includes(f.status))) throw new Error('Logo selection requires current SVG audit and accepted visual review');
+      for(const candidate of set.candidates) await verifyBrandSvg(run,candidate);
+    }
+    if(nodeId==='identity-kit-disposition'&&outcome==='ready-for-owner') {
+      const kit=latestPayload(run,'assemble-brand-kit','brand_identity_kit');
+      const checks=latestPayload(run,'measure-identity','brand_identity_checks');
+      const review=latestPayload(run,'review-brand-kit','brand_identity_kit_review');
+      if(!kit||!checks||!review||review.disposition!=='accepted'||!sameRef(kit.checksRef,checks)||!sameRef(review.kitRef,kit)||!sameRef(review.checksRef,checks)||[...checks.findings,...review.findings].some(f=>!['resolved','accepted-exception'].includes(f.status))) throw new Error('Identity kit requires current measurements and accepted independent review');
+    }
+    if(nodeId==='adopt-brand-assets'&&outcome==='adopt') {
+      const subject=latestPayload(run,'pin-adoption-subject','brand_approval_context');
+      if(!subject||!sameRef(subject.previousBaselineRef,run.input.brandBaselineRef)||!sameRef(subject.kitRef,run.input.brandKitRef)||!sameRef(subject.reviewRef,run.input.brandKitReviewRef)) throw new Error('Brand adoption must pin the current baseline, exact kit and accepted review');
+      await verifyBrandKitAssets(await externalRecord(run.input.brandKitRef,'brand_identity_kit',{run,input:run.input}));
+    }
     if(nodeId==='choose-count'&&outcome!==String(requestedCount(run))) throw new Error('The selected branch count must match the count frozen in the brief');
     if(nodeId==='brand-evidence-disposition'&&outcome==='sufficient') {
       const ledger=latestPayload(run,'brand-evidence','brand_evidence_ledger');
@@ -237,7 +278,7 @@ export function createCreativeHostApi({engine,artifactRootForRun,hasImageProvide
       if(input.creative_brief) assertCreativeArtifact('creative_brief',input.creative_brief);
       const surfaceRequired=['concept-sprint','concept-to-web-design','saas-feature-design','minor-ui-change','product-design-discovery','ui-candidate-sprint','ui-prototype-experiment'].includes(args.graphId);
       if(surfaceRequired&&!['persuade','operate','read','experience'].includes(input.creative_brief?.surfaceMode)) throw new Error(`${args.graphId} requires a concrete creative_brief.surfaceMode`);
-      if(['brand-foundation','concept-sprint','concept-to-web-design','saas-feature-design','brand-campaign-assets'].includes(args.graphId)&&!input.creative_brief) throw new Error(`${args.graphId} requires a validated creative_brief`);
+      if(['brand-foundation','concept-sprint','concept-to-web-design','saas-feature-design','brand-campaign-assets','brand-architecture-naming','logo-concept-design','brand-identity-kit','brand-asset-adoption','brand-guidelines','brand-packaging-brief','brand-rollout-plan'].includes(args.graphId)&&!input.creative_brief) throw new Error(`${args.graphId} requires a validated creative_brief`);
       if(['brand-foundation','brand-campaign-assets'].includes(args.graphId)&&input.creative_brief?.surfaceMode!=null&&!['persuade','operate','read','experience'].includes(input.creative_brief.surfaceMode)) throw new Error('surfaceMode must be a supported mode when supplied');
       if(args.graphId==='concept-sprint') {
         const briefCount=input.creative_brief?.requestedCount,topCount=input.requestedCount;
@@ -293,6 +334,43 @@ export function createCreativeHostApi({engine,artifactRootForRun,hasImageProvide
         const baseline=await inputArtifact(input,'brandBaselineRef','brand_baseline',{actor});
         input.brand_baseline=baseline.payload;
       }
+      if(['logo-concept-design','brand-identity-kit','brand-asset-adoption','brand-guidelines','brand-packaging-brief','brand-rollout-plan'].includes(args.graphId)) {
+        const baseline=await inputArtifact(input,'brandBaselineRef','brand_baseline',{actor});
+        input.brand_baseline=baseline.payload;
+      }
+      if(['logo-concept-design','brand-identity-kit','brand-asset-adoption','brand-guidelines','brand-packaging-brief','brand-rollout-plan','brand-architecture-naming'].includes(args.graphId)) {
+        const language=input.brandLanguage??'en';
+        if(language!=='en') throw new Error('Brand workflows currently support English only');
+        input.brandLanguage='en';
+        if(typeof input.projectId!=='string'||!input.projectId.trim()||typeof loadBrandContext!=='function') throw new Error('Brand workflow requires projectId and a trusted brand context loader');
+        const records=await loadBrandContext({projectId:input.projectId,graphId:args.graphId,actor});
+        input.brand_context_snapshot=buildBrandContextSnapshot({projectId:input.projectId,facts:records?.facts,decisionRefs:records?.decisionRefs});
+      }
+      if(args.graphId==='brand-identity-kit') {
+        const set=await inputArtifact(input,'logoCandidateSetRef','logo_candidate_set',{actor});
+        const selection=await inputArtifact(input,'logoSelectionRef','logo_concept_selection',{actor});
+        if(!set.artifactRoot) throw new Error('Selected logo set needs a trusted artifact root');
+        for(const candidate of set.payload.candidates) {
+          const {realCandidate}=await insideRoot(set.artifactRoot,candidate.svg.path);
+          const bytes=await readFile(realCandidate);
+          if(digest(bytes)!==candidate.svg.digest||!inspectLogoSvg(bytes).valid) throw new Error('Selected logo set SVG bytes do not match the accepted candidate');
+        }
+        const candidate=set.payload.candidates?.find(c=>c.id===selection.payload.candidateId&&c.version===selection.payload.candidateVersion);
+        if(!candidate||!sameRef(selection.payload.candidateSetRef,set)) throw new Error('Logo selection must bind one exact candidate in the pinned set');
+        const authors=await getArtifactProvenance?.(input.logoSelectionRef);
+        const owner=Array.isArray(authors)&&authors.some(item=>item.kind==='human'&&item.roles?.includes('human-owner'));
+        const delegated=!owner&&typeof authorizeBrandSelection==='function'&&await authorizeBrandSelection({selection:selection.payload,authors,actor,input});
+        if(!owner&&!delegated) throw new Error('Logo selection requires authenticated owner choice or verified delegation');
+        input.logo_candidate_set=set.payload; input.logo_concept_selection=selection.payload;
+      }
+      if(args.graphId==='brand-asset-adoption') {
+        const kit=await inputArtifact(input,'brandKitRef','brand_identity_kit',{actor});
+        const review=await inputArtifact(input,'brandKitReviewRef','brand_identity_kit_review',{actor});
+        const context=await externalRecord(kit.payload.contextRef,'identity_kit_context',{actor,input});
+        if(!sameRef(context.payload.brandBaselineRef,input.brandBaselineRef)||!sameRef(review.payload.kitRef,kit)||review.payload.disposition!=='accepted'||review.payload.findings?.some(f=>!['resolved','accepted-exception'].includes(f.status))) throw new Error('Brand adoption requires a reviewed kit based on the current baseline');
+        await verifyBrandKitAssets(kit);
+        input.brand_identity_kit=kit.payload; input.brand_identity_kit_review=review.payload;
+      }
       if(args.graphId==='design-assurance') {
         if(!Array.isArray(input.reviewSubjectRefs)||!input.reviewSubjectRefs.length||!input.reviewSubjectRefs.every(isRef)) throw new Error('Design assurance needs exact reviewSubjectRefs before review begins');
         for(const ref of input.reviewSubjectRefs) await externalRecord(ref,ref.kind??'design_artifact',{actor,input});
@@ -338,7 +416,31 @@ export function createCreativeHostApi({engine,artifactRootForRun,hasImageProvide
           if(!set) throw new Error('Gallery cannot be assembled without the reviewed concept set');
           await verifyGallery(run,payload,set);
         }
+        if(artifact.kind==='logo_candidate_set') for(const candidate of payload.candidates) await verifyBrandSvg(run,candidate);
+        if(artifact.kind==='brand_context_snapshot'&&(payload.projectId!==run.input.projectId||stableJson(payload.fields)!==stableJson(run.input.brand_context_snapshot?.fields))) throw new Error('Brand context must match the trusted current project snapshot');
+        if(artifact.kind==='brand_identity_kit') for(const asset of payload.assetRefs) {
+          const {realCandidate}=await insideRoot(await rootFor(run),asset.path);
+          if(digest(await readFile(realCandidate))!==asset.digest) throw new Error('Identity kit asset bytes differ from pinned digest');
+        }
         const linkKinds={
+          brand_architecture_map:{contextRef:'brand_context_snapshot'},
+          brand_name_candidates:{architectureRef:'brand_architecture_map'},
+          brand_name_screening:{candidateRef:'brand_name_candidates'},
+          brand_naming_review:{candidateRef:'brand_name_candidates',screeningRef:'brand_name_screening'},
+          logo_design_brief:{brandBaselineRef:'brand_baseline'},
+          logo_concept_plan:{briefRef:'logo_design_brief'},
+          logo_candidate_set:{briefRef:'logo_design_brief'},
+          logo_file_audit:{candidateSetRef:'logo_candidate_set'},
+          logo_concept_review:{candidateSetRef:'logo_candidate_set',fileAuditRef:'logo_file_audit'},
+          identity_kit_context:{brandBaselineRef:'brand_baseline',candidateSetRef:'logo_candidate_set',selectionRef:'logo_concept_selection'},
+          brand_identity_options:{contextRef:'identity_kit_context'},
+          brand_identity_checks:{optionsRef:'brand_identity_options'},
+          brand_identity_kit:{contextRef:'identity_kit_context',optionsRef:'brand_identity_options',checksRef:'brand_identity_checks'},
+          brand_identity_kit_review:{kitRef:'brand_identity_kit',checksRef:'brand_identity_checks'},
+          brand_approval_context:{previousBaselineRef:'brand_baseline',kitRef:'brand_identity_kit',reviewRef:'brand_identity_kit_review'},
+          guidelines_context:{brandBaselineRef:'brand_baseline'}, brand_guidelines_draft:{contextRef:'guidelines_context'},brand_guidelines_review:{draftRef:'brand_guidelines_draft'},
+          packaging_context:{brandBaselineRef:'brand_baseline'},packaging_design_brief:{contextRef:'packaging_context'},packaging_brief_review:{briefRef:'packaging_design_brief'},
+          brand_rollout_context:{brandBaselineRef:'brand_baseline'},brand_rollout_plan:{contextRef:'brand_rollout_context'},brand_measurement_plan:{contextRef:'brand_rollout_context'},brand_rollout_review:{rolloutRef:'brand_rollout_plan',measurementRef:'brand_measurement_plan'},
           brand_baseline:{strategyRef:'brand_strategy',identityRef:'brand_identity_system',voiceRef:'brand_voice_system'},
           web_design_package:{conceptRef:'concept_candidate',pageMapRef:'page_section_map',desktopRef:'desktop_web_design',mobileRef:'mobile_web_design',reviewRef:'web_design_review'},
           saas_design_package:{handoffRef:'creative_design_handoff',baselineRef:'design_baseline',apiContractRefs:'be_contract',stateMatrixRef:'saas_state_permission_matrix',reviewRef:'saas_design_review'},
@@ -355,6 +457,12 @@ export function createCreativeHostApi({engine,artifactRootForRun,hasImageProvide
           ui_candidate_set:{reviewRef:'ui_candidate_shortlist'},
           ui_design_selection:{candidateSetRef:'ui_candidate_set'},
         }[artifact.kind]??{};
+        if(artifact.kind==='brand_baseline'&&run.graph.id==='brand-asset-adoption') {
+          linkKinds.previousBaselineRef='brand_baseline'; linkKinds.kitRef='brand_identity_kit'; linkKinds.reviewRef='brand_identity_kit_review';
+          const previous=run.input.brand_baseline;
+          if(!sameRef(payload.previousBaselineRef,run.input.brandBaselineRef)||!sameRef(payload.kitRef,run.input.brandKitRef)||!sameRef(payload.reviewRef,run.input.brandKitReviewRef)||!sameRef(payload.strategyRef,previous.strategyRef)||!sameRef(payload.identityRef,previous.identityRef)||!sameRef(payload.voiceRef,previous.voiceRef)) throw new Error('Adopted baseline must preserve strategy and pin the exact prior baseline, kit and review');
+          await verifyBrandKitAssets(await externalRecord(run.input.brandKitRef,'brand_identity_kit',{run,input:run.input,actor}));
+        }
         if(/^ui_candidate_[ab]\d$/.test(artifact.kind)) linkKinds.directionRef='pinned_ui_design_context';
         if(/^frozen_ui_candidate_[ab]\d$/.test(artifact.kind)) linkKinds.candidateRef=`ui_candidate_${artifact.kind.slice('frozen_ui_candidate_'.length)}`;
         if(/^ui_candidate_review_[ab]\d$/.test(artifact.kind)) {
@@ -368,7 +476,7 @@ export function createCreativeHostApi({engine,artifactRootForRun,hasImageProvide
         }
         if(['brand_baseline','design_baseline','campaign_final_package','minor_ui_design_package','product_design_direction','ui_candidate_set','ui_design_selection'].includes(artifact.kind)) {
           const decisionByKind={
-            brand_baseline:{decisionNode:'brand-disposition',outcome:'ready'}, design_baseline:{decisionNode:'system-disposition',outcome:'accepted'},
+            brand_baseline:run.graph.id==='brand-asset-adoption'?{decisionNode:'adopt-brand-assets',outcome:'adopt'}:{decisionNode:'brand-disposition',outcome:'ready'}, design_baseline:{decisionNode:'system-disposition',outcome:'accepted'},
             campaign_final_package:{decisionNode:'campaign-disposition',outcome:'ready'}, minor_ui_design_package:{decisionNode:'minor-disposition',outcome:'accepted'},
             product_design_direction:{decisionNode:'promote-directions'}, ui_candidate_set:{decisionNode:'candidate-disposition',outcome:'ready'},
             ui_design_selection:{decisionNode:'select-final-ui',outcome:'selected'},
@@ -451,6 +559,7 @@ export function createCreativeHostApi({engine,artifactRootForRun,hasImageProvide
       actor=await trustedActor(actor,{operation:'decideNode',run,nodeId,outcome});
       const node=run.graph.nodes.find(n=>n.id===nodeId); if(!node||node.type!=='decision') throw new Error('Creative decision node not found');
       if(!(await engine.getReadyNodes(runId)).some(n=>n.id===nodeId)) throw new Error('Creative decision is not ready');
+      if(nodeId==='adopt-brand-assets'&&(actor.kind!=='human'||!actor.roles.includes('human-owner'))) throw new Error('Formal brand asset adoption requires an authenticated human owner');
       const evidence=await requireDecisionEvidence(run,nodeId,outcome);
       return engine.decideNode({runId,nodeId,actor,outcome,...rest,evidence});
     },

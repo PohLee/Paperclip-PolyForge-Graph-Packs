@@ -17,9 +17,9 @@ const engineWithPack = async () => {
   return engine;
 };
 
-test('the standalone pack registers all twelve supported DAGs in Core and stays serializable', async () => {
+test('the standalone pack registers all nineteen supported DAGs in Core and stays serializable', async () => {
   const engine = await engineWithPack();
-  assert.equal(pack.graphs.length,12);
+  assert.equal(pack.graphs.length,19);
   assert.doesNotThrow(()=>JSON.stringify(pack));
   assert.equal((await engine.getPack?.('creative-team',pack.version)) ?? 'registered','registered');
   for (const graph of pack.graphs) {

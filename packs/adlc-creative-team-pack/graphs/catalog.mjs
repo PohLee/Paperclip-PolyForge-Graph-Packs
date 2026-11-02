@@ -10,11 +10,11 @@ export const graphs = [
     task('read-context','design-ops-producer','Inventory the request and available product, brand, design, research, and technical context.',{produces:['context_inventory']}),
     task('clarify-brief','design-researcher','Ask no more than three high-value questions by default, reusing known answers; preserve unanswered items as unknown.',{produces:['clarification_record']}),
     task('synthesize-brief','product-designer','Create a sourced brief separating facts, preferences, constraints, assumptions, and open questions.',{produces:['creative_brief']}),
-    decision('route-work','head-of-design','creative-routing',['brand','concept','web-design','product-design-discovery','ui-candidate-sprint','ui-prototype-experiment','minor-ui-change','saas-feature','system','assurance','campaign','needs-information','no-design-work']),
+    decision('route-work','head-of-design','creative-routing',['brand','naming','logo','identity-kit','brand-adoption','guidelines','packaging','rollout','concept','web-design','product-design-discovery','ui-candidate-sprint','ui-prototype-experiment','minor-ui-change','saas-feature','system','assurance','campaign','needs-information','no-design-work']),
     end('brief-ready','brief_ready'), end('needs-information','needs_information'), end('no-design-work','no_design_work'),
-    ...['brand','concept','web-design','product-design-discovery','ui-candidate-sprint','ui-prototype-experiment','minor-ui-change','saas-feature','system','assurance','campaign'].map(x=>end(`route-${x}`,`route:${x}`))
+    ...['brand','naming','logo','identity-kit','brand-adoption','guidelines','packaging','rollout','concept','web-design','product-design-discovery','ui-candidate-sprint','ui-prototype-experiment','minor-ui-change','saas-feature','system','assurance','campaign'].map(x=>end(`route-${x}`,`route:${x}`))
   ], [edge('read-context','clarify-brief'),edge('clarify-brief','synthesize-brief'),edge('synthesize-brief','route-work'),
-    ...['brand','concept','web-design','product-design-discovery','ui-candidate-sprint','ui-prototype-experiment','minor-ui-change','saas-feature','system','assurance','campaign'].map(x=>edge('route-work',`route-${x}`,x)),
+    ...['brand','naming','logo','identity-kit','brand-adoption','guidelines','packaging','rollout','concept','web-design','product-design-discovery','ui-candidate-sprint','ui-prototype-experiment','minor-ui-change','saas-feature','system','assurance','campaign'].map(x=>edge('route-work',`route-${x}`,x)),
     edge('route-work','needs-information','needs-information'),edge('route-work','no-design-work','no-design-work'),edge('route-work','brief-ready','brief-ready')]),
 
   graph('brand-foundation','brand-evidence',[

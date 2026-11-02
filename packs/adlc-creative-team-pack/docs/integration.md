@@ -25,6 +25,8 @@ const creative = createCreativeHostApi({
   getArtifactProvenance: hostGetArtifactProvenance,
   hasImageProvider: hostHasAuthorizedImageProvider,
   decodeImage: hostDecodeRasterImage,
+  authorizeBrandSelection: hostVerifyDelegatedBrandSelection,
+  loadBrandContext: hostLoadCurrentProjectBrandFactsAndDecisions,
 });
 
 const run = await creative.startRun({
@@ -43,6 +45,8 @@ The wrapper fails closed when a required service is absent. `resolveActor({claim
 
 `artifactRootForRun(run)` supplies a private filesystem root. Image and gallery paths must remain inside it after realpath resolution. PNGs are decoded locally; JPEG and WebP require a trusted `decodeImage(bytes,mimeType)` service. For external concept sets, image files must be under the record's trusted artifact root. `hasImageProvider(id)` must verify an installed, authorized provider. A declared Core capability is a promise that the host can actually execute it; do not mark absent services available to make registration pass.
 
+For brand work, the host passes `input.projectId` and implements `loadBrandContext({projectId,graphId,actor})` returning current `{facts,decisionRefs}` from trusted project memory and decision records. The wrapper constructs and pins a same-project snapshot before starting the graph. `buildBrandContextSnapshot()` and `resolveBrandQuestion()` answer only facts backed by current approval. `authorizeBrandSelection({selection,authors,actor,input})` may accept a Head of Design choice only after verifying real delegated authority; without it, the selected-logo record needs authenticated human-owner provenance. External logo candidate sets also need a trusted `artifactRoot`; the wrapper reads the exact SVG bytes, checks their digest and safe structure, and rejects stale or unsafe files. Brand identity production accepts `brandLanguage: 'en'` only.
+
 ## Run API and enforced checks
 
 Call `startRun`, then dispatch nodes returned by Core. Submit task outputs with `submitNode({runId,nodeId,actor,artifacts,payloads})`; artifact envelopes must match payload identity, and every graph-declared output is required. Use `decideNode({runId,nodeId,actor,outcome,reason})` for decision nodes. The wrapper checks explicit role decision rules and required evidence before Core records a decision. Join and end nodes accept no artifacts. Core remains responsible for graph readiness and transition recording.
@@ -57,6 +61,11 @@ The wrapper applies graph-specific checks:
 - **G06** supports either an existing design baseline or an explicit brand-baseline/concept-selection bootstrap. Inventory and proposed changes must preserve that exact expected ref.
 - **G07** requires pinned review subjects and trusted author execution provenance; the reviewer execution must differ from all subject authors.
 - **G08** pins campaign and brand versions, asset package, review, and acceptance decision in its final package.
+- **G13** separates brand architecture, name generation, sourced conflict checks and independent shortlist review. It does not adopt a new public name.
+- **G14** verifies three actual SVG files, their digests, a file audit and independent visual review before a concept set is ready for selection.
+- **G15** binds an authenticated selection to an exact reviewed logo set and brand baseline, then records measured identity checks and a separate kit review. Its result awaits owner adoption.
+- **G16** pins the exact reviewed kit, checks its real asset bytes, and requires an authenticated human owner decision before publishing a new brand baseline version.
+- **G17–G19** produce baseline-bound guidelines, packaging briefs and rollout/measurement plans. They do not silently alter the baseline, produce printer-ready files or publish a launch.
 
 For final artifacts, the wrapper validates schemas and exact links against the run's actual completed artifacts and decisions. This makes the wrapper the required pack-specific enforcement boundary; JSON schemas alone are descriptive.
 

@@ -8,6 +8,33 @@ Decision authority for this role. The JSON block is loaded by the pack at runtim
   "role": "head-of-design",
   "rules": [
     {
+      "type": "brand-asset-adoption",
+      "requiredEvidence": ["current_brand_baseline", "identity_kit", "independent_kit_review", "owner_authorization"],
+      "modes": {
+        "manual": {
+          "allowedRoles": ["human-owner", "head-of-design"],
+          "allowedKinds": ["human"],
+          "requiresHuman": true,
+          "continueWhen": "Adopt only the exact reviewed kit after an authenticated owner decision; publish a new baseline version.",
+          "escalateWhen": "Owner authority, current baseline, kit, review or production evidence is missing."
+        },
+        "assisted": {
+          "allowedRoles": ["human-owner", "head-of-design"],
+          "allowedKinds": ["human"],
+          "requiresHuman": true,
+          "continueWhen": "Adopt only the exact reviewed kit after an authenticated owner decision; publish a new baseline version.",
+          "escalateWhen": "Owner authority, current baseline, kit, review or production evidence is missing."
+        },
+        "autonomous": {
+          "allowedRoles": ["human-owner", "head-of-design"],
+          "allowedKinds": ["human"],
+          "requiresHuman": true,
+          "continueWhen": "Adopt only the exact reviewed kit after an authenticated owner decision; publish a new baseline version.",
+          "escalateWhen": "Owner authority, current baseline, kit, review or production evidence is missing."
+        }
+      }
+    },
+    {
       "type": "cross-domain-design-disposition",
       "requiredEvidence": [
         "current_product_decision",
