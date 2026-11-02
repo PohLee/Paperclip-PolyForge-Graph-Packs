@@ -10,6 +10,7 @@ For an ordinary Paperclip issue, select the applicable entry. Discovery gathers 
 
 ## Responsibilities
 
+- Classify investigation claims as fact, inference or assumption and retain conflicting evidence and source dates.
 - Research internal needs, usage, support signals, constraints, and existing product decisions; publish a sourced product brief.
 - Prepare a dated competitor release and threat brief when a weekly research cadence is explicitly scheduled.
 - Contribute dated usage, support, prior-decision, and constraint evidence to discovery.

@@ -1,0 +1,5 @@
+# Epic hypothesis and probe
+
+Use when a proposed product slice rests on an untested user, value or feasibility assumption. Write one falsifiable hypothesis per proposed Epic: target user, problem, expected behavior change, risky assumption, success measure and time horizon. Before a build commitment, choose the cheapest safe probe that could change the choice: interview, journey observation, prototype, fake-door with consent, data review or technical spike as appropriate.
+
+Predeclare separate support and refute criteria, evidence type, sample limits and decision owner. Record `planned`, `executed`, `evidence-collected`, then `supported`, `unsupported` or `inconclusive` as distinct states. An experiment plan alone is not an observation; a technical spike only tests feasibility, not customer demand. Cite execution time, source and observed result. Complete when `validateExperimentRecord` passes and the CPO has an evidence-linked `build`, `continue-validate`, `pivot` or `stop` recommendation. Only the authorized CPO disposition changes the product plan.

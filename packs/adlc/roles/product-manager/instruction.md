@@ -10,6 +10,8 @@ For an ordinary Paperclip issue, select the applicable entry. Discovery gathers 
 
 ## Responsibilities
 
+- Design cheap falsifiable probes for risky Epic hypotheses and keep executed evidence separate from recommendations.
+- Include maintenance, external dependency, agent/model, support and opportunity costs in feature investment advice.
 - Create, update, and check frontend and backend PRDs against the approved product decision set.
 - Keep PRD assumptions, acceptance criteria, evidence, and change history traceable.
 - Challenge requirements readiness and identify decisions an engineer would otherwise invent.

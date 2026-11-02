@@ -1,0 +1,5 @@
+# Requirements handoff
+
+Use when accepted discovery intent becomes implementation scope. Product Owner publishes an accepted, versioned baseline with intent identity and acceptance Decision ID, scope, non-goals, dependencies, outcome metric, stable requirement IDs and acceptance criterion IDs. Each requirement traces to the problem; each criterion names its requirement IDs and observable proof. Split Stories by independently verifiable user value; frontend/backend tasks may support a Story but are not themselves proof of delivered user value.
+
+Pin the exact baseline in each run and trace problem → requirement → criterion → ticket → test evidence → outcome metric. Revisions create a new version with change request and impact analysis; keep the previous accepted version and active runs' pins. Complete when `validateRequirementsHandoff` passes, the authorized acceptance exists, and engineering can act without inventing a product decision. The host verifies the acceptance Decision ID and full trace links before dispatch.

@@ -1,0 +1,5 @@
+# Autonomous investigation
+
+Use for a bounded product question that can be investigated from available sources. State the question, decision it informs, time bound and stop condition. Retrieve direct evidence first, then relevant internal history and outside signals. A promotional claim is evidence that a source made the claim, not that the capability works. A missing interview or inaccessible analytics result is a gap, not positive evidence.
+
+Publish a versioned evidence ledger. Give every material claim a stable ID, statement, `fact|inference|assumption` classification and separate `supported|contradicted|mixed|unverified` evidence state. For support and conflict, record source reference, publication date, observation date, directness, independence/sample limit and affected hypothesis, decision or requirement. Syndicated copies count as one source. Seek contrary evidence where it could change the decision. Complete when `validateEvidenceLedger` passes and the decision owner can see both what is known and what remains uncertain. A bounded low-risk inquiry may continue with uncertainty labeled; it cannot silently accept a product decision.

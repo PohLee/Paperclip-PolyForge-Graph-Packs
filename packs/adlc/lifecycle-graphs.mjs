@@ -10,12 +10,12 @@ const edge = (from, to, when) => when === undefined ? { from, to } : { from, to,
 
 export const lifecycleGraphs = [
   {
-    id: 'request-triage', version: '0.1.0', start: 'assess-request', inputContracts: ['source-request'],
+    id: 'request-triage', version: '0.2.0', start: 'assess-request', inputContracts: ['source-request'],
     description: 'Check an issue, external PR or feedback claim before routing it to discovery or implementation; preserve the brief or information gap.',
     nodes: [
       task('assess-request', 'product-owner', 'cpo',
-        'Check duplicates, already implemented behavior, prior rejection, and the reported claim. For a bug, reproduce before declaring it ready. Record a durable brief, precise questions or closure reason.',
-        ['triage_report'], { requiredInputs: ['source_request'], outputContract: 'triage-report' }),
+        'Separate the literal ask from the underlying problem, user, must-haves, constraints, exclusions and unknowns in a validated RequestBrief. Check duplicates, already implemented behavior, prior rejection, and the reported claim. For a bug, reproduce before declaring it ready. Reported urgency grants no authority. Record a durable brief, precise questions or closure reason.',
+        ['triage_report', 'request_brief'], { requiredInputs: ['source_request'], outputContract: 'triage-report' }),
       decision('triage-disposition', 'product-owner', 'request-triage', ['ready', 'needs-info', 'closed'], {
         requiredInputs: ['triage_report'], candidateNodes: ['assess-request'], candidateKinds: ['triage_report'],
         decisionContract: { type: 'triage-routing', sourceNode: 'assess-request' }
@@ -29,21 +29,21 @@ export const lifecycleGraphs = [
     ]
   },
   {
-    id: 'product-discovery', version: '0.1.1', start: 'frame-discovery', inputContracts: ['triage-handoff-optional'],
+    id: 'product-discovery', version: '0.2.0', start: 'frame-discovery', inputContracts: ['triage-handoff-optional'],
     description: 'Investigate the problem and user need before a build commitment; retain an explicit advance, research-more, or no-build disposition.',
     nodes: [
       task('frame-discovery', 'product-owner', 'cpo',
         'Reframe the source request as a problem; identify user groups, research questions, assumptions, constraints, success baseline, and stop criteria.',
         ['discovery_plan'], { requiredInputs: ['source_request'] }),
       task('internal-research', 'internal-product-analyst', 'product-manager',
-        'Gather dated usage, support, prior decision, operational and technical constraint evidence; separate observation from inference.',
+        'Gather dated usage, support, prior decision, operational and technical constraint evidence. Classify claims as fact, inference or assumption; record supporting and conflicting sources in the evidence ledger.',
         ['internal_evidence']),
       task('external-research', 'external-product-analyst', 'product-manager',
-        'Gather direct user evidence where access exists, current journey and barriers, contrary signals, and external alternatives; state sample and access limits.',
+        'Gather direct user evidence where access exists, current journey and barriers, contrary signals, and external alternatives. State sample, source independence, freshness and access limits; no interview means no customer-validation claim.',
         ['user_research_record', 'external_evidence']),
       join('evidence-ready'),
       task('synthesize-discovery', 'product-manager', 'cpo',
-        'Compare user needs, current alternatives, constraints, baseline and options including no build; draft a versioned intent with open decisions.',
+        'Validate the evidence ledger, compare user needs, alternatives, constraints, baseline and options including no build. Identify risky Epic hypotheses and whether a narrow probe is needed before build; draft versioned intent with open decisions.',
         ['evidence_ledger', 'discovery_options', 'discovery_brief', 'versioned_intent']),
       decision('discovery-gate', 'cpo', 'discovery-disposition', ['advance', 'more-research', 'stop'], {
         requiredInputs: ['discovery_brief', 'versioned_intent'], candidateNodes: ['synthesize-discovery'],
@@ -149,5 +149,71 @@ export const lifecycleGraphs = [
       edge('monitoring-disposition', 'record-incident', 'investigate'), edge('record-incident', 'monitoring-investigation'),
       edge('monitoring-disposition', 'record-data-gap', 'insufficient-data'), edge('record-data-gap', 'monitoring-unknown')
     ]
+  },
+  {
+    id: 'requirements-baseline', version: '0.1.0', start: 'draft-requirements',
+    description: 'Turn accepted intent into a pinned, traceable requirements baseline after a human product decision.',
+    nodes: [
+      task('draft-requirements', 'product-owner', 'cpo',
+        'Draft scope, non-goals, dependencies, outcome metric, stable requirement and criterion IDs, vertical user-value Stories, and proof expectations from the accepted intent.',
+        ['requirements_draft'], { requiredInputs: ['accepted_intent'] }),
+      task('challenge-requirements', 'product-manager', 'cpo',
+        'Check missing decisions, traceability and whether an engineer would invent behavior. Report PASS, CONCERNS or FAIL and exact gaps.',
+        ['readiness_report']),
+      decision('requirements-gate', 'cpo', 'requirements-acceptance', ['accept', 'rework', 'hold'], {
+        requiredInputs: ['requirements_draft', 'readiness_report'], candidateNodes: ['draft-requirements'], candidateKinds: ['requirements_draft'],
+        reworkTarget: 'draft-requirements', reworkOutcome: 'rework', maxReworks: 3
+      }),
+      task('publish-baseline', 'product-owner', 'cpo',
+        'Publish a validated accepted requirements handoff with the exact gate Decision ID, immutable version and full problem-to-outcome trace. A revision needs a change request and impact analysis.',
+        ['requirements_handoff']),
+      end('requirements-accepted', 'accepted_requirements_baseline'), end('requirements-held', 'requirements_held')
+    ],
+    edges: [edge('draft-requirements', 'challenge-requirements'), edge('challenge-requirements', 'requirements-gate'),
+      edge('requirements-gate', 'publish-baseline', 'accept'), edge('publish-baseline', 'requirements-accepted'),
+      edge('requirements-gate', 'requirements-held', 'hold')]
+  },
+  {
+    id: 'product-experiment', version: '0.1.0', start: 'plan-probe',
+    description: 'Test one risky product hypothesis with a predeclared, bounded probe before a build commitment.',
+    nodes: [
+      task('plan-probe', 'product-manager', 'cpo',
+        'State the target user, falsifiable hypothesis, risky assumption, cheapest relevant probe and predeclared support/refute criteria. Publish a validated planned experiment record.',
+        ['experiment_plan'], { requiredInputs: ['accepted_intent'] }),
+      task('execute-probe', 'external-product-analyst', 'product-manager',
+        'Attempt the probe only with available access and consent. Record actual execution time, sample, observation source and evidence type. If access is unavailable, record the gap without claiming execution. A plan or technical PoC does not prove demand.',
+        ['experiment_observation']),
+      task('assess-probe', 'product-manager', 'cpo',
+        'Validate the experiment record. Separate planned, executed, evidence-collected, support, refutation and inconclusive states; recommend build, continue validation, pivot or stop without changing scope. Validate the gate route against this record.',
+        ['experiment_record', 'evidence_ledger']),
+      decision('experiment-gate', 'cpo', 'experiment-disposition', ['build', 'continue-validate', 'pivot', 'stop'], {
+        requiredInputs: ['experiment_record', 'evidence_ledger'], candidateNodes: ['assess-probe'], candidateKinds: ['experiment_record']
+      }),
+      end('experiment-build', 'build_recommended'), end('experiment-validate', 'validation_required'),
+      end('experiment-pivot', 'pivot_required'), end('experiment-stop', 'no_build_decision')
+    ],
+    edges: [
+      edge('plan-probe', 'execute-probe'), edge('execute-probe', 'assess-probe'), edge('assess-probe', 'experiment-gate'),
+      edge('experiment-gate', 'experiment-build', 'build'), edge('experiment-gate', 'experiment-validate', 'continue-validate'),
+      edge('experiment-gate', 'experiment-pivot', 'pivot'), edge('experiment-gate', 'experiment-stop', 'stop')
+    ]
+  },
+  {
+    id: 'competitive-watch', version: '0.1.0', start: 'collect-snapshot',
+    description: 'Compare sourced competitor snapshots and route only material changes for product decision review.',
+    nodes: [
+      task('collect-snapshot', 'external-product-analyst', 'product-manager',
+        'Collect a dated current snapshot with primary sources, coverage limits and contrary evidence; retain previous snapshot identity.',
+        ['competitive_snapshot'], { requiredInputs: ['previous_snapshot', 'watch_question'] }),
+      task('compare-snapshots', 'external-product-analyst', 'product-manager',
+        'Validate a sourced diff against the prior snapshot. Name changed claims and affected hypotheses, decisions or requirements, or explicitly report no material change.',
+        ['competitive_diff']),
+      decision('watch-route', 'product-manager', 'competitive-watch-routing', ['no-material-change', 'review-required'], {
+        requiredInputs: ['competitive_diff'], candidateNodes: ['compare-snapshots'], candidateKinds: ['competitive_diff']
+      }),
+      end('watch-unchanged', 'no_material_change'), end('watch-review', 'decision_review_required')
+    ],
+    edges: [edge('collect-snapshot', 'compare-snapshots'), edge('compare-snapshots', 'watch-route'),
+      edge('watch-route', 'watch-unchanged', 'no-material-change'), edge('watch-route', 'watch-review', 'review-required')]
   }
 ];

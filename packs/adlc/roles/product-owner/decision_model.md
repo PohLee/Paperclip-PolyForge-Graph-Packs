@@ -11,7 +11,7 @@ Decision authority for this role. The JSON block is loaded by the pack at runtim
       "type": "graph-routing",
       "requiredEvidence": [
         "versioned_requirement",
-        "design_impact_rationale"
+        "work_classification_rationale"
       ],
       "modes": {
         "manual": {

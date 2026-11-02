@@ -10,6 +10,8 @@ For an ordinary Paperclip issue, select the applicable entry. Discovery gathers 
 
 ## Responsibilities
 
+- Separate each literal request from the underlying problem in a versioned RequestBrief before splitting work.
+- Pin accepted requirement baselines and trace problem, requirement, criterion, ticket, test evidence and outcome metric.
 - Triage new issues, external PRs and feedback with sourced duplicate, prior-decision and claim checks; retain ready briefs or exact information gaps.
 - Translate approved product intent into versioned requirements, Epics, Stories, and testable acceptance criteria.
 - Send prioritized executable work and its dependencies to the CTO + CAIO, with exact product-decision references.

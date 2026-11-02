@@ -5,6 +5,12 @@ const entry = (description, triggers, nonTriggers, inputs, outputs) => ({
 });
 
 export const skillCatalog = {
+  'incoming-request-advisor': entry('Separate a literal ask from the underlying problem and issue a versioned RequestBrief.', ['new request before work breakdown'], ['already accepted fixed scope'], ['source request and history'], ['validated RequestBrief']),
+  'autonomous-investigation': entry('Investigate a bounded product question with classified, sourced claims and contrary evidence.', ['uncertain product claim'], ['unsourced opinion only'], ['question, source access, decision context'], ['validated evidence ledger']),
+  'epic-hypothesis-probe': entry('Test a risky Epic assumption with a predeclared, narrow probe.', ['uncertain value or feasibility before build'], ['already validated low-risk change'], ['intent and hypothesis'], ['experiment record and recommendation']),
+  'requirements-handoff': entry('Pin an accepted requirement baseline and trace user value through acceptance and verification.', ['accepted intent moving to implementation'], ['exploratory unapproved idea'], ['accepted intent and decision'], ['validated handoff baseline']),
+  'competitive-intel-watch': entry('Compare two sourced market snapshots and route material changes for review.', ['explicit competitive watch'], ['unscheduled general browsing'], ['previous snapshot and watch question'], ['validated diff and review route']),
+  'feature-investment-advisor': entry('Compare feature investment choices with uncertainty and full life-cycle cost.', ['priority or build/defer choice'], ['implementation-only task'], ['opportunity and cost evidence'], ['investment recommendation']),
   'request-triage': entry('Check and route a new issue, external PR or feedback item with a durable disposition.', ['new request or reporter follow-up'], ['production signal already in monitoring'], ['source request', 'history'], ['triage report and disposition']),
   'ticket-planning': entry('Split accepted implementation work into a dependency graph of verifiable tickets.', ['implementation planning across slices'], ['single already bounded coding task'], ['accepted requirement', 'readiness'], ['work plan and completion evidence']),
   'application-verification': entry('Create and use a project-local recipe to prove user behavior on the real application.', ['application QA or regression proof'], ['static-only review'], ['candidate', 'application environment'], ['feature map and observed proof']),

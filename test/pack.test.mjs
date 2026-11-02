@@ -16,11 +16,11 @@ test('published pack registers with the core validator and has the lifecycle inv
   await engine.registerPack(pack);
   assert.deepEqual(pack.graphs.map(graph => graph.id), [
     'request-triage', 'product-discovery', 'implementation', 'verification',
-    'release-process', 'release-observation', 'production-monitoring', 'system-architecture', 'code-delivery',
-    'technical-design', 'design-drift'
+    'release-process', 'release-observation', 'production-monitoring', 'requirements-baseline', 'product-experiment', 'competitive-watch',
+    'system-architecture', 'code-delivery', 'technical-design', 'design-drift'
   ]);
   assert.equal(Object.keys(pack.roles).length, 10);
-  assert.equal(new Set(pack.graphs.map(graph => `${graph.id}@${graph.version}`)).size, 11);
+  assert.equal(new Set(pack.graphs.map(graph => `${graph.id}@${graph.version}`)).size, 14);
 });
 
 test('every task role and supervisor maps to a documented blueprint', () => {
@@ -64,7 +64,7 @@ test('ADLC department heads report to the company CEO without changing review es
     'principal-engineer': 'cto-caio', 'lead-engineer': 'principal-engineer',
     'qa-engineer': 'cto-caio', 'security-engineer': 'cto-caio'
   };
-  assert.equal(pack.version, '0.2.5');
+  assert.equal(pack.version, '0.3.0');
   assert.deepEqual(Object.fromEntries(Object.values(pack.roles).map(role => [role.id, role.reportsToRole])), reportsTo);
   assert.deepEqual(Object.fromEntries(Object.values(pack.roles).map(role => [role.id, role.supervisorRole])), reviewEscalation);
   assert.equal(Object.values(pack.roles).filter(role => role.reportsToRole === 'ceo').length, 2);
@@ -74,7 +74,7 @@ test('ADLC department heads report to the company CEO without changing review es
     assert.match(role.documents.role, /## Artifact review\n\nDefault review escalation role:/);
     assert.match(role.documents.instruction, /organizational reporting line.*Graph node/s);
   }
-  assert.deepEqual(pack.graphs.map(graph => graph.version), ['0.1.0', '0.1.1', '0.1.5', '0.1.5', '0.1.0', '0.1.0', '0.1.0', '0.1.0', '0.1.0', '0.1.0', '0.1.0']);
+  assert.deepEqual(pack.graphs.map(graph => graph.version), ['0.2.0', '0.2.0', '0.1.5', '0.1.5', '0.1.0', '0.1.0', '0.1.0', '0.1.0', '0.1.0', '0.1.0', '0.1.0', '0.1.0', '0.1.0', '0.1.0']);
   assert.equal(pack.policies.cpoCtoConflict.protocolVersion, 2);
 });
 
@@ -130,6 +130,9 @@ async function playGraph(graphId, routes, expectedStatus, options = {}) {
     ...(graphId === 'code-delivery' ? { implementation_candidate: { id: 'CODE-1', version: 'v1' }, delivery_target: { repository: 'owner/repo', prUrl: 'https://github.com/owner/repo/pull/1', headSha: 'a'.repeat(40) }, required_checks: ['test'], required_approvals: 1 } : {}),
     ...(graphId === 'design-drift' ? options.input : {}),
     ...(['product-discovery', 'request-triage'].includes(graphId) ? { source_request: { id: 'IDEA-1', version: 'v1' } } : {}),
+    ...(graphId === 'product-experiment' ? { accepted_intent: { id: 'INTENT-1', version: 'v1' } } : {}),
+    ...(graphId === 'requirements-baseline' ? { accepted_intent: { id: 'INTENT-1', version: 'v1' } } : {}),
+    ...(graphId === 'competitive-watch' ? { previous_snapshot: { id: 'COMP-1', version: 'v1' }, watch_question: 'What changed?' } : {}),
     ...(graphId === 'release-process' ? { implementation_candidate: { id: 'CODE-1', version: 'v1' }, verification_decision: { id: 'ACCEPT-1', version: 'v1' } } : {}),
     ...(graphId === 'release-observation' ? { implementation_candidate: { id: 'CODE-1', version: 'v1' }, release_execution_event: { id: 'EXEC-1', version: 'v1' }, release_plan_identity: { id: 'PLAN-1', version: 'v1' }, release_authorization_decision: { id: 'START-1', version: 'v1' } } : {}),
     ...(graphId === 'production-monitoring' ? { service_identity: { id: 'SERVICE-1', version: 'v1' }, monitoring_plan_identity: { id: 'MON-PLAN-1', version: 'v1' }, observation_window: { start: '2026-10-28T00:00:00Z', end: '2026-10-28T01:00:00Z' }, signal_snapshot: { id: 'SIGNAL-1', version: 'v1' } } : {}), ...options.input };
@@ -282,14 +285,14 @@ test('readiness rework reruns classification before any implementation plan is a
 });
 
 test('method skills and provenance are included in the runtime pack', () => {
-  for (const id of ['requirements-discovery', 'systematic-debugging', 'development-loop', 'lifecycle-orchestration', 'product-discovery', 'release-process', 'production-monitoring']) {
+  for (const id of ['requirements-discovery', 'systematic-debugging', 'development-loop', 'lifecycle-orchestration', 'product-discovery', 'release-process', 'production-monitoring', 'incoming-request-advisor', 'autonomous-investigation', 'epic-hypothesis-probe', 'requirements-handoff', 'competitive-intel-watch', 'feature-investment-advisor']) {
     assert.match(pack.skills[id].digest, /^[a-f0-9]{64}$/);
   }
   assert.ok(pack.roles['product-manager'].skills.includes('requirements-discovery'));
   assert.ok(pack.roles['lead-engineer'].skills.includes('systematic-debugging'));
   assert.ok(pack.roles['lead-engineer'].skills.includes('development-loop'));
   assert.ok(pack.roles['product-owner'].skills.includes('lifecycle-orchestration'));
-  assert.deepEqual(Object.keys(pack.methodReferences).sort(), ['adaptivePlanning', 'blueprint', 'debugging', 'designAssurance', 'development', 'discovery', 'factory', 'lifecycle', 'monitoring', 'release', 'requirements']);
+  assert.deepEqual(Object.keys(pack.methodReferences).sort(), ['adaptivePlanning', 'blueprint', 'debugging', 'designAssurance', 'development', 'discovery', 'factory', 'lifecycle', 'monitoring', 'productManagerSkills', 'release', 'requirements']);
   assert.equal(pack.policies.lifecycle.readiness, 'pass-concerns-fail-with-explicit-gaps');
 });
 
@@ -335,6 +338,31 @@ test('discovery can advance, stop, or request more evidence before any build pat
   assert.equal(repeated.nodeStates['frame-discovery'].attempts.length, 2);
   assert.equal(repeated.nodeStates['discovery-gate'].attempts.length, 2);
   assert.equal(pack.decisionRules.find(rule => rule.type === 'discovery-disposition' && rule.mode === 'autonomous').requiresHuman, true);
+});
+
+test('product experiment records a human disposition after planned and observed steps', async () => {
+  for (const [outcome, end] of [['build', 'experiment-build'], ['continue-validate', 'experiment-validate'], ['pivot', 'experiment-pivot'], ['stop', 'experiment-stop']]) {
+    const run = await playGraph('product-experiment', { 'experiment-gate': outcome }, 'completed');
+    assert.equal(run.nodeStates[end].status, 'completed');
+    assert.ok(run.nodeStates['plan-probe'].attempts[0].at <= run.nodeStates['execute-probe'].attempts[0].at);
+  }
+  assert.equal(pack.decisionRules.find(rule => rule.type === 'experiment-disposition' && rule.mode === 'autonomous').requiresHuman, true);
+});
+
+test('requirements baseline needs an authorized acceptance before publication', async () => {
+  const accepted = await playGraph('requirements-baseline', { 'requirements-gate': 'accept' }, 'completed');
+  const held = await playGraph('requirements-baseline', { 'requirements-gate': 'hold' }, 'completed');
+  assert.equal(accepted.nodeStates['publish-baseline'].status, 'completed');
+  assert.equal(held.nodeStates['publish-baseline'].status, 'pending');
+  assert.equal(pack.decisionRules.find(rule => rule.type === 'requirements-acceptance' && rule.mode === 'autonomous').requiresHuman, true);
+});
+
+test('competitive watch routes a sourced no-change result or decision review', async () => {
+  const unchanged = await playGraph('competitive-watch', { 'watch-route': 'no-material-change' }, 'completed');
+  const material = await playGraph('competitive-watch', { 'watch-route': 'review-required' }, 'completed');
+  assert.equal(unchanged.nodeStates['watch-unchanged'].status, 'completed');
+  assert.equal(material.nodeStates['watch-review'].status, 'completed');
+  assert.ok(!pack.roles['external-product-analyst'].decisionModel.rules.some(rule => rule.type === 'product-scope-change'));
 });
 
 test('request triage preserves ready, needs-info and closed outcomes', async () => {

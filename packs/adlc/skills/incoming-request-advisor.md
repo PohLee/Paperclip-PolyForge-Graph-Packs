@@ -1,0 +1,5 @@
+# Incoming request advisor
+
+Use before decomposing a new request into work. The Product Owner owns triage; the Product Manager may help frame the problem. Read the exact source and its history, then create a versioned RequestBrief with `sourceRef`, `literalAsk`, `underlyingProblem`, `problemStatus` (`reported`, `inferred`, or `confirmed`), `affectedUser`, `desiredOutcome`, `mustHaves`, `hardConstraints`, `exclusions`, `unknowns`, `acceptanceBoundary`, and `owner`. Preserve the user's own words separately from your interpretation.
+
+Check duplicates, active product decisions, actual behavior and feasibility at a depth proportionate to impact. Ask precise questions only for decisions that cannot safely be inferred. An inferred status or urgent tone does not grant approval. Complete when `validateRequestBrief` passes and the triage disposition cites the brief; `needs-info` retains known facts and the exact unanswered question. The host verifies source authenticity and the Core triage contract still controls routing.

@@ -31,13 +31,17 @@ In protocol v2, the CPO and CTO + CAIO each record their position from their own
 
 ## Product memory and versioned evidence
 
+For new requests, create a RequestBrief separating the literal ask, underlying problem, affected user, desired outcome, hard constraints, explicit exclusions and unknowns before splitting implementation work. Classify investigation claims as fact, inference or assumption; keep source dates, contrary evidence and evidence state separate from decision state. A source's product claim is not verified behavior. Where a material Epic hypothesis remains untested, run a narrow probe before the CPO commits to build. A planned probe never counts as executed or validated evidence.
+
+An accepted requirements handoff pins intent, decision, scope, non-goals, dependencies, stable IDs, criterion proof and outcome metric. A later change request and impact analysis create a new baseline version without changing a running attempt. Competitive watch compares two dated snapshots; a sourced no-material-change result is valid. A material difference requests CPO review rather than changing the roadmap or accepted scope. Investment advice includes operation, maintenance, support and opportunity costs with data-quality limits. The host calls pack-owned product-method validators before artifact submission and checks underlying sources and approvals; Core does not invoke those validators.
+
 Before a fix or feature edit, read relevant active product decisions, change history and known constraints. A missing retrieval result is an unknown, not proof that no constraint exists. If the intended edit changes approved behavior, create a proposed product decision replacement and obtain its required authority before implementation. Link replacement to the old decision; preserve both and their reasons.
 
 Each handoff names the exact requirement, design and candidate versions. QA, security and regression reports name the candidate they checked. When that candidate changes, mark affected reports stale and reverify; keep historical reports for traceability. Every human and agent decision is an append-only record of actor, role, mode, rule, evidence, outcome, reason, risks and affected artifacts. A failed decision write leaves the gate waiting.
 
 ## Scope of this version
 
-The pack publishes twelve graphs: discovery, design, implementation, verification, release preparation, release observation, one-window production monitoring, optional system architecture, and optional code delivery. Pipeline selection, full release certification, deployment execution, monitoring ingestion and scheduling require host integrations and separately approved operating rules.
+The pack publishes fourteen graphs, including a requirements baseline and optional product experiment and competitive watch workflows alongside discovery, implementation, verification, release, monitoring, architecture and design assurance. Pipeline selection, full release certification, deployment execution, monitoring ingestion and scheduling require host integrations and separately approved operating rules.
 
 ## Structured evidence contracts
 

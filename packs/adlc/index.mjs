@@ -29,6 +29,10 @@ for (const role of ['cto-caio', 'principal-engineer', 'lead-engineer', 'qa-engin
 for (const role of ['cto-caio', 'principal-engineer', 'lead-engineer', 'qa-engineer']) roleSkills[role].push('technical-design-review');
 for (const role of ['cto-caio', 'principal-engineer', 'lead-engineer']) roleSkills[role].push('design-drift');
   roleSkills.cpo.push('verification-review');
+for (const role of ['product-owner', 'product-manager']) roleSkills[role].push('incoming-request-advisor', 'requirements-handoff');
+for (const role of ['cpo', 'internal-product-analyst', 'external-product-analyst', 'product-manager', 'product-owner']) roleSkills[role].push('autonomous-investigation');
+for (const role of ['cpo', 'external-product-analyst', 'product-manager']) roleSkills[role].push('epic-hypothesis-probe', 'competitive-intel-watch');
+for (const role of ['cpo', 'product-manager']) roleSkills[role].push('feature-investment-advisor');
 for (const skillsForRole of Object.values(roleSkills)) skillsForRole.push('temporary-agent-snapshot');
 const skillIds = [...new Set(Object.values(roleSkills).flat())];
 if (skillIds.length !== Object.keys(skillCatalog).length || skillIds.some(id => !skillCatalog[id])) {
@@ -69,7 +73,7 @@ const decisionRules = Object.values(roles).flatMap(role => role.decisionModel.ru
 ));
 
 export const pack = {
-  id: 'adlc', version: '0.2.5', schemaVersion: 1,
+  id: 'adlc', version: '0.3.0', schemaVersion: 1,
   compatibility: {
     coreRange: '>=0.8.5 <0.9.0',
     contracts: { graph: 1, decision: 1, evidence: 1 },
@@ -85,12 +89,22 @@ export const pack = {
       { id: 'unresolved-reviews', label: 'Unresolved severe reviews', source: 'reviews.severeOpen' }
     ],
     views: [
-      { id: 'delivery', label: 'Delivery work', kind: 'run-list', graphIds: ['product-discovery', 'implementation', 'verification'] },
+      { id: 'delivery', label: 'Delivery work', kind: 'run-list', graphIds: ['product-discovery', 'product-experiment', 'requirements-baseline', 'implementation', 'verification'] },
+      { id: 'product-learning', label: 'Product learning', kind: 'run-list', graphIds: ['product-experiment', 'competitive-watch'] },
       { id: 'release', label: 'Release and observation', kind: 'run-list', graphIds: ['release-process', 'release-observation', 'production-monitoring'] },
       { id: 'decisions', label: 'Product decisions and history', kind: 'decision-history' }
     ]
   },
   handoffContracts: [{ contract: 'adlc.release-to-marketing', version: 1, sourceGraphId: 'release-observation', requiredStatus: 'release_recorded', targetPackId: 'marketing', targetGraphId: 'acquisition-plan', eventArtifactKind: 'release_execution_record', evidenceReceiptKind: 'release', requiredCapability: 'verified-release-event' }],
+  productMethodContracts: [
+    ['request_brief', 'validateRequestBrief'], ['evidence_ledger', 'validateEvidenceLedger'],
+    ['experiment_record', 'validateExperimentRecord'], ['requirements_handoff', 'validateRequirementsHandoff'],
+    ['competitive_diff', 'validateCompetitiveDiff'], ['investment_case', 'validateInvestmentCase']
+  ].map(([artifactKind, validator]) => ({ artifactKind, validator, module: '@paperclip-polyforge/packs/adlc' })),
+  productMethodDecisionContracts: [
+    { graphId: 'product-experiment', nodeId: 'experiment-gate', validator: 'validateExperimentRoute' },
+    { graphId: 'competitive-watch', nodeId: 'watch-route', validator: 'validateCompetitiveRoute' }
+  ],
   graphs, roles, skills, decisionRules,
   graphStartRoles: {
     'request-triage': ['product-owner', 'cpo', 'human-owner'],
@@ -99,6 +113,9 @@ export const pack = {
     'technical-design': ['principal-engineer', 'cto-caio', 'human-owner'],
     'design-drift': ['principal-engineer', 'cto-caio', 'human-owner'],
     'product-discovery': ['product-owner', 'cpo', 'human-owner'],
+    'product-experiment': ['product-manager', 'cpo', 'human-owner'],
+    'requirements-baseline': ['product-owner', 'cpo', 'human-owner'],
+    'competitive-watch': ['external-product-analyst', 'product-manager', 'cpo', 'human-owner'],
     implementation: ['product-owner', 'principal-engineer', 'cto-caio', 'human-owner'],
     verification: ['product-owner', 'cpo', 'cto-caio', 'human-owner'],
     'release-process': ['product-owner', 'cto-caio', 'human-owner'],
@@ -121,7 +138,8 @@ export const pack = {
     applicationVerification: 'The host supplies an isolated application harness and validates that the declared profile proof ran on the real surface; schema checks cannot authenticate observations.',
     shadowVerification: 'Before verification/qa dispatch, the host must review the frozen candidate with the same bound Agent in a separate, fresh Sub-Agent task session. The Sub-Agent may only review one task, with one concurrent session and a deadline within 15 minutes. Only an accepted, closed Sub-Agent result for the exact candidate permits normal QA dispatch; a non-accept result pauses the parent run for recovery. The subsequent QA artifact still receives its distinct supervisor review. This mechanism makes no paid-model quality claim.',
     temporaryAgents: 'For research or analysis, an enabled parent Agent may open a Shadow-Agent in snapshot mode. The host starts a separate session for the same Agent and freezes the parent advisory summary with Core-selected Decision Records and product history at launch. Snapshot provenance and digest identify that boundary; the summary grants no authority. Independent review uses a fresh Sub-Agent. The bundled temporary-agent-snapshot skill supplies the request and evidence rules.',
-    improvementGuardrails: 'The host verifies that a graduated improvement blocks a real past error and passes on the corrected path.'
+    improvementGuardrails: 'The host verifies that a graduated improvement blocks a real past error and passes on the corrected path.',
+    productMethods: 'Before submitting RequestBrief, evidence ledger, experiment record, requirements handoff, competitive diff or investment case, call the matching pack-owned validator exported by the ADLC module. Before experiment-gate or watch-route, call the named route validator. Core does not invoke these validators. The host authenticates source observations, execution, acceptance Decision IDs and frozen requirement baselines; validator success alone grants no authority.'
   },
   optionalExternalMethods: {
     'lead-engineer': ['Prime Agent, OpenCode, or Codex subagent runtimes only when installed and authorized by the host'],
@@ -138,7 +156,8 @@ export const pack = {
     discovery: 'https://www.gov.uk/service-manual/agile-delivery/how-the-discovery-phase-works',
     release: 'https://sre.google/sre-book/release-engineering/',
     monitoring: 'https://sre.google/sre-book/monitoring-distributed-systems/',
-    designAssurance: 'https://github.com/google/elephant-goldfish-model/tree/f0ba151b252c9abf1318d9fe857a43265d06de89'
+    designAssurance: 'https://github.com/google/elephant-goldfish-model/tree/f0ba151b252c9abf1318d9fe857a43265d06de89',
+    productManagerSkills: 'https://github.com/deanpeters/Product-Manager-Skills/tree/cfcb697'
   },
   policies: {
     acceptanceProof: { coverage: 'every-criterion-once', fail: 'blocks-accept', unverified: 'human-owner-exception-with-reason-risk-and-matrix-version' },
@@ -159,6 +178,7 @@ export const pack = {
       releaseAndMonitor: 'pack-graphs-require-host-supplied-execution-and-observation'
     },
     discovery: { decision: ['advance', 'more-research', 'stop'], requiredRecord: 'sourced-intent-and-evidence-ledger', buildCommitment: false },
+    productMethods: { request: 'literal-ask-versus-problem', claims: ['fact', 'inference', 'assumption'], experiment: ['planned', 'executed', 'evidence-collected', 'supported', 'unsupported', 'inconclusive'], requirements: 'accepted-pinned-baseline', competitiveWatch: 'sourced-diff-or-no-material-change', decisionAuthority: 'CPO-for-build-or-scope' },
     releaseProcess: { pipeline: 'unselected', scope: 'operational-flow-only', certification: false, execution: 'host-supplied-event', startAuthority: 'authenticated-human', outcomeAuthority: 'authenticated-human' },
     productionMonitoring: { unit: 'one-observation-window', symptoms: ['latency', 'traffic', 'errors', 'saturation'], missingTelemetry: 'unknown', ingestionAndScheduling: 'host-responsibility' },
     selfReview: { maxRoundsPerSubmission: 5, exitWhen: 'No P0/P1 remains or round 5 completes', supervisorRequired: true, limitIsApproval: false, preserveAttempts: true },
@@ -178,6 +198,10 @@ export const pack = {
 };
 
 // The release digest identifies the deterministic pack payload, excluding its own digest.
-pack.release = { digest: `sha256:${digest(JSON.stringify(pack))}`, builtAt: '2026-10-30T00:00:00.000Z', status: 'candidate' };
+pack.release = { digest: `sha256:${digest(JSON.stringify(pack))}`, builtAt: '2026-11-02T00:00:00.000Z', status: 'candidate' };
 
 export default pack;
+export {
+  validateRequestBrief, validateEvidenceLedger, validateExperimentRecord, validateExperimentRoute,
+  validateRequirementsHandoff, validateCompetitiveDiff, validateCompetitiveRoute, validateInvestmentCase
+} from './product-method-contracts.mjs';

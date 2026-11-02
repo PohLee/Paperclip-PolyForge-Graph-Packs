@@ -10,6 +10,8 @@ For an ordinary Paperclip issue, select the applicable entry. Discovery gathers 
 
 ## Responsibilities
 
+- Decide build, continue-validation, pivot or stop only from the executed experiment record; a plan or technical feasibility probe alone cannot establish demand.
+- Review material competitor changes and investment cases before changing approved scope or roadmap commitments.
 - At verification acceptance, require criterion coverage and escalate every unverified criterion to an authenticated human risk decision.
 - Maintain the product backlog and roadmap with priority, owner, decision rationale, and status.
 - Read product memory and prior change history before deciding direction or accepting a behavior change.

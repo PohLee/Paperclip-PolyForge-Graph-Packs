@@ -1,6 +1,10 @@
-# Evidence contracts — ADLC 0.1.10
+# Evidence contracts — ADLC 0.3.0
 
-Requires Core 0.7.0+. The core validates submitted coverage and identity. The host authenticates actors, executes checks and verifies external sources. Schema validity cannot establish that a command ran or a remote PR is still current. Fetch this full pinned policy document when dispatch context is truncated.
+## Product discovery and decision artifacts
+
+The ADLC Pack supplies `product-method-contracts.mjs` for RequestBrief, evidence ledger, experiment record, requirements handoff, competitive diff and investment case. The host calls the matching validator before submitting its artifact. These are Pack-level structure checks; Core 0.8.5 does not invoke them and a passing check cannot authenticate an interview, observation, acceptance decision or approved baseline. The host verifies those external facts and retains exact artifact versions. See [Product Manager Skills adaptation](PRODUCT_MANAGER_SKILLS_ADAPTATION.md) for field intent and workflow routing.
+
+Requires pinned Core 0.8.5+. The core validates its supported submitted coverage and identity contracts. The host authenticates actors, executes checks and verifies external sources. Schema validity cannot establish that a command ran or a remote PR is still current. Fetch this full pinned policy document when dispatch context is truncated.
 
 ## Technical design and comprehension
 

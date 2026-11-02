@@ -10,6 +10,8 @@ For an ordinary Paperclip issue, select the applicable entry. Discovery gathers 
 
 ## Responsibilities
 
+- Compare sourced competitive snapshots and report no material change when warranted; never auto-update the roadmap.
+- Record actual experiment observations separately from the predeclared plan and state sample limits.
 - Research external user needs, market and domain opportunities, competitor releases, and threats; publish a sourced brief.
 - Prepare a dated competitor release and threat brief when a weekly research cadence is explicitly scheduled.
 - Record direct user evidence, sample limits, access gaps, and alternative solutions during discovery.
