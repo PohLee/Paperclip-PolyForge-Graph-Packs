@@ -16,7 +16,7 @@ for (const pack of packs) await engine.registerPack(pack);
 
 For deployments that retain installed releases, opt into `@paperclip-polyforge/packs/catalog` (or `./catalog.mjs`). Its explicit allowlist includes available immutable ADLC `0.2.0`, `0.2.1`, `0.2.3`, `0.2.4`, `0.2.5`; Marketing `0.0.1`, `0.0.3`; and Creative Team `0.1.0`, `0.2.0` payloads alongside the latest source Packs. Missing complete `dist` releases are skipped; incomplete or digest-mismatched release files fail loading. The regular `index.mjs` exports remain latest-source only. Register all catalog entries to keep enabled and running pinned versions available after an upgrade.
 
-Each Pack has its own version, `compatibility` contract, content digest, release artifact, and `packId/vVersion` tag. `node scripts/build-pack.mjs <id>` writes a deterministic payload to `dist/<id>/<version>/pack.json` and verifies `release.digest`. After reviewing and committing a package, `node scripts/tag-pack.mjs <id>` creates its annotated tag; it never pushes. `npm run build:roles` refreshes source role documents. `npm test` runs collection conformance tests.
+Each Pack has its own version, `compatibility` contract, content digest, release artifact, and `packId/vVersion` tag. `node scripts/build-pack.mjs <id>` writes a deterministic payload to `dist/<id>/<version>/pack.json` and verifies `release.digest`. After reviewing and committing a package, `node scripts/tag-pack.mjs <id>` creates its annotated tag; it never pushes. `npm run build:roles` refreshes source role documents. `npm test` runs the combined root and Creative Team suites.
 
 ## Company and project boundaries
 

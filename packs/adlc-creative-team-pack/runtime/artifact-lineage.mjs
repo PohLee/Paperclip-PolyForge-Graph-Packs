@@ -55,14 +55,24 @@ export function createArtifactLineage(run) {
     if(nodeId==='research-user-needs'&&!same(payloads.product_design_research.briefRef,run.input.creative_brief)) throw new Error('Product research must pin the current creative brief');
     if(nodeId==='wireframe-a'||nodeId==='wireframe-b') current(payloads[nodeId==='wireframe-a'?'wireframe_a':'wireframe_b'].researchRef,'research-user-needs','product_design_research','Wireframe direction must cite the current product research');
     if(['design-norms-review','requirement-fit-review','blind-direction-evaluation'].includes(nodeId)) {
-      const review=payloads[nodeId.replaceAll('-','_')];
+      const kind={
+        'design-norms-review':'direction_norms_review',
+        'requirement-fit-review':'direction_fit_review',
+        'blind-direction-evaluation':'blind_direction_evaluation'
+      }[nodeId];
+      const review=payloads[kind];
       const expected=[latest('wireframe-a','wireframe_a'),latest('wireframe-b','wireframe_b')];
       if(!equalArtifactRefs(review.directionRefs,expected)) throw new Error('Product-direction review must cite both exact current wireframe versions');
     }
     if(nodeId==='freeze-product-direction') {
       const direction=payloads.product_design_direction;
       current(direction.researchRef,'research-user-needs','product_design_research','Product direction must cite current research');
-      for(const ref of direction.reviewRefs) if(!exactRecord(ref)) throw new Error('Product direction must retain exact review references');
+      const currentReviews=[
+        latest('design-norms-review','direction_norms_review'),
+        latest('requirement-fit-review','direction_fit_review'),
+        latest('blind-direction-evaluation','blind_direction_evaluation')
+      ];
+      if(!equalArtifactRefs(direction.reviewRefs,currentReviews)) throw new Error('Product direction must retain all three exact current direction review versions');
       const outcome=run.nodeStates['promote-directions']?.outcome;
       const expected=outcome==='a'?['wireframe-a']:outcome==='b'?['wireframe-b']:['wireframe-a','wireframe-b'];
       if(direction.selectedDirectionRefs.length!==expected.length||expected.some((id,index)=>!same(direction.selectedDirectionRefs[index],latest(id,id==='wireframe-a'?'wireframe_a':'wireframe_b')))) throw new Error('Product direction must match the promoted wireframe decision');
@@ -72,7 +82,11 @@ export function createArtifactLineage(run) {
       if(!same(payloads.pinned_ui_design_context.briefRef,run.input.creative_brief)) throw new Error('UI candidate context must pin the current creative brief');
     }
     if(/^design-[ab]\d$/.test(nodeId)) current(payloads[`ui_candidate_${nodeId.slice(7)}`].directionRef,'pin-product-direction','pinned_ui_design_context','UI candidate must cite the current pinned design context');
-    if(/^freeze-[ab]\d$/.test(nodeId)) current(payloads[`frozen_ui_candidate_${nodeId.slice(7)}`].directionRef,'pin-product-direction','pinned_ui_design_context','Frozen UI candidate must preserve the pinned design context');
+    if(/^freeze-[ab]\d$/.test(nodeId)) {
+      const suffix=nodeId.slice(7),frozen=payloads[`frozen_ui_candidate_${suffix}`];
+      current(frozen.candidateRef,`design-${suffix}`,`ui_candidate_${suffix}`,'Frozen UI candidate must pin its exact current design candidate');
+      if(!/^[a-f0-9]{64}$/.test(frozen.digest??'')) throw new Error('Frozen UI candidate needs an immutable SHA-256 digest');
+    }
     if(/^qc-[ab]\d$/.test(nodeId)) {
       const suffix=nodeId.slice(3),review=payloads[`ui_candidate_review_${suffix}`];
       current(review.directionRef,'pin-product-direction','pinned_ui_design_context','UI candidate review must cite the pinned design context');
@@ -105,7 +119,7 @@ export function createArtifactLineage(run) {
       if(!equalArtifactRefs(record.candidateRefs,finalists?.candidateRefs)||JSON.stringify(record.criteria)!==JSON.stringify(finalists?.criteria)) throw new Error('Direct selection rationale must cite the exact pinned finalists and criteria');
     }
     if(nodeId==='prototype-a'||nodeId==='prototype-b') {
-      const prototype=payloads[nodeId.replaceAll('-','_')],finalists=latest('pin-ui-shortlist','pinned_ui_finalists');
+      const prototype=payloads[`ui_${nodeId.replaceAll('-','_')}`],finalists=latest('pin-ui-shortlist','pinned_ui_finalists');
       const expected=finalists?.candidateRefs[nodeId==='prototype-a'?0:1];
       if(!same(prototype.candidateRef,expected)) throw new Error('Each prototype must target its distinct pinned finalist');
     }

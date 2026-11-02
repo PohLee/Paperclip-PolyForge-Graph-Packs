@@ -9,7 +9,7 @@ const required = {
   context_inventory:['summary','sources'], clarification_record:['questions','knownAnswers'], creative_brief:['objective','audience'],
   product_design_research:['id','version','briefRef','sources','needs','constraints','unknowns'],
   wireframe_direction:['id','version','researchRef','thesis','artifactRef'],
-  direction_review:['id','version','directionRefs','criteria','findings','reviewerExecutionId','subjectAuthorExecutionIds'],
+  direction_review:['id','version','directionRefs','criteria','disposition','findings','reviewerExecutionId','subjectAuthorExecutionIds'],
   product_design_direction:['id','version','researchRef','selectedDirectionRefs','reviewRefs','decisionRef'],
   ui_change_context:['id','version','briefRef','designBaselineRef','requirementsRef'],
   minor_ui_candidate:['id','version','contextRef','states','source'],
@@ -17,6 +17,7 @@ const required = {
   minor_ui_design_package:['id','version','candidateRef','evaluationRef','decisionRef','changes'],
   pinned_ui_design_context:['id','version','briefRef','productDirectionRef'],
   ui_candidate:['id','version','directionRef','thesis','surface','states','source'],
+  frozen_ui_candidate:['id','version','candidateRef','digest'],
   ui_candidate_review:['id','version','candidateRefs','directionRef','reviewerExecutionId','subjectAuthorExecutionIds','disposition','findings'],
   ui_candidate_shortlist:['id','version','candidateRefs','reviewRefs','criteria','rejectionReasons'],
   ui_candidate_set:['id','version','directionRef','candidateRefs','reviewRef','decisionRef'],
@@ -65,7 +66,8 @@ export function validateCreativeArtifact(kind, payload) {
   if (/^concept_image_\d\d$/.test(kind)) kind='concept_candidate';
   if (/^wireframe_[ab]$/.test(kind)) kind='wireframe_direction';
   if (['direction_norms_review','direction_fit_review','blind_direction_evaluation'].includes(kind)) kind='direction_review';
-  if (/^frozen_ui_candidate_[ab]\d$/.test(kind) || /^ui_candidate_[ab]\d$/.test(kind)) kind='ui_candidate';
+  if (/^frozen_ui_candidate_[ab]\d$/.test(kind)) kind='frozen_ui_candidate';
+  if (/^ui_candidate_[ab]\d$/.test(kind)) kind='ui_candidate';
   if (/^ui_candidate_review_[ab]\d$/.test(kind)) kind='ui_candidate_review';
   if (/^ui_prototype_[ab]$/.test(kind)) kind='ui_prototype';
   const keys = required[kind];

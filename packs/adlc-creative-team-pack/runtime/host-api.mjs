@@ -10,6 +10,7 @@ const digest=bytes=>createHash('sha256').update(bytes).digest('hex');
 const stableJson=value=>JSON.stringify(value,(key,item)=>item&&typeof item==='object'&&!Array.isArray(item)?Object.fromEntries(Object.keys(item).sort().map(name=>[name,item[name]])):item);
 const refId=ref=>ref?.id??ref?.artifactId;
 const isRef=value=>value&&typeof value==='object'&&refId(value)&&value.version;
+const sameRef=(left,right)=>isRef(left)&&isRef(right)&&refId(left)===refId(right)&&left.version===right.version;
 const successOutcomes=new Set(['ready','complete','verified','accepted']);
 
 const latestPayload=(run,nodeId,kind)=>createArtifactLineage(run).latest(nodeId,kind);
@@ -162,6 +163,37 @@ export function createCreativeHostApi({engine,artifactRootForRun,hasImageProvide
       const review=latestPayload(run,'review-set','concept_set_review');
       if(!review||review.disposition==='complete') throw new Error('Incomplete disposition needs a review documenting an actual gap');
     }
+    if(nodeId==='minor-disposition'&&outcome==='accepted') {
+      const evaluation=latestPayload(run,'independent-evaluation','minor_ui_evaluation');
+      if(!evaluation||evaluation.disposition!=='complete'||evaluation.findings?.some(item=>!['resolved','accepted-exception'].includes(item.status))) throw new Error('Minor UI acceptance requires a complete independent evaluation without unresolved findings');
+      createArtifactLineage(run).submission('independent-evaluation',{minor_ui_evaluation:evaluation});
+    }
+    if(nodeId==='promote-directions'&&['a','b','both'].includes(outcome)) {
+      const directions={a:latestPayload(run,'wireframe-a','wireframe_a'),b:latestPayload(run,'wireframe-b','wireframe_b')};
+      const reviewKinds={
+        'design-norms-review':'direction_norms_review',
+        'requirement-fit-review':'direction_fit_review',
+        'blind-direction-evaluation':'blind_direction_evaluation'
+      };
+      const reviews=Object.entries(reviewKinds).map(([id,kind])=>latestPayload(run,id,kind));
+      if(!directions.a||!directions.b||reviews.some(item=>!item||item.disposition!=='complete')) throw new Error('Product direction promotion requires both current wireframes and all three complete independent reviews');
+      for(const review of reviews) if(review.directionRefs?.length!==2||!review.directionRefs.every(ref=>[directions.a,directions.b].some(direction=>sameRef(ref,direction)))||!directions.a||!directions.b||!review.directionRefs.some(ref=>sameRef(ref,directions.a))||!review.directionRefs.some(ref=>sameRef(ref,directions.b))) throw new Error('Product direction review must retain both exact current wireframe references');
+    }
+    if(nodeId==='candidate-disposition'&&outcome==='ready') {
+      const shortlist=latestPayload(run,'shortlist-ui-candidates','ui_candidate_shortlist');
+      if(!shortlist||!shortlist.candidateRefs?.length||shortlist.candidateRefs.length>2) throw new Error('UI candidate acceptance requires a non-empty shortlist of at most two candidates');
+      createArtifactLineage(run).submission('shortlist-ui-candidates',{ui_candidate_shortlist:shortlist});
+    }
+    if(nodeId==='select-final-ui'&&outcome==='selected') {
+      const route=run.nodeStates['prototype-route']?.outcome;
+      const evidence=route==='direct'?latestPayload(run,'record-no-prototype','ui_no_prototype_record'):route==='prototype'?latestPayload(run,'compare-prototypes','ui_prototype_comparison'):null;
+      if(!evidence) throw new Error('Final UI selection requires the route-specific direct rationale or completed prototype comparison');
+      if(route==='prototype'&&evidence.findings?.some(item=>!['resolved','accepted-exception'].includes(item.status))) throw new Error('Final UI selection cannot rely on a prototype comparison with unresolved findings');
+    }
+    if(nodeId==='prototype-route'&&outcome==='prototype') {
+      const finalists=latestPayload(run,'pin-ui-shortlist','pinned_ui_finalists');
+      if(!finalists||finalists.candidateRefs?.length!==2||refId(finalists.candidateRefs[0])===refId(finalists.candidateRefs[1])&&finalists.candidateRefs[0]?.version===finalists.candidateRefs[1]?.version) throw new Error('Prototype route requires exactly two distinct pinned finalists');
+    }
     const gates={
       'brand-disposition':{ready:['brand_review','brand-review','accepted']},
       'web-design-disposition':{ready:['web_design_review','fidelity-review','complete']},
@@ -313,11 +345,23 @@ export function createCreativeHostApi({engine,artifactRootForRun,hasImageProvide
           design_baseline:{tokensRef:'design_system_inventory',componentsRef:'design_system_change_proposal',patternsRef:'design_system_validation',migrationRef:'design_system_review'},
           campaign_asset_package:{conceptRef:'campaign_concept'},
           campaign_final_package:{brandBaselineRef:'brand_baseline',conceptRef:'campaign_concept',assetPackageRef:'campaign_asset_package',reviewRef:'campaign_review'},
+          minor_ui_candidate:{contextRef:'ui_change_context'},
+          minor_ui_evaluation:{candidateRef:'minor_ui_candidate',contextRef:'ui_change_context'},
           minor_ui_design_package:{candidateRef:'minor_ui_candidate',evaluationRef:'minor_ui_evaluation'},
+          wireframe_a:{researchRef:'product_design_research'},
+          wireframe_b:{researchRef:'product_design_research'},
           product_design_direction:{researchRef:'product_design_research'},
+          pinned_ui_design_context:{productDirectionRef:'product_design_direction'},
           ui_candidate_set:{reviewRef:'ui_candidate_shortlist'},
           ui_design_selection:{candidateSetRef:'ui_candidate_set'},
         }[artifact.kind]??{};
+        if(/^ui_candidate_[ab]\d$/.test(artifact.kind)) linkKinds.directionRef='pinned_ui_design_context';
+        if(/^frozen_ui_candidate_[ab]\d$/.test(artifact.kind)) linkKinds.candidateRef=`ui_candidate_${artifact.kind.slice('frozen_ui_candidate_'.length)}`;
+        if(/^ui_candidate_review_[ab]\d$/.test(artifact.kind)) {
+          const suffix=artifact.kind.slice('ui_candidate_review_'.length);
+          linkKinds.candidateRefs=`frozen_ui_candidate_${suffix}`;
+          linkKinds.directionRef='pinned_ui_design_context';
+        }
         for(const [field,kind] of Object.entries(linkKinds)) {
           const value=payload[field];
           for(const ref of Array.isArray(value)?value:[value]) await verifyRef(run,ref,kind,{actor});
