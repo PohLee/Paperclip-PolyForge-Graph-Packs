@@ -95,11 +95,15 @@ export function createArtifactLineage(run) {
     if(nodeId==='shortlist-ui-candidates') {
       const shortlist=payloads.ui_candidate_shortlist;
       if(shortlist.candidateRefs.length>2) throw new Error('UI candidate shortlist may contain at most two candidates');
+      if(shortlist.reviewRefs.length!==shortlist.candidateRefs.length) throw new Error('UI candidate shortlist requires one current QC review for every frozen candidate');
       for(const ref of shortlist.candidateRefs) {
         const record=exactRecord(ref);
         if(!record||!/^frozen_ui_candidate_[ab]\d$/.test(record.item.kind)) throw new Error('UI shortlist must cite exact frozen candidates');
-        const suffix=record.item.kind.slice('frozen_ui_candidate_'.length),review=latest(`qc-${suffix}`,`ui_candidate_review_${suffix}`);
-        if(!review||review.disposition!=='complete'||!shortlist.reviewRefs.some(candidate=>same(candidate,review))) throw new Error('UI shortlist requires a complete QC review for every frozen candidate');
+        const suffix=record.item.kind.slice('frozen_ui_candidate_'.length);
+        current(ref,`freeze-${suffix}`,`frozen_ui_candidate_${suffix}`,'UI shortlist must cite the current frozen candidate version');
+        const review=latest(`qc-${suffix}`,`ui_candidate_review_${suffix}`),reviewRef=shortlist.reviewRefs.find(candidate=>same(candidate,review));
+        if(!review||review.disposition!=='complete'||!reviewRef) throw new Error('UI shortlist requires a complete QC review for every frozen candidate');
+        current(reviewRef,`qc-${suffix}`,`ui_candidate_review_${suffix}`,'UI shortlist must cite the current QC review version');
       }
       for(const ref of shortlist.reviewRefs) {
         const record=exactRecord(ref);
