@@ -4,7 +4,7 @@ This is a loadable Core Pack, not an activated creative runtime. The smoke test 
 
 Pack artifact validation is enforced only when every transition uses `createCreativeHostApi()`. Direct Core calls bypass these pack-specific checks. Core does not automatically enforce the pack's artifact schemas, trusted artifact bytes, external-reference provenance, or image/gallery semantics. The host must also protect its own actor resolver, artifact store, decision-evidence resolver, and author-provenance service.
 
-The source catalog and full pinned source snapshots are included under `sources/`; `sourceSnapshot` metadata, lock digest, commit IDs, licenses, and tree digests are included in the immutable Pack definition. Materialization and verification helpers do not install or execute upstream runtime scripts. Updating those sources is a separate reviewed pack change.
+The repository retains full pinned source snapshots under `sources/upstream/` for review. Published package files exclude those large snapshots and include the lock, integrity helper, and selective materialization scripts instead. `sourceSnapshot` metadata, lock digest, commit IDs, licenses, and tree digests are included in the immutable Pack definition. Materialization and verification helpers do not install or execute upstream runtime scripts. Updating those sources is a separate reviewed pack change. Pack-owned code is LGPL-2.1-only; upstream material retains its original license and notices.
 
 The ADLC boundary remains descriptive. No ADLC package was edited, no live bridge is registered, and no successful handoff is claimed. The handoff artifact can be consumed only by a separately built bridge after destination compatibility and permissions are verified.
 

@@ -35,6 +35,90 @@ export function createArtifactLineage(run) {
     return selected;
   }
   function submission(nodeId,payloads) {
+    if(nodeId==='pin-current-design') {
+      const context=payloads.ui_change_context;
+      if(!same(context.briefRef,run.input.creative_brief)) throw new Error('Minor UI context must pin the current creative brief');
+      if(!same(context.designBaselineRef,run.input.designBaselineRef)||!same(context.requirementsRef,run.input.requirementsRef)) throw new Error('Minor UI context must pin the exact baseline and requirements inputs');
+    }
+    if(nodeId==='make-minor-change') current(payloads.minor_ui_candidate.contextRef,'pin-current-design','ui_change_context','Minor UI candidate must cite the current change context');
+    if(nodeId==='independent-evaluation') {
+      const evaluation=payloads.minor_ui_evaluation;
+      current(evaluation.candidateRef,'make-minor-change','minor_ui_candidate','Minor UI evaluation must cite the exact candidate');
+      current(evaluation.contextRef,'pin-current-design','ui_change_context','Minor UI evaluation must cite the exact change context');
+    }
+    if(nodeId==='publish-minor-change') {
+      const pkg=payloads.minor_ui_design_package;
+      const candidate=current(pkg.candidateRef,'make-minor-change','minor_ui_candidate','Minor UI package must pin the exact candidate');
+      const evaluation=current(pkg.evaluationRef,'independent-evaluation','minor_ui_evaluation','Minor UI package must pin the exact independent evaluation');
+      if(!same(evaluation.candidateRef,candidate)) throw new Error('Minor UI package evaluation must assess its exact candidate');
+    }
+    if(nodeId==='research-user-needs'&&!same(payloads.product_design_research.briefRef,run.input.creative_brief)) throw new Error('Product research must pin the current creative brief');
+    if(nodeId==='wireframe-a'||nodeId==='wireframe-b') current(payloads[nodeId==='wireframe-a'?'wireframe_a':'wireframe_b'].researchRef,'research-user-needs','product_design_research','Wireframe direction must cite the current product research');
+    if(['design-norms-review','requirement-fit-review','blind-direction-evaluation'].includes(nodeId)) {
+      const review=payloads[nodeId.replaceAll('-','_')];
+      const expected=[latest('wireframe-a','wireframe_a'),latest('wireframe-b','wireframe_b')];
+      if(!equalArtifactRefs(review.directionRefs,expected)) throw new Error('Product-direction review must cite both exact current wireframe versions');
+    }
+    if(nodeId==='freeze-product-direction') {
+      const direction=payloads.product_design_direction;
+      current(direction.researchRef,'research-user-needs','product_design_research','Product direction must cite current research');
+      for(const ref of direction.reviewRefs) if(!exactRecord(ref)) throw new Error('Product direction must retain exact review references');
+      const outcome=run.nodeStates['promote-directions']?.outcome;
+      const expected=outcome==='a'?['wireframe-a']:outcome==='b'?['wireframe-b']:['wireframe-a','wireframe-b'];
+      if(direction.selectedDirectionRefs.length!==expected.length||expected.some((id,index)=>!same(direction.selectedDirectionRefs[index],latest(id,id==='wireframe-a'?'wireframe_a':'wireframe_b')))) throw new Error('Product direction must match the promoted wireframe decision');
+    }
+    if(nodeId==='pin-product-direction') {
+      if(!same(payloads.pinned_ui_design_context.productDirectionRef,run.input.productDesignDirectionRef)) throw new Error('UI candidate context must pin the exact input product direction');
+      if(!same(payloads.pinned_ui_design_context.briefRef,run.input.creative_brief)) throw new Error('UI candidate context must pin the current creative brief');
+    }
+    if(/^design-[ab]\d$/.test(nodeId)) current(payloads[`ui_candidate_${nodeId.slice(7)}`].directionRef,'pin-product-direction','pinned_ui_design_context','UI candidate must cite the current pinned design context');
+    if(/^freeze-[ab]\d$/.test(nodeId)) current(payloads[`frozen_ui_candidate_${nodeId.slice(7)}`].directionRef,'pin-product-direction','pinned_ui_design_context','Frozen UI candidate must preserve the pinned design context');
+    if(/^qc-[ab]\d$/.test(nodeId)) {
+      const suffix=nodeId.slice(3),review=payloads[`ui_candidate_review_${suffix}`];
+      current(review.directionRef,'pin-product-direction','pinned_ui_design_context','UI candidate review must cite the pinned design context');
+      current(review.candidateRefs[0],`freeze-${suffix}`,`frozen_ui_candidate_${suffix}`,'UI candidate review must cite its exact frozen candidate');
+    }
+    if(nodeId==='shortlist-ui-candidates') {
+      const shortlist=payloads.ui_candidate_shortlist;
+      if(shortlist.candidateRefs.length>2) throw new Error('UI candidate shortlist may contain at most two candidates');
+      for(const ref of shortlist.candidateRefs) {
+        const record=exactRecord(ref);
+        if(!record||!/^frozen_ui_candidate_[ab]\d$/.test(record.item.kind)) throw new Error('UI shortlist must cite exact frozen candidates');
+        const suffix=record.item.kind.slice('frozen_ui_candidate_'.length),review=latest(`qc-${suffix}`,`ui_candidate_review_${suffix}`);
+        if(!review||review.disposition!=='complete'||!shortlist.reviewRefs.some(candidate=>same(candidate,review))) throw new Error('UI shortlist requires a complete QC review for every frozen candidate');
+      }
+      for(const ref of shortlist.reviewRefs) {
+        const record=exactRecord(ref);
+        if(!record||!/^ui_candidate_review_[ab]\d$/.test(record.item.kind)) throw new Error('UI shortlist must cite exact UI candidate reviews');
+      }
+    }
+    if(nodeId==='freeze-ui-candidate-set') {
+      const set=payloads.ui_candidate_set,shortlist=latest('shortlist-ui-candidates','ui_candidate_shortlist');
+      if(!same(set.directionRef,run.input.productDesignDirectionRef)||!equalArtifactRefs(set.candidateRefs,shortlist?.candidateRefs)||!same(set.reviewRef,shortlist)) throw new Error('UI candidate set must preserve the exact direction and reviewed shortlist');
+    }
+    if(nodeId==='pin-ui-shortlist') {
+      const finalists=payloads.pinned_ui_finalists;
+      if(!same(finalists.candidateSetRef,run.input.uiCandidateSetRef)||!equalArtifactRefs(finalists.candidateRefs,run.input.ui_candidate_set?.candidateRefs)) throw new Error('Prototype finalists must pin the exact input candidate set and finalists');
+    }
+    if(nodeId==='record-no-prototype') {
+      const record=payloads.ui_no_prototype_record,finalists=latest('pin-ui-shortlist','pinned_ui_finalists');
+      if(!equalArtifactRefs(record.candidateRefs,finalists?.candidateRefs)||JSON.stringify(record.criteria)!==JSON.stringify(finalists?.criteria)) throw new Error('Direct selection rationale must cite the exact pinned finalists and criteria');
+    }
+    if(nodeId==='prototype-a'||nodeId==='prototype-b') {
+      const prototype=payloads[nodeId.replaceAll('-','_')],finalists=latest('pin-ui-shortlist','pinned_ui_finalists');
+      const expected=finalists?.candidateRefs[nodeId==='prototype-a'?0:1];
+      if(!same(prototype.candidateRef,expected)) throw new Error('Each prototype must target its distinct pinned finalist');
+    }
+    if(nodeId==='compare-prototypes') {
+      const comparison=payloads.ui_prototype_comparison,finalists=latest('pin-ui-shortlist','pinned_ui_finalists');
+      if(!equalArtifactRefs(comparison.candidateRefs,finalists?.candidateRefs)||!same(comparison.prototypeRefs[0],latest('prototype-a','ui_prototype_a'))||!same(comparison.prototypeRefs[1],latest('prototype-b','ui_prototype_b'))) throw new Error('Prototype comparison must cite the exact finalists and both prototype versions');
+    }
+    if(nodeId==='freeze-ui-selection') {
+      const selection=payloads.ui_design_selection,finalists=latest('pin-ui-shortlist','pinned_ui_finalists');
+      if(!same(selection.candidateSetRef,run.input.uiCandidateSetRef)||!finalists?.candidateRefs.some(ref=>same(ref,selection.selectedCandidateRef))) throw new Error('UI selection must preserve the exact candidate set and selected finalist');
+      const evidence=latest('record-no-prototype','ui_no_prototype_record')??latest('compare-prototypes','ui_prototype_comparison');
+      if(!same(selection.selectionEvidenceRef,evidence)) throw new Error('UI selection must cite the exact direct-selection rationale or prototype comparison');
+    }
     if(nodeId==='interpret-selection') selectedConceptRef(payloads.direction_contract.conceptRef);
     if(nodeId==='map-page') {
       const ref=payloads.page_section_map.conceptRef;

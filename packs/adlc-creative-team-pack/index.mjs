@@ -76,7 +76,7 @@ export const runtimeRequirements = Object.freeze({
   adlcBridge: 'No automatic ADLC graph handoff is activated. When both packs are active, resolveOrganization(activePacks) returns the Head of Design reporting line to adlc:cpo; cross-graph starts remain host-controlled.'
 });
 
-const conditionalReportingLines=[{when:{packId:'adlc',minVersion:'0.2.4',maxExclusiveVersion:'0.3.0'},roleId:'head-of-design',reportsToRole:'adlc:cpo'}];
+const conditionalReportingLines=[{when:{packId:'adlc',minVersion:'0.2.4',maxExclusiveVersion:'0.4.0'},roleId:'head-of-design',reportsToRole:'adlc:cpo'}];
 export const organization=Object.freeze({executiveRole:'head-of-design',roleScope:'design',packRolesNamespace:'creative-team',conditionalReportingLines});
 
 export function resolveOrganization(activePacks=[]) {
@@ -85,7 +85,7 @@ export function resolveOrganization(activePacks=[]) {
     const match=item.version.match(/^(\d+)\.(\d+)\.(\d+)/);
     if(!match) return false;
     const [,major,minor,patch]=match.map(Number);
-    return major===0&&minor===2&&patch>=4;
+    return major===0&&((minor===2&&patch>=4)||minor===3);
   });
   const resolvedRoles=Object.fromEntries(Object.entries(roles).map(([id,role])=>[
     id,id==='head-of-design'&&hasCompatibleAdlc?{...role,reportsToRole:'adlc:cpo'}:role
@@ -95,12 +95,12 @@ export function resolveOrganization(activePacks=[]) {
 }
 
 export const pack = Object.freeze({
-  id:'creative-team',version:'0.2.0',schemaVersion:1,
+  id:'creative-team',version:'0.2.1',schemaVersion:1,
   compatibility:{coreRange:'>=0.8.4 <0.9.0',contracts:{graph:1,decision:1,evidence:1}},
   organization,graphs:allGraphs,roles,skills,decisionRules,policyDocuments,policyDocumentDigests,sourceSnapshot,runtimeRequirements,
   policies:{decisionTraceRequired:false,artifactValidation:'host-callable-pack-validator',review:{independentExecutionRequired:true},
     conceptSprint:{minCount:3,maxCount:5,completionRequiresRealImages:true,oneGallery:true}},
-  release:{digest:'sha256:6da8b2c25622b66596ccc227f2716495ca7f138735f21ceca9c16ba96680c8f1',builtAt:'2026-10-30T00:00:00.000Z',status:'candidate'},
+  release:{digest:'sha256:2790b0283b061641b21c6ccca47a89bbdffc6f42f75d254a43752a277806772f',builtAt:'2026-11-02T00:00:00.000Z',status:'candidate'},
 });
 
 export function loadPack() { return pack; }

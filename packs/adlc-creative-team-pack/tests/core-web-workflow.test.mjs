@@ -5,7 +5,7 @@ import { mkdtemp, mkdir, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { deflateSync } from 'node:zlib';
-import { GraphEngine } from '../../../../Paperclip-PolyForge-Graph/src/core/index.mjs';
+import { GraphEngine } from './core-import.mjs';
 import { createCreativeHostApi, createSelection, pack, validateStaticImage } from '../index.mjs';
 
 const capabilities = {

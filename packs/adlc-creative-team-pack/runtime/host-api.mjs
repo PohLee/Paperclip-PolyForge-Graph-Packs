@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 import { readFile, realpath, readdir } from 'node:fs/promises';
 import path from 'node:path';
-import { graphs } from '../graphs/catalog.mjs';
+import { graphs, productDesignGraphs } from '../graphs/catalog.mjs';
 import { renderGalleryHtml, validateConceptSet, validateSelection, validateStaticImage } from '../adapters/concept-gallery/index.mjs';
 import { assertCreativeArtifact, validateCreativeArtifact } from '../contracts/validate.mjs';
 import { createArtifactLineage } from './artifact-lineage.mjs';
@@ -17,7 +17,7 @@ function records(run) {
   return run.graph.nodes.flatMap(node=>(run.nodeStates[node.id]?.attempts??[]).flatMap(attempt=>(attempt.artifacts??[]).map(item=>({item,attempt,node, payload:attempt.output?.creativeArtifacts?.[item.kind]}))));
 }
 const exactRecord=(run,ref)=>createArtifactLineage(run).exactRecord(ref);
-function getGraph(packId,graphId) { return packId==='creative-team'?graphs.find(g=>g.id===graphId):undefined; }
+function getGraph(packId,graphId) { return packId==='creative-team'?[...graphs,...productDesignGraphs].find(g=>g.id===graphId):undefined; }
 function requestedCount(run) { return run.input.creative_brief?.requestedCount??run.input.requestedCount; }
 function asRefs(candidates) { return candidates.map(c=>({id:c.id,version:c.version})); }
 
@@ -81,7 +81,7 @@ export function createCreativeHostApi({engine,artifactRootForRun,hasImageProvide
   async function requireDecision(run,nodeId,outcome) {
     const rows=await engine.listDecisions({runId:run.id});
     const row=rows.filter(item=>item.nodeId===nodeId&&item.status==='decided').at(-1);
-    if(!row||row.outcome!==outcome) throw new Error(`Package publication requires the ${nodeId} decision to be ${outcome}`);
+    if(!row||(outcome!==undefined&&row.outcome!==outcome)) throw new Error(`Package publication requires the current ${nodeId} decision${outcome===undefined?'':' to be '+outcome}`);
     return {id:row.id,version:row.at};
   }
   async function verifyImage(run,kind,candidate) {
@@ -203,7 +203,7 @@ export function createCreativeHostApi({engine,artifactRootForRun,hasImageProvide
       if(!graph) throw new Error(`Unknown creative graph: ${args.graphId}`);
       const input={...(args.input??{})};
       if(input.creative_brief) assertCreativeArtifact('creative_brief',input.creative_brief);
-      const surfaceRequired=['concept-sprint','concept-to-web-design','saas-feature-design'].includes(args.graphId);
+      const surfaceRequired=['concept-sprint','concept-to-web-design','saas-feature-design','minor-ui-change','product-design-discovery','ui-candidate-sprint','ui-prototype-experiment'].includes(args.graphId);
       if(surfaceRequired&&!['persuade','operate','read','experience'].includes(input.creative_brief?.surfaceMode)) throw new Error(`${args.graphId} requires a concrete creative_brief.surfaceMode`);
       if(['brand-foundation','concept-sprint','concept-to-web-design','saas-feature-design','brand-campaign-assets'].includes(args.graphId)&&!input.creative_brief) throw new Error(`${args.graphId} requires a validated creative_brief`);
       if(['brand-foundation','brand-campaign-assets'].includes(args.graphId)&&input.creative_brief?.surfaceMode!=null&&!['persuade','operate','read','experience'].includes(input.creative_brief.surfaceMode)) throw new Error('surfaceMode must be a supported mode when supplied');
@@ -265,6 +265,18 @@ export function createCreativeHostApi({engine,artifactRootForRun,hasImageProvide
         if(!Array.isArray(input.reviewSubjectRefs)||!input.reviewSubjectRefs.length||!input.reviewSubjectRefs.every(isRef)) throw new Error('Design assurance needs exact reviewSubjectRefs before review begins');
         for(const ref of input.reviewSubjectRefs) await externalRecord(ref,ref.kind??'design_artifact',{actor,input});
       }
+      if(args.graphId==='minor-ui-change') {
+        if(!isRef(input.designBaselineRef)||!isRef(input.requirementsRef)) throw new Error('Minor UI change needs exact pinned designBaselineRef and requirementsRef');
+      }
+      if(args.graphId==='product-design-discovery'&&!isRef(input.requirementsRef)) throw new Error('Product design discovery needs an exact pinned requirementsRef');
+      if(args.graphId==='ui-candidate-sprint') {
+        const direction=await inputArtifact(input,'productDesignDirectionRef','product_design_direction',{actor});
+        input.product_design_direction=direction.payload;
+      }
+      if(args.graphId==='ui-prototype-experiment') {
+        const set=await inputArtifact(input,'uiCandidateSetRef','ui_candidate_set',{actor});
+        input.ui_candidate_set=set.payload;
+      }
       return engine.startRun({...args,input,actor});
     },
 
@@ -301,13 +313,23 @@ export function createCreativeHostApi({engine,artifactRootForRun,hasImageProvide
           design_baseline:{tokensRef:'design_system_inventory',componentsRef:'design_system_change_proposal',patternsRef:'design_system_validation',migrationRef:'design_system_review'},
           campaign_asset_package:{conceptRef:'campaign_concept'},
           campaign_final_package:{brandBaselineRef:'brand_baseline',conceptRef:'campaign_concept',assetPackageRef:'campaign_asset_package',reviewRef:'campaign_review'},
+          minor_ui_design_package:{candidateRef:'minor_ui_candidate',evaluationRef:'minor_ui_evaluation'},
+          product_design_direction:{researchRef:'product_design_research'},
+          ui_candidate_set:{reviewRef:'ui_candidate_shortlist'},
+          ui_design_selection:{candidateSetRef:'ui_candidate_set'},
         }[artifact.kind]??{};
         for(const [field,kind] of Object.entries(linkKinds)) {
           const value=payload[field];
           for(const ref of Array.isArray(value)?value:[value]) await verifyRef(run,ref,kind,{actor});
         }
-        if(['brand_baseline','design_baseline','campaign_final_package'].includes(artifact.kind)) {
-          const {decisionNode,outcome}=artifact.kind==='brand_baseline'?{decisionNode:'brand-disposition',outcome:'ready'}:artifact.kind==='design_baseline'?{decisionNode:'system-disposition',outcome:'accepted'}:{decisionNode:'campaign-disposition',outcome:'ready'};
+        if(['brand_baseline','design_baseline','campaign_final_package','minor_ui_design_package','product_design_direction','ui_candidate_set','ui_design_selection'].includes(artifact.kind)) {
+          const decisionByKind={
+            brand_baseline:{decisionNode:'brand-disposition',outcome:'ready'}, design_baseline:{decisionNode:'system-disposition',outcome:'accepted'},
+            campaign_final_package:{decisionNode:'campaign-disposition',outcome:'ready'}, minor_ui_design_package:{decisionNode:'minor-disposition',outcome:'accepted'},
+            product_design_direction:{decisionNode:'promote-directions'}, ui_candidate_set:{decisionNode:'candidate-disposition',outcome:'ready'},
+            ui_design_selection:{decisionNode:'select-final-ui',outcome:'selected'},
+          };
+          const {decisionNode,outcome}=decisionByKind[artifact.kind];
           const expected=await requireDecision(run,decisionNode,outcome),actual=payload.decisionRef;
           if(!isRef(actual)||refId(actual)!==expected.id||actual.version!==expected.version) throw new Error(`${artifact.kind} must reference the exact accepted decision record`);
         }

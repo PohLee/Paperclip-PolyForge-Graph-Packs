@@ -5,7 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { createHash } from 'node:crypto';
 import { deflateSync } from 'node:zlib';
-import { GraphEngine } from '../../../../Paperclip-PolyForge-Graph/src/core/index.mjs';
+import { GraphEngine } from './core-import.mjs';
 import { pack, createCreativeHostApi, validateCreativeArtifact, assembleGallery, validateStaticImage } from '../index.mjs';
 
 const capabilities={'image-generation':'1.0.0','html-file-write':'1.0.0','design-rendering':'1.0.0','project-source-read':'1.0.0','be-contract-read':'1.0.0','asset-production':'1.0.0'};
@@ -68,6 +68,10 @@ test('each graph has a valid terminal artifact contract fixture',()=>{
     'design-system-evolution':['design_baseline',{id:'ds',version:'1',tokensRef:ref('inventory','design_system_inventory'),componentsRef:ref('proposal','design_system_change_proposal'),patternsRef:ref('validation','design_system_validation'),decisionRef:ref('decision','decision'),migrationRef:ref('review','design_system_review')}],
     'design-assurance':['design_review',{id:'review',version:'1',subjectRefs:[ref('subject','review_subject')],reviewerExecutionId:'qa-exec',subjectAuthorExecutionIds:['author-exec'],scope:'declared scope',disposition:'verified',findings:[]}],
     'brand-campaign-assets':['campaign_final_package',{id:'campaign',version:'1',brandBaselineRef:ref('brand','brand_baseline'),conceptRef:ref('concept','campaign_concept'),assetPackageRef:ref('assets','campaign_asset_package'),reviewRef:ref('review','campaign_review'),decisionRef:ref('decision','decision')}],
+    'minor-ui-change':['minor_ui_design_package',{id:'minor',version:'1',candidateRef:ref('candidate','minor_ui_candidate'),evaluationRef:ref('evaluation','minor_ui_evaluation'),decisionRef:ref('decision','decision'),changes:[{id:'bounded-change'}]}],
+    'product-design-discovery':['product_design_direction',{id:'direction',version:'1',researchRef:ref('research','product_design_research'),selectedDirectionRefs:[ref('wireframe','wireframe_direction')],reviewRefs:[ref('review','direction_review')],decisionRef:ref('decision','decision')}],
+    'ui-candidate-sprint':['ui_candidate_set',{id:'candidate-set',version:'1',directionRef:ref('direction','product_design_direction'),candidateRefs:[ref('candidate','ui_candidate')],reviewRef:ref('review','ui_candidate_shortlist'),decisionRef:ref('decision','decision')}],
+    'ui-prototype-experiment':['ui_design_selection',{id:'selection',version:'1',selectedCandidateRef:ref('candidate','ui_candidate'),candidateSetRef:ref('candidate-set','ui_candidate_set'),selectionEvidenceRef:ref('evidence','ui_no_prototype_record'),decisionRef:ref('decision','decision')}],
   };
   assert.deepEqual(Object.keys(fixtures),pack.graphs.map(graph=>graph.id));
   for(const [graphId,[kind,payload]] of Object.entries(fixtures)) {

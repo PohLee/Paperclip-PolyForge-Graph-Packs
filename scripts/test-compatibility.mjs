@@ -23,7 +23,7 @@ try {
   const engine = new core.GraphEngine();
   for (const pack of Object.values(packCatalog)) await engine.registerPack(pack);
   if (args['full-suite'] === 'true') {
-    const suite = spawnSync(process.execPath,['--test','test/collection.test.mjs','test/pack.test.mjs'],{
+    const suite = spawnSync(process.execPath,['--test','test/*.test.mjs','packs/adlc-creative-team-pack/tests/*.test.mjs','packs/adlc-creative-team-pack/tests/skills/*.test.mjs','packs/adlc-creative-team-pack/tests/source/*.test.mjs'],{
       cwd:resolve('.'), env:{...process.env,PINNED_CORE_ARTIFACT:root}, encoding:'utf8', maxBuffer:4*1024*1024
     });
     const output = `${suite.stdout ?? ''}${suite.stderr ?? ''}`;

@@ -1,3 +1,8 @@
+---
+name: UI prototype experiment
+description: Compare up to two shortlisted UI candidates using isolated prototypes or a documented direct-selection rationale. Use only when a prototype can resolve a stated uncertainty.
+---
+
 # UI prototype experiment
 
 Use only when comparing up to two shortlisted UI candidates can resolve a stated product-design uncertainty. A prototype is a test instrument, not an approval by itself.

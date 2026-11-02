@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { GraphEngine } from '../../../../Paperclip-PolyForge-Graph/src/core/index.mjs';
-import { pack } from '../index.mjs';
+import { GraphEngine } from './core-import.mjs';
+import { pack, resolveOrganization } from '../index.mjs';
 
 const capabilities = {
   'image-generation':'1.0.0','html-file-write':'1.0.0','design-rendering':'1.0.0',
@@ -17,15 +17,21 @@ const engineWithPack = async () => {
   return engine;
 };
 
-test('the standalone pack registers all eight supported DAGs in Core and stays serializable', async () => {
+test('the standalone pack registers all twelve supported DAGs in Core and stays serializable', async () => {
   const engine = await engineWithPack();
-  assert.equal(pack.graphs.length,8);
+  assert.equal(pack.graphs.length,12);
   assert.doesNotThrow(()=>JSON.stringify(pack));
-  assert.equal((await engine.getPack?.('creative-team','0.1.0')) ?? 'registered','registered');
+  assert.equal((await engine.getPack?.('creative-team',pack.version)) ?? 'registered','registered');
   for (const graph of pack.graphs) {
     assert.ok(graph.nodes.every(node=>['task','decision','join','end'].includes(node.type)));
     assert.ok(!graph.nodes.some(node=>node.type==='wait'||node.type==='foreach'));
   }
+});
+
+test('Head of Design reports to the CPO for compatible retained and current ADLC releases only',()=>{
+  assert.deepEqual(pack.organization.conditionalReportingLines,[{when:{packId:'adlc',minVersion:'0.2.4',maxExclusiveVersion:'0.4.0'},roleId:'head-of-design',reportsToRole:'adlc:cpo'}]);
+  for(const version of ['0.2.4','0.2.5','0.3.0','0.3.1']) assert.equal(resolveOrganization([{id:'adlc',version}]).roles['head-of-design'].reportsToRole,'adlc:cpo');
+  for(const version of ['0.2.3','0.4.0']) assert.equal(resolveOrganization([{id:'adlc',version}]).roles['head-of-design'].reportsToRole,null);
 });
 
 test('Core blocks concept-sprint when host image and gallery capabilities are absent',async()=>{

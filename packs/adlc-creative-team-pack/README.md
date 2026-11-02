@@ -1,6 +1,6 @@
 # ADLC Creative Team Pack
 
-Standalone, versioned Pack for design and creative workflows. Pack ID `creative-team`, version `0.2.0`, supplies twelve Core-compatible DAGs, 14 role definitions, 16 skills, evidence and artifact contracts, offline interview/gallery helpers, and a trusted host wrapper that enforces pack-specific checks against Core run state and real files.
+Standalone, versioned Pack for design and creative workflows. Pack ID `creative-team`, version `0.2.1`, supplies twelve Core-compatible DAGs, 14 role definitions, 16 skills, evidence and artifact contracts, offline interview/gallery helpers, and a trusted host wrapper that enforces pack-specific checks against Core run state and real files.
 
 The pack loads and registers locally. It does not install agents, activate itself, generate images, connect to browser/Figma/BE services, publish content, or register an ADLC bridge. A host must provide authenticated identity, capability dispatch, immutable artifact storage, and the trusted evidence services described in [Core integration](docs/integration.md).
 
@@ -25,7 +25,7 @@ Each graph contains only Core task, decision, all-join, and end nodes. Graphs ar
 
 ## Role structure
 
-`head-of-design` is the top role when this Pack runs by itself. When ADLC `>=0.2.4 <0.3.0` is active, call `resolveOrganization(activePacks)` to resolve `head-of-design`'s reporting line to `adlc:cpo`; the CPO does not gain UI or brand design approval authority. `design-director` leads product design, while `creative-director` leads brand and art direction. Design research, product design, interaction design, systems, engineering, and QA report through the product-design branch. Brand strategy, identity, art direction, and voice report through the creative branch. `design-ops-producer` coordinates intake, traceability, and handoff. See [`roles/catalog.mjs`](roles/catalog.mjs) and the five role documents per role under `roles/`.
+`head-of-design` is the top role when this Pack runs by itself. When ADLC `>=0.3.0 <0.4.0` is active, call `resolveOrganization(activePacks)` to resolve `head-of-design`'s reporting line to `adlc:cpo`; the CPO does not gain UI or brand design approval authority. `design-director` leads product design, while `creative-director` leads brand and art direction. Design research, product design, interaction design, systems, engineering, and QA report through the product-design branch. Brand strategy, identity, art direction, and voice report through the creative branch. `design-ops-producer` coordinates intake, traceability, and handoff. See [`roles/catalog.mjs`](roles/catalog.mjs) and the five role documents per role under `roles/`.
 
 The four UI/UX workflows were split from ADLC `ui-ux-design` and now belong to this Pack. Existing ADLC releases remain immutable; subsequent ADLC source releases do not contain that graph or its UI/UX Designer Lead role.
 
@@ -60,6 +60,8 @@ The command prints its local URL and serves only files under `examples/`; this r
 
 Always route transitions through `createCreativeHostApi()` from `index.mjs`. It wraps Core `startRun`, `submitNode`, and `decideNode`; direct Core calls bypass pack checks. The wrapper validates exact artifact versions, decision evidence, accepted review links, image bytes, gallery rendering, selected-concept continuity, pinned BE contracts, and independent execution identity where applicable. The host supplies identity resolution, artifact and provenance loaders, decision evidence, image provider checks, and JPEG/WebP decoding. Those services are never assumed present just because capability IDs appear in metadata.
 
-Full upstream source snapshots are bundled in `sources/upstream/`, with immutable commit, license, tree digest, and lock digest metadata in `pack.sourceSnapshot`. Source materialization uses the lock and verified snapshots; it does not run upstream hooks or scripts. The pack does not install these skills into a host.
+The npm package ships the lock, integrity helper, and selective materialization scripts, not the large upstream snapshots. The repository retains those snapshots for review. `pack.sourceSnapshot` records immutable commit, license, tree digest, and lock digest metadata. Source materialization uses the lock and verified snapshots; it does not run upstream hooks or scripts. The pack does not install these skills into a host.
+
+Pack-owned code is licensed under LGPL-2.1-only. Pinned upstream sources retain their own licenses and notices; this package does not relicense them. See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
 
 See [`docs/limitations.md`](docs/limitations.md) for readiness boundaries and [`docs/integration.md`](docs/integration.md) for the host API contract. `creative_design_handoff` is a compatibility proposal only: this release does not change ADLC or claim an accepted handoff.

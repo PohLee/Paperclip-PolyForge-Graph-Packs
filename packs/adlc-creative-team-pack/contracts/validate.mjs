@@ -63,6 +63,11 @@ export function validateCreativeArtifact(kind, payload) {
   if (kind === 'concept_set') return validateConceptSet(payload);
   if (kind === 'interview_responses') return validateInterviewArtifact(payload);
   if (/^concept_image_\d\d$/.test(kind)) kind='concept_candidate';
+  if (/^wireframe_[ab]$/.test(kind)) kind='wireframe_direction';
+  if (['direction_norms_review','direction_fit_review','blind_direction_evaluation'].includes(kind)) kind='direction_review';
+  if (/^frozen_ui_candidate_[ab]\d$/.test(kind) || /^ui_candidate_[ab]\d$/.test(kind)) kind='ui_candidate';
+  if (/^ui_candidate_review_[ab]\d$/.test(kind)) kind='ui_candidate_review';
+  if (/^ui_prototype_[ab]$/.test(kind)) kind='ui_prototype';
   const keys = required[kind];
   if (!keys) return { valid:false,errors:[`unknown creative artifact kind: ${kind}`] };
   const errors=[];

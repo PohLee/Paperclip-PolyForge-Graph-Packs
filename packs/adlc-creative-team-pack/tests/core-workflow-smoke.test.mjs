@@ -4,7 +4,7 @@ import { createHash } from 'node:crypto';
 import { mkdtemp, rm } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
-import { GraphEngine } from '../../../../Paperclip-PolyForge-Graph/src/core/index.mjs';
+import { GraphEngine } from './core-import.mjs';
 import { pack, createCreativeHostApi } from '../index.mjs';
 
 // All data in these end-to-end runs is deterministic test-fixture content; no provider or user artifact is represented.

@@ -1,3 +1,8 @@
+---
+name: Minor UI change
+description: Make and independently review one bounded interface change against its accepted baseline. Use for a narrow, low-risk UI update.
+---
+
 # Minor UI change
 
 Use for one narrow, low-risk interface update with an accepted design baseline and clear acceptance criteria. Route broad navigation, task-flow, brand, or product-model changes to their discovery workflow.

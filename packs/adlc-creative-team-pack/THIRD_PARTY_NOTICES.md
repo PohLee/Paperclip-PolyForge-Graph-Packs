@@ -1,5 +1,7 @@
 # Third-party notices
 
+Pack-owned code is licensed under LGPL-2.1-only. This notice records upstream provenance and does not change the license of any upstream source.
+
 The pack pins the following upstream sources for method adaptation. No upstream code or skill text is copied into the pack-owned role and skill documents. When materialized, each snapshot retains the repository's tracked license and notice files. Consult those files for the exact license text and any applicable attribution.
 
 - `Owl-Listener/designer-skills`, commit `9a6930cf84a822eb458624bd11c61aac5bbdf224` — MIT.

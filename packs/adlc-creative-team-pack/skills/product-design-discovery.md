@@ -1,3 +1,8 @@
+---
+name: Product design discovery
+description: Research user needs, create distinct wireframe directions, and evaluate them against shared criteria. Use for substantial product-interface changes before visual candidates.
+---
+
 # Product design discovery
 
 Use this workflow for substantial changes to an existing product interface when the user need, task structure, or interaction model still needs exploration.

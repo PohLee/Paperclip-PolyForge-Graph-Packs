@@ -8,6 +8,7 @@ import { architectureDeliveryGraphs } from './architecture-delivery-graphs.mjs';
 import { designAssuranceGraphs } from './design-assurance-graphs.mjs';
 import { roleCatalog } from './roles/catalog.mjs';
 import { skillCatalog } from './skills/catalog.mjs';
+export { createAdlcHostApi } from './runtime/host-api.mjs';
 
 const root = fileURLToPath(new URL('.', import.meta.url));
 const docs = ['soul', 'role', 'goal', 'instruction', 'decision_model'];
@@ -73,7 +74,7 @@ const decisionRules = Object.values(roles).flatMap(role => role.decisionModel.ru
 ));
 
 export const pack = {
-  id: 'adlc', version: '0.3.0', schemaVersion: 1,
+  id: 'adlc', version: '0.3.1', schemaVersion: 1,
   compatibility: {
     coreRange: '>=0.8.5 <0.9.0',
     contracts: { graph: 1, decision: 1, evidence: 1 },
@@ -139,7 +140,7 @@ export const pack = {
     shadowVerification: 'Before verification/qa dispatch, the host must review the frozen candidate with the same bound Agent in a separate, fresh Sub-Agent task session. The Sub-Agent may only review one task, with one concurrent session and a deadline within 15 minutes. Only an accepted, closed Sub-Agent result for the exact candidate permits normal QA dispatch; a non-accept result pauses the parent run for recovery. The subsequent QA artifact still receives its distinct supervisor review. This mechanism makes no paid-model quality claim.',
     temporaryAgents: 'For research or analysis, an enabled parent Agent may open a Shadow-Agent in snapshot mode. The host starts a separate session for the same Agent and freezes the parent advisory summary with Core-selected Decision Records and product history at launch. Snapshot provenance and digest identify that boundary; the summary grants no authority. Independent review uses a fresh Sub-Agent. The bundled temporary-agent-snapshot skill supplies the request and evidence rules.',
     improvementGuardrails: 'The host verifies that a graduated improvement blocks a real past error and passes on the corrected path.',
-    productMethods: 'Before submitting RequestBrief, evidence ledger, experiment record, requirements handoff, competitive diff or investment case, call the matching pack-owned validator exported by the ADLC module. Before experiment-gate or watch-route, call the named route validator. Core does not invoke these validators. The host authenticates source observations, execution, acceptance Decision IDs and frozen requirement baselines; validator success alone grants no authority.'
+    productMethods: 'Route ADLC product-method transitions through createAdlcHostApi. The trusted wrapper authenticates actors, validates submitted RequestBrief, evidence ledger, experiment record, requirements handoff, competitive diff, or investment case payloads, and rejects experiment-gate/watch-route outcomes that disagree with the validated current record. Core does not invoke these validators. Investment cases have a callable wrapper validator but no current graph output path. The host authenticates source observations, execution, acceptance Decision IDs and frozen requirement baselines; validator success alone grants no authority.'
   },
   optionalExternalMethods: {
     'lead-engineer': ['Prime Agent, OpenCode, or Codex subagent runtimes only when installed and authorized by the host'],

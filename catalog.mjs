@@ -10,9 +10,12 @@ const installedReleasePaths = [
   ['adlc', '0.2.0'],
   ['adlc', '0.2.1'],
   ['adlc', '0.2.3'],
+  ['adlc', '0.2.4'],
+  ['adlc', '0.2.5'],
   ['marketing', '0.0.1'],
   ['marketing', '0.0.3'],
   ['creative-team', '0.1.0'],
+  ['creative-team', '0.2.0'],
 ];
 const root = fileURLToPath(new URL('.', import.meta.url));
 

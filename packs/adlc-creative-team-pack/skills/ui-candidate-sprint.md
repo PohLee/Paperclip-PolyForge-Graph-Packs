@@ -1,3 +1,8 @@
+---
+name: UI candidate sprint
+description: Create and shortlist versioned interface candidates from an approved product direction. Use after product design discovery when alternatives need comparison.
+---
+
 # UI candidate sprint
 
 Use after product design discovery when a promoted wireframe direction needs comparable, implementation-relevant interface alternatives. These are product UI candidates with states, not static visual-concept images and not a complete multi-page website.

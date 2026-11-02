@@ -1,6 +1,7 @@
 {
   "name": "@paperclip-polyforge/packs",
-  "version": "0.2.0",
+  "version": "0.2.1",
+  "license": "LGPL-2.1-only",
   "type": "module",
   "exports": {
     ".": "./index.mjs",
@@ -9,6 +10,12 @@
     "./creative-team": "./packs/adlc-creative-team-pack/index.mjs",
     "./catalog": "./catalog.mjs"
   },
+  "files": [
+    "index.mjs", "catalog.mjs", "README.md", "LICENSE", "docs/**", "scripts/**", "dist/**",
+    "packs/adlc/**", "packs/marketing/**",
+    "packs/adlc-creative-team-pack/index.mjs", "packs/adlc-creative-team-pack/README.md", "packs/adlc-creative-team-pack/THIRD_PARTY_NOTICES.md", "packs/adlc-creative-team-pack/package.json",
+    "packs/adlc-creative-team-pack/adapters/**", "packs/adlc-creative-team-pack/contracts/**", "packs/adlc-creative-team-pack/docs/**", "packs/adlc-creative-team-pack/graphs/**", "packs/adlc-creative-team-pack/policies/**", "packs/adlc-creative-team-pack/roles/**", "packs/adlc-creative-team-pack/runtime/**", "packs/adlc-creative-team-pack/scripts/**", "packs/adlc-creative-team-pack/skills/**", "packs/adlc-creative-team-pack/templates/**", "packs/adlc-creative-team-pack/sources/integrity.mjs", "packs/adlc-creative-team-pack/sources/upstream.lock.json", "packs/adlc-creative-team-pack/sources/README.md"
+  ],
   "scripts": {
     "build:roles": "node packs/adlc/scripts/build-roles.mjs && node packs/marketing/scripts/build-roles.mjs",
     "build:adlc": "node scripts/build-pack.mjs adlc",
@@ -17,6 +24,8 @@
     "release:adlc": "node scripts/tag-pack.mjs adlc",
     "release:marketing": "node scripts/tag-pack.mjs marketing",
     "release:creative-team": "node scripts/tag-pack.mjs creative-team",
-    "test": "node --test test/*.test.mjs"
+    "test:root": "node --test test/*.test.mjs",
+    "test": "node --test test/*.test.mjs packs/adlc-creative-team-pack/tests/*.test.mjs packs/adlc-creative-team-pack/tests/skills/*.test.mjs packs/adlc-creative-team-pack/tests/source/*.test.mjs",
+    "test:full-suite": "node --test test/*.test.mjs packs/adlc-creative-team-pack/tests/*.test.mjs packs/adlc-creative-team-pack/tests/skills/*.test.mjs packs/adlc-creative-team-pack/tests/source/*.test.mjs"
   }
 }

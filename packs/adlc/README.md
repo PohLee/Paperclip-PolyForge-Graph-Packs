@@ -71,4 +71,4 @@ Edit `roles/catalog.mjs` or `scripts/build-roles.mjs`, then run `node packs/adlc
 
 Validate with `node --test`. The tests use the sibling core source and require both repositories side by side.
 
-Licensing for this separate pack has not yet been selected.
+Pack-owned code is licensed under LGPL-2.1-only. Referenced third-party methods retain their own licenses; this pack does not copy or relicense them.
