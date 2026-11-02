@@ -12,7 +12,7 @@ Start each Graph as its own Core run. Pass exact artifact IDs, versions, digests
 
 ```js
 import { GraphEngine } from '../Paperclip-PolyForge-Graph/src/core/index.mjs';
-import { pack, createCreativeHostApi } from './packs/adlc-creative-team-pack/index.mjs';
+import { pack, createCreativeHostApi } from './packs/adlc-creative-team/index.mjs';
 
 const engine = new GraphEngine({ availableCapabilities: hostVerifiedCapabilities });
 await engine.registerPack(pack);
@@ -35,7 +35,7 @@ const run = await creative.startRun({
 });
 ```
 
-Run `node packs/adlc-creative-team-pack/scripts/smoke.mjs` from the Packs repository root, with `Paperclip-PolyForge-Graph` as its sibling directory, to verify pack loading, Core registration, and host-wrapper run start with no production capabilities advertised. The smoke deliberately stops before dispatching an agent.
+Run `node packs/adlc-creative-team/scripts/smoke.mjs` from the Packs repository root, with `Paperclip-PolyForge-Graph` as its sibling directory, to verify pack loading, Core registration, and host-wrapper run start with no production capabilities advertised. The smoke deliberately stops before dispatching an agent.
 
 ## Trusted host services
 
@@ -71,7 +71,7 @@ For final artifacts, the wrapper validates schemas and exact links against the r
 
 ## Artifact and gallery helpers
 
-Use `createInterviewArtifact()` and `validateInterviewArtifact()` for sourced intake records. Use `validateConceptSet()` and `validateStaticImage()` for image evidence; use `createSelection()` / `validateSelection()` for human preference records. `assembleGallery()` verifies raster metadata, path containment, and image digests, then stages one static gallery. See [`adapters/ARTIFACTS.md`](../adapters/ARTIFACTS.md). The loopback-only example preview is `node packs/adlc-creative-team-pack/scripts/preview-examples.mjs [--port N]`.
+Use `createInterviewArtifact()` and `validateInterviewArtifact()` for sourced intake records. Use `validateConceptSet()` and `validateStaticImage()` for image evidence; use `createSelection()` / `validateSelection()` for human preference records. `assembleGallery()` verifies raster metadata, path containment, and image digests, then stages one static gallery. See [`adapters/ARTIFACTS.md`](../adapters/ARTIFACTS.md). The loopback-only example preview is `node packs/adlc-creative-team/scripts/preview-examples.mjs [--port N]`.
 
 ## ADLC boundary
 

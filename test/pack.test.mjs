@@ -64,7 +64,7 @@ test('ADLC department heads report to the company CEO without changing review es
     'principal-engineer': 'cto-caio', 'lead-engineer': 'principal-engineer',
     'qa-engineer': 'cto-caio', 'security-engineer': 'cto-caio'
   };
-  assert.equal(pack.version, '0.3.1');
+  assert.equal(pack.version, '0.3.2');
   assert.deepEqual(Object.fromEntries(Object.values(pack.roles).map(role => [role.id, role.reportsToRole])), reportsTo);
   assert.deepEqual(Object.fromEntries(Object.values(pack.roles).map(role => [role.id, role.supervisorRole])), reviewEscalation);
   assert.equal(Object.values(pack.roles).filter(role => role.reportsToRole === 'ceo').length, 2);
@@ -74,7 +74,7 @@ test('ADLC department heads report to the company CEO without changing review es
     assert.match(role.documents.role, /## Artifact review\n\nDefault review escalation role:/);
     assert.match(role.documents.instruction, /organizational reporting line.*Graph node/s);
   }
-  assert.deepEqual(pack.graphs.map(graph => graph.version), ['0.2.0', '0.2.0', '0.1.5', '0.1.5', '0.1.0', '0.1.0', '0.1.0', '0.1.0', '0.1.0', '0.1.0', '0.1.0', '0.1.0', '0.1.0', '0.1.0']);
+  assert.deepEqual(pack.graphs.map(graph => graph.version), ['0.2.0', '0.2.0', '0.1.6', '0.1.6', '0.1.0', '0.1.0', '0.1.0', '0.1.0', '0.1.0', '0.1.0', '0.1.0', '0.1.0', '0.1.0', '0.1.0']);
   assert.equal(pack.policies.cpoCtoConflict.protocolVersion, 2);
 });
 
@@ -124,8 +124,8 @@ async function playGraph(graphId, routes, expectedStatus, options = {}) {
   const feature = `scenario-${graphId}`;
   const baseline = await engine.recordProductDecision({ feature, actor: starter, status: 'approved', outcome: 'Use scenario baseline', reason: 'Scenario has an approved starting product decision', evidence: [{ kind: 'requirement', id: 'REQ-1' }] });
   const input = { feature, versioned_requirement: { id: 'REQ-1', version: 'v1' }, product_decision_refs: [baseline.id],
-    ...(graphId === 'implementation' ? { final_design_identity: { id: 'DESIGN-1', version: 'v1' }, architecture_context: { disposition: 'not-applicable', rationale: 'Scenario uses existing architecture without interface changes' } } : {}),
-    ...(graphId === 'verification' ? { implementation_candidate: { id: 'CODE-1', version: 'v1' }, acceptance_criteria: [{ id: 'AC-1', description: 'Expected behavior works', requirementIds: ['REQ-1'] }] } : {}),
+    ...(graphId === 'implementation' ? { final_design_identity: { id: 'DESIGN-1', version: 'v1' }, acceptance_criteria: [{ id: 'AC-1', description: 'Expected behavior works', requirementIds: ['REQ-1'] }], architecture_context: { disposition: 'not-applicable', rationale: 'Scenario uses existing architecture without interface changes' } } : {}),
+    ...(graphId === 'verification' ? { implementation_candidate: { id: 'CODE-1', version: 'v1' }, verification_plan: { id: 'VERIFY-1', version: 'v1' }, acceptance_criteria: [{ id: 'AC-1', description: 'Expected behavior works', requirementIds: ['REQ-1'] }] } : {}),
     ...(graphId === 'system-architecture' ? { system_id: 'orders', architecture_brief: 'Pin the order API boundaries' } : {}),
     ...(graphId === 'code-delivery' ? { implementation_candidate: { id: 'CODE-1', version: 'v1' }, delivery_target: { repository: 'owner/repo', prUrl: 'https://github.com/owner/repo/pull/1', headSha: 'a'.repeat(40) }, required_checks: ['test'], required_approvals: 1 } : {}),
     ...(graphId === 'design-drift' ? options.input : {}),
@@ -315,11 +315,19 @@ test('defect route requires root-cause report and red check before readiness and
   }
   assert.ok(run.nodeStates['defect-diagnosis'].attempts[0].at <= run.nodeStates['defect-red-check'].attempts[0].at);
   assert.ok(run.nodeStates['defect-red-check'].attempts[0].at <= run.nodeStates['implementation-plan'].attempts[0].at);
+  const delivery = await run._engine.getDeliveryStatus(run.id);
+  assert.equal(delivery.fixRoundsRemaining, 2);
+  assert.deepEqual(delivery.acceptedMilestones.map(item => item.nodeId), ['implementation-plan', 'integrate-candidate']);
 });
 
 test('verification acceptance preserves its distinct outcome', async () => {
   const accepted = await playGraph('verification', { 'acceptance-gate': 'accept' }, 'completed');
   assert.equal(accepted.nodeStates['verification-complete'].status, 'completed');
+  const delivery = await accepted._engine.getDeliveryStatus(accepted.id);
+  assert.equal(delivery.fullRegressions, 1);
+  assert.deepEqual(delivery.acceptedMilestones.map(item => item.nodeId), ['acceptance-matrix']);
+  assert.equal(delivery.acceptanceCriteria.length, 1);
+  assert.equal(delivery.verificationPlan.id, 'VERIFY-1');
 });
 
 test('discovery can advance, stop, or request more evidence before any build path', async () => {

@@ -13,7 +13,7 @@ test('collection exports independent Pack releases and keeps ADLC default', asyn
   assert.equal(pack, adlcPack);
   assert.deepEqual(Object.keys(packCatalog), ['adlc','marketing','creative-team']);
   assert.equal(packCatalog['creative-team'], creativeTeamPack);
-  assert.deepEqual(packs.map(item => `${item.id}@${item.version}`), ['adlc@0.3.1','marketing@0.0.4','creative-team@0.3.0']);
+  assert.deepEqual(packs.map(item => `${item.id}@${item.version}`), ['adlc@0.3.2','marketing@0.0.4','creative-team@0.3.0']);
   const engine = new GraphEngine();
   for (const item of packs) {
     assert.deepEqual(item.compatibility.contracts, CORE_RUNTIME.contracts);
@@ -35,7 +35,7 @@ test('collection exports independent Pack releases and keeps ADLC default', asyn
 
 test('legacy shadow declaration requires a fresh Sub-Agent review for ADLC verification QA', () => {
   const verification = adlcPack.graphs.find(graph => graph.id === 'verification');
-  assert.equal(verification.version, '0.1.5');
+  assert.equal(verification.version, '0.1.6');
   assert.deepEqual(verification.compatibility.requiredCapabilities,
     { 'shadow-review-execution': '>=1.0.0 <2.0.0' });
   assert.deepEqual(verification.nodes.find(node => node.id === 'qa').shadow,

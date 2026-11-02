@@ -41,13 +41,13 @@ The four UI/UX workflows were split from ADLC `ui-ux-design` and now belong to t
 From the repository root, load-smoke with no production capabilities advertised:
 
 ```powershell
-node packs/adlc-creative-team-pack/scripts/smoke.mjs
+node packs/adlc-creative-team/scripts/smoke.mjs
 ```
 
 This registers the pack in the current Core runtime and starts a G01 run through the host wrapper. It stops before agent dispatch. Run the pack's focused tests from its directory:
 
 ```powershell
-cd packs/adlc-creative-team-pack
+cd packs/adlc-creative-team
 node --test tests/*.test.mjs tests/skills/*.test.mjs tests/source/*.test.mjs
 ```
 
@@ -58,7 +58,7 @@ The test suite includes current-Core registration/execution, real PNG-backed G03
 The interview demo is a local static file. To preview it through the loopback-only, path-restricted helper:
 
 ```powershell
-node packs/adlc-creative-team-pack/scripts/preview-examples.mjs
+node packs/adlc-creative-team/scripts/preview-examples.mjs
 ```
 
 The command prints its local URL and serves only files under `examples/`; this release includes the interview demo and no separate gallery demo. For artifact creation, validation, and gallery assembly APIs, see [`adapters/ARTIFACTS.md`](adapters/ARTIFACTS.md).

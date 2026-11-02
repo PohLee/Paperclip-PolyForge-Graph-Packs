@@ -74,7 +74,7 @@ const decisionRules = Object.values(roles).flatMap(role => role.decisionModel.ru
 ));
 
 export const pack = {
-  id: 'adlc', version: '0.3.1', schemaVersion: 1,
+  id: 'adlc', version: '0.3.2', schemaVersion: 1,
   compatibility: {
     coreRange: '>=0.8.5 <0.9.0',
     contracts: { graph: 1, decision: 1, evidence: 1 },
@@ -199,7 +199,7 @@ export const pack = {
 };
 
 // The release digest identifies the deterministic pack payload, excluding its own digest.
-pack.release = { digest: `sha256:${digest(JSON.stringify(pack))}`, builtAt: '2026-11-02T00:00:00.000Z', status: 'candidate' };
+pack.release = { digest: `sha256:${digest(JSON.stringify(pack))}`, builtAt: '2026-11-03T00:00:00.000Z', status: 'candidate' };
 
 export default pack;
 export {

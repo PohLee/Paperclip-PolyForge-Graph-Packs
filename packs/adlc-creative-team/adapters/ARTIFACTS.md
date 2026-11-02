@@ -13,7 +13,7 @@ The JSON artifact keeps each raw answer and its source separate from the `requir
 Generate the reviewer demo with:
 
 ```sh
-node packs/adlc-creative-team-pack/scripts/demo-interview.mjs
+node packs/adlc-creative-team/scripts/demo-interview.mjs
 ```
 
 It writes `examples/interview-demo.html` from `templates/interview/questionnaire.json`.
@@ -32,6 +32,6 @@ The gallery is a static image comparison page with zoom, comments, preference re
 
 ## Local preview
 
-Run `node packs/adlc-creative-team-pack/scripts/preview-examples.mjs` to serve only the pack's `examples/` directory on `127.0.0.1`. The operating system chooses an available ephemeral port by default. Pass `--port 8080` to select a port. The server rejects traversal, symlink escapes, non-file requests, and methods other than GET/HEAD; it does not bind to a network interface or expose the repository.
+Run `node packs/adlc-creative-team/scripts/preview-examples.mjs` to serve only the pack's `examples/` directory on `127.0.0.1`. The operating system chooses an available ephemeral port by default. Pass `--port 8080` to select a port. The server rejects traversal, symlink escapes, non-file requests, and methods other than GET/HEAD; it does not bind to a network interface or expose the repository.
 
 The demo HTML is an interview artifact only. No user product brief or suitable reference raster assets were supplied for this implementation, so no gallery preview is presented as a generated concept. Browser visual QA was not performed: the available browser tool explicitly blocked `file://` and prohibited reaching that same page through another browser route. Script behavior is covered by an isolated DOM harness. JPEG and WebP still require the host decoder capability described above.
