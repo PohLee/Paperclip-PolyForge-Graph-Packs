@@ -4,8 +4,10 @@ import { createHash } from 'node:crypto';
 import { mkdtemp, mkdir, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { GraphEngine } from './core-import.mjs';
-import { pack, createCreativeHostApi, auditPalette, contrastRatio, buildBrandContextSnapshot, resolveBrandQuestion, inspectLogoSvg, validateCreativeArtifact } from '../index.mjs';
+import { GraphEngine, runValidationDigest } from './core-import.mjs';
+import { pack, createCreativeHostApi as createCreativeHostApiImpl, auditPalette, contrastRatio, buildBrandContextSnapshot, resolveBrandQuestion, inspectLogoSvg, validateCreativeArtifact } from '../index.mjs';
+
+const createCreativeHostApi=options=>createCreativeHostApiImpl({...options,runValidationDigest});
 
 const digest = value => createHash('sha256').update(value).digest('hex');
 const stable = value => JSON.stringify(value,(key,item)=>item&&typeof item==='object'&&!Array.isArray(item)?Object.fromEntries(Object.keys(item).sort().map(name=>[name,item[name]])):item);
@@ -104,6 +106,22 @@ test('brand identity start rejects non-English input and unauthenticated logo se
     assert.equal(checked,true);
     assert.equal(run.graph.id,'brand-identity-kit');
   } finally { await rm(root,{recursive:true,force:true}); }
+});
+
+test('brand guidelines context must preserve the exact pinned baseline digest',async()=>{
+  const engine=new GraphEngine(); await engine.registerPack(pack);
+  const baselineA={id:'baseline-a',version:'1',strategyRef:ref('strategy'),identityRef:ref('identity'),voiceRef:ref('voice'),decisionRef:ref('decision')};
+  const baselineB={...baselineA,id:'baseline-b'};
+  const row=payload=>({id:payload.id,version:payload.version,kind:'brand_baseline',payload,digest:digest(stable(payload))});
+  const rowA=row(baselineA),rowB=row(baselineB),rows=new Map([[`brand_baseline:${rowA.id}@1`,rowA],[`brand_baseline:${rowB.id}@1`,rowB]]);
+  const reference=item=>({id:item.id,version:item.version,kind:item.kind,digest:item.digest});
+  const api=createCreativeHostApi({engine,resolveActor:({claimedActor})=>claimedActor,loadBrandContext:async()=>({facts:[],decisionRefs:[]}),loadExternalArtifact:async({ref:target,kind})=>rows.get(`${kind}:${target.id}@${target.version}`)});
+  const input={creative_brief:brief,projectId:'brand-project',brandBaselineRef:reference(rowA)};
+  const run=await api.startRun({packId:'creative-team',packVersion:pack.version,graphId:'brand-guidelines',mode:'manual',actor:actor('human-owner','owner'),input});
+  const submit=brandBaselineRef=>api.submitNode({runId:run.id,nodeId:'pin-approved-brand',actor:actor('design-ops-producer','ops'),artifacts:[{id:'guidelines-context',version:'1',kind:'guidelines_context'}],payloads:{guidelines_context:{id:'guidelines-context',version:'1',brandBaselineRef,assetRefs:[ref('brand-asset')]}}});
+  await assert.rejects(submit(reference(rowB)),/exact pinned baseline revision/);
+  await submit(reference(rowA));
+  assert.equal((await engine.getRun(run.id)).nodeStates['pin-approved-brand'].status,'completed');
 });
 
 test('brand asset adoption requires human owner and current reviewed asset bytes',async()=>{

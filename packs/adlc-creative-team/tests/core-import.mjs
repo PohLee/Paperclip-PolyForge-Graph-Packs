@@ -6,4 +6,4 @@ const moduleUrl=coreArtifact
   ? pathToFileURL(resolve(coreArtifact,'src/core/index.mjs')).href
   : new URL('../../../../Paperclip-PolyForge-Graph/src/core/index.mjs',import.meta.url).href;
 
-export const { GraphEngine }=await import(moduleUrl);
+export const { GraphEngine, runValidationDigest }=await import(moduleUrl);

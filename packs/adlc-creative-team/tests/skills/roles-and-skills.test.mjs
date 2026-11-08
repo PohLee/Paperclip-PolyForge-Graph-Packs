@@ -19,13 +19,16 @@ test('skill discovery points to complete graph methods and mode routing',async()
  const sprint=await readFile(join(root,'skills','concept-sprint.md'),'utf8');assert.match(sprint,/3–5 distinct static concept images/);assert.match(sprint,/one HTML gallery/);
 });
 test('every role skill resolves to discovery metadata',()=>{ for(const ids of Object.values(roleSkills)) for(const id of ids) assert.ok(skillCatalog[id]); });
-test('discovered upstream references resolve only to the pinned snapshots',async()=>{
- const lock=JSON.parse(await readFile(join(root,'sources','upstream.lock.json'),'utf8'));
- const sources=new Map(lock.sources.map(source=>[source.id,source]));
- for(const skill of Object.values(skillCatalog)) for(const ref of skill.upstreamSources??[]){
-  const source=sources.get(ref.sourceId); assert.ok(source,`unknown source ${ref.sourceId}`);
-  assert.match(source.treeSha256,/^[a-f0-9]{64}$/);
-  assert.ok((await readFile(join(root,source.destination,ref.path),'utf8')).length>0,`${ref.sourceId}/${ref.path}`);
+test('optional attribution resolves to metadata, never source checkout paths',async()=>{
+ const references=JSON.parse(await readFile(join(root,'sources','references.json'),'utf8'));
+ const sources=new Set(references.sources.map(source=>source.id));
+ for(const skill of Object.values(skillCatalog)) {
+  assert.equal(skill.upstreamSources,undefined);
+  for(const id of skill.optionalReferenceIds??[]) assert.ok(sources.has(id),`unknown source ${id}`);
+ }
+ assert.deepEqual(skillCatalog['hallmark-design-review'].optionalReferenceIds,['hallmark']);
+ for(const role of ['design-director','product-designer','design-engineer','design-qa-accessibility','art-director']) {
+  assert.ok(roleSkills[role].includes('hallmark-design-review'));
  }
 });
 test('every graph decision is explicit and manual decisions are human-owned',async()=>{

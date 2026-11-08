@@ -168,7 +168,19 @@ export function createArtifactLineage(run) {
     if(nodeId==='visual-review'||nodeId==='behavior-review') {
       const kind=nodeId==='visual-review'?'visual_review_findings':'behavior_review_findings';
       const subject=latest('pin-review-subject','review_subject');
-      if(payloads[kind].subjectRefs.some(ref=>!same(ref,subject)||!exactRecord(ref))) throw new Error('Design assurance review must cite the exact pinned subject artifact');
+      if(!equalArtifactRefs(payloads[kind].subjectRefs,subject?.subjectRefs)) throw new Error('Design assurance review must cite the exact frozen subject references');
+    }
+    if(['pin-logo-brief','pin-selected-logo','pin-approved-brand','pin-packaging-scope','pin-rollout-scope'].includes(nodeId)) {
+      const kind={
+        'pin-logo-brief':'logo_design_brief',
+        'pin-selected-logo':'identity_kit_context',
+        'pin-approved-brand':'guidelines_context',
+        'pin-packaging-scope':'packaging_context',
+        'pin-rollout-scope':'brand_rollout_context',
+      }[nodeId];
+      const context=payloads[kind];
+      if(!same(context.brandBaselineRef,run.input.brandBaselineRef)||context.brandBaselineRef?.digest!==run.input.brandBaselineRef?.digest) throw new Error('Brand context must preserve the exact pinned baseline revision');
+      if(nodeId==='pin-selected-logo'&&(!same(context.candidateSetRef,run.input.logoCandidateSetRef)||context.candidateSetRef?.digest!==run.input.logoCandidateSetRef?.digest||!same(context.selectionRef,run.input.logoSelectionRef)||context.selectionRef?.digest!==run.input.logoSelectionRef?.digest)) throw new Error('Identity kit context must preserve the exact selected candidate set and selection references');
     }
     if(nodeId==='campaign-concept') {
       const concept=payloads.campaign_concept;

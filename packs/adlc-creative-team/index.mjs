@@ -63,13 +63,8 @@ for (const node of graphDecisionNodes) for (const mode of ['manual','assisted','
 const policyFiles = ['authority.md','runtime-capabilities.md'];
 const policyDocuments = Object.fromEntries(policyFiles.map(file=>[file.replace('.md',''),readFileSync(resolve(root,'policies',file),'utf8')]));
 const policyDocumentDigests = Object.fromEntries(Object.entries(policyDocuments).map(([name,value])=>[name,digest(value)]));
-const sourceLockText = readFileSync(resolve(root,'sources/upstream.lock.json'),'utf8');
-const sourceLock = JSON.parse(sourceLockText);
-const sourceSnapshot = Object.freeze({
-  lock:sourceLock,
-  lockDigest:digest(sourceLockText),
-  snapshots:sourceLock.sources.map(source=>({id:source.id,path:source.destination,repository:source.repository,commit:source.commit,license:source.license,treeSha256:source.treeSha256}))
-});
+// Attribution only: no checkout paths, source resolution, or upstream execution.
+const methodReferences = JSON.parse(readFileSync(resolve(root,'sources/references.json'),'utf8'));
 const brandMethods = JSON.parse(readFileSync(resolve(root,'sources/brand-methods.json'),'utf8'));
 
 export const runtimeRequirements = Object.freeze({
@@ -100,17 +95,17 @@ export function resolveOrganization(activePacks=[]) {
 }
 
 export const pack = Object.freeze({
-  id:'creative-team',version:'0.3.0',schemaVersion:1,
+  id:'creative-team',version:'0.3.1',schemaVersion:1,
   compatibility:{coreRange:'>=0.8.4 <0.9.0',contracts:{graph:1,decision:1,evidence:1}},
-  organization,graphs:allGraphs,roles,skills,decisionRules,policyDocuments,policyDocumentDigests,sourceSnapshot,brandMethods,runtimeRequirements,
+  organization,graphs:allGraphs,roles,skills,decisionRules,policyDocuments,policyDocumentDigests,methodReferences,brandMethods,runtimeRequirements,
   policies:{decisionTraceRequired:false,artifactValidation:'host-callable-pack-validator',review:{independentExecutionRequired:true},
     conceptSprint:{minCount:3,maxCount:5,completionRequiresRealImages:true,oneGallery:true}},
-  release:{digest:'sha256:c26621fc8fb6a5c17ba72dd23731e942c4e60c0a1c90be0092134c82053ce69a',builtAt:'2026-11-02T00:00:00.000Z',status:'candidate'},
+  release:{digest:'sha256:30092e383a7e1605652ddabbc14ed9eb0de880df172c8812e9f7622eb6b01cc6',builtAt:'2026-11-08T00:00:00.000Z',status:'candidate'},
 });
 
 export function loadPack() { return pack; }
 export { validateCreativeArtifact, assertCreativeArtifact };
 export { productDesignGraphs };
 export { brandGraphs };
-export { createCreativeHostApi } from './runtime/host-api.mjs';
+export { createCreativeHostApi, creativeRequiredServicesByGraph } from './runtime/host-api.mjs';
 export default pack;

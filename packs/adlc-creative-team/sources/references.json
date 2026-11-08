@@ -1,0 +1,40 @@
+{
+  "schemaVersion": 1,
+  "purpose": "optional-method-attribution",
+  "runtimeRequired": false,
+  "sources": [
+    {
+      "id": "designer-skills",
+      "repository": "https://github.com/Owl-Listener/designer-skills",
+      "commit": "9a6930cf84a822eb458624bd11c61aac5bbdf224",
+      "license": "MIT",
+      "licenseFile": "sources/licenses/designer-skills-MIT.txt",
+      "contribution": "Research synthesis, scoped design exploration, component specification and handoff methods."
+    },
+    {
+      "id": "taste-skill",
+      "repository": "https://github.com/Leonxlnx/taste-skill",
+      "commit": "12af471f627f866411b4bd785b19646d3672784c",
+      "license": "MIT",
+      "licenseFile": "sources/licenses/taste-skill-MIT.txt",
+      "contribution": "Product-specific visual hierarchy and distinct page versus work-screen considerations."
+    },
+    {
+      "id": "impeccable",
+      "repository": "https://github.com/pbakaus/impeccable",
+      "commit": "02523aec3e4c4580102d996d1b6a71fbe062e03f",
+      "license": "Apache-2.0",
+      "licenseFile": "sources/licenses/impeccable-Apache-2.0.txt",
+      "noticeFile": "sources/licenses/impeccable-NOTICE.md",
+      "contribution": "Evidence-scoped critique, technical audit, responsive hardening and design documentation."
+    },
+    {
+      "id": "hallmark",
+      "repository": "https://github.com/nutlope/hallmark",
+      "commit": "407fa689f4a276f2fd389208d271d0fef08f5058",
+      "license": "MIT",
+      "licenseFile": "sources/licenses/hallmark-MIT.txt",
+      "contribution": "Material-led page direction and product-specific design review; optional harness-managed tooling."
+    }
+  ]
+}

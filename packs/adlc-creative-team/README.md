@@ -1,6 +1,6 @@
 # ADLC Creative Team Pack
 
-Standalone, versioned Pack for design and creative workflows. Pack ID `creative-team`, version `0.3.0`, supplies nineteen Core-compatible DAGs, 14 role definitions, 25 skills, evidence and artifact contracts, offline interview/gallery helpers, brand tools, and a trusted host wrapper that enforces pack-specific checks against Core run state and real files.
+Standalone, versioned Pack for design and creative workflows. Pack ID `creative-team`, version `0.3.1`, supplies nineteen Core-compatible DAGs, 14 role definitions, 26 skills, evidence and artifact contracts, offline interview/gallery helpers, brand tools, and a trusted host wrapper that enforces pack-specific checks against Core run state and real files.
 
 The pack loads and registers locally. It does not install agents, activate itself, generate images, connect to browser/Figma/BE services, publish content, or register an ADLC bridge. A host must provide authenticated identity, capability dispatch, immutable artifact storage, and the trusted evidence services described in [Core integration](docs/integration.md).
 
@@ -51,7 +51,7 @@ cd packs/adlc-creative-team
 node --test tests/*.test.mjs tests/skills/*.test.mjs tests/source/*.test.mjs
 ```
 
-The test suite includes current-Core registration/execution, real PNG-backed G03 completion at counts 3, 4, and 5, incomplete and reviewer-identity checks, and actual host-wrapper workflows for G04/G05/G06 with wrong-reference negatives.
+The test suite includes current-Core registration/execution, real PNG-backed G03 completion at counts 3, 4, and 5, incomplete and reviewer-identity checks, and actual host-wrapper workflows for G04/G05/G06/G07 with wrong-reference negatives.
 
 ## Offline helpers
 
@@ -65,9 +65,9 @@ The command prints its local URL and serves only files under `examples/`; this r
 
 ## Runtime enforcement and provenance
 
-Always route transitions through `createCreativeHostApi()` from `index.mjs`. It wraps Core `startRun`, `submitNode`, and `decideNode`; direct Core calls bypass pack checks. The wrapper validates exact artifact versions, decision evidence, accepted review links, image bytes, gallery rendering, selected-concept continuity, pinned BE contracts, and independent execution identity where applicable. The host supplies identity resolution, artifact and provenance loaders, decision evidence, image provider checks, and JPEG/WebP decoding. Those services are never assumed present just because capability IDs appear in metadata.
+Always route transitions through `createCreativeHostApi()` from `index.mjs`. It wraps Core `startRun`, `submitNode`, and `decideNode`; direct Core calls bypass pack checks. The wrapper validates exact artifact versions, decision evidence, accepted review links, image bytes, gallery rendering, selected-concept continuity, pinned BE contracts, and independent execution identity where applicable. For G07, final disposition preserves the exact frozen subjects, reviewer identities, and every finding from both source reviews. Findings must be resolved in a revised source review before the director can verify them. The host supplies identity resolution, artifact and provenance loaders, decision evidence, image provider checks, and JPEG/WebP decoding. Those services are never assumed present just because capability IDs appear in metadata.
 
-The npm package ships the lock, integrity helper, and selective materialization scripts, not the large upstream snapshots. The repository retains those snapshots for review. `pack.sourceSnapshot` records immutable commit, license, tree digest, and lock digest metadata. Source materialization uses the lock and verified snapshots; it does not run upstream hooks or scripts. The pack does not install these skills into a host.
+Creative ships self-contained, embedded Skills and optional attribution in `pack.methodReferences`. The four method references are designer-skills, taste-skill, Impeccable and Hallmark; no full upstream trees, source resolvers or downloaders are retained or required. Necessary licenses and notices remain in `sources/licenses/`. External tools may be installed and executed only by an authorized host harness outside the Pack. See [sources/README.md](sources/README.md) for execution and historical-run boundaries.
 
 Pack-owned code is licensed under LGPL-2.1-only. Pinned upstream sources retain their own licenses and notices; this package does not relicense them. See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
 

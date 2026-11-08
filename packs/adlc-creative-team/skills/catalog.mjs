@@ -23,22 +23,24 @@ const items = [
 ['brand-campaign-assets','Brand campaign assets','Adapt an approved brand baseline into a campaign asset set for named channels. Use for marketing and cross-touchpoint packages.'],
 ['decision-and-versioning','Design decisions and versioning','Write durable decisions and keep artifact lineage, stale references, and superseded work traceable. Use whenever a selection, acceptance, exception, or baseline change occurs.'],
 ['design-handoff','Design handoff to engineering','Prepare a version-pinned handoff of design, requirements, states, assets, and API contracts. Use when moving an accepted design into ADLC or implementation.'],
-['visual-direction-adapter','Upstream visual direction adapter','Apply pinned Taste and Impeccable source methods according to explorationMode and surfaceMode. Use only at concept, art direction, implementation, or review nodes that need those methods.']
+['visual-direction-adapter','Creative visual direction','Apply Creative visual direction methods according to explorationMode and surfaceMode. Use at concept, art direction, implementation or review nodes that need a consistent comparison basis.'],
+['hallmark-design-review','Product-specific page review','Check a new page or an explicitly requested redesign for product-specific purpose, truthful material and coherent execution. Use for web direction or design review; do not broaden a minor UI change into a redesign.']
 ];
-const upstreamSources = {
-  'creative-intake':[{sourceId:'designer-skills',path:'design-research/commands/discover.md'},{sourceId:'designer-skills',path:'ux-strategy/skills/design-brief/SKILL.md'}],
-  'product-design-discovery':[{sourceId:'designer-skills',path:'ux-strategy/commands/strategize.md'},{sourceId:'designer-skills',path:'interaction-design/commands/design-interaction.md'},{sourceId:'designer-skills',path:'visual-critique/commands/critique-screen.md'}],
-  'minor-ui-change':[{sourceId:'designer-skills',path:'ui-design/commands/design-screen.md'},{sourceId:'impeccable',path:'skill/reference/harden.md'}],
-  'ui-candidate-sprint':[{sourceId:'designer-skills',path:'prototyping-testing/skills/parallel-concepts/SKILL.md'},{sourceId:'designer-skills',path:'ui-design/commands/design-screen.md'},{sourceId:'taste-skill',path:'skills/taste-skill/SKILL.md'}],
-  'ui-prototype-experiment':[{sourceId:'designer-skills',path:'prototyping-testing/commands/experiment.md'},{sourceId:'designer-skills',path:'prototyping-testing/skills/a-b-test-design/SKILL.md'}],
-  'research-synthesis':[{sourceId:'designer-skills',path:'design-research/skills/user-persona/SKILL.md'},{sourceId:'designer-skills',path:'design-research/commands/discover.md'}],
-  'concept-sprint':[{sourceId:'designer-skills',path:'prototyping-testing/skills/parallel-concepts/SKILL.md'},{sourceId:'designer-skills',path:'prototyping-testing/skills/concept-selection/SKILL.md'},{sourceId:'designer-skills',path:'prototyping-testing/commands/explore-options.md'},{sourceId:'impeccable',path:'skill/reference/visualize.md'}],
-  'web-design-expansion':[{sourceId:'designer-skills',path:'ui-design/commands/design-screen.md'},{sourceId:'taste-skill',path:'skills/taste-skill/SKILL.md'},{sourceId:'impeccable',path:'skill/reference/new-work.md'}],
-  'saas-feature-design':[{sourceId:'designer-skills',path:'interaction-design/commands/design-interaction.md'},{sourceId:'taste-skill',path:'skills/taste-skill/references/app-screens.md'},{sourceId:'impeccable',path:'skill/reference/operate.md'},{sourceId:'impeccable',path:'skill/reference/harden.md'}],
-  'design-system-evolution':[{sourceId:'designer-skills',path:'design-systems/skills/component-spec/SKILL.md'},{sourceId:'impeccable',path:'skill/reference/document.md'}],
-  'design-assurance':[{sourceId:'designer-skills',path:'visual-critique/commands/critique-screen.md'},{sourceId:'impeccable',path:'skill/reference/critique.md'},{sourceId:'impeccable',path:'skill/reference/audit.md'}],
-  'brand-campaign-assets':[{sourceId:'taste-skill',path:'skills/taste-skill/SKILL.md'},{sourceId:'impeccable',path:'skill/reference/visualize.md'}],
-  'visual-direction-adapter':[{sourceId:'taste-skill',path:'skills/taste-skill/SKILL.md'},{sourceId:'taste-skill',path:'skills/taste-skill/references/app-screens.md'},{sourceId:'impeccable',path:'skill/SKILL.src.md'},{sourceId:'impeccable',path:'skill/reference/new-work.md'},{sourceId:'impeccable',path:'skill/reference/critique.md'},{sourceId:'impeccable',path:'skill/reference/audit.md'}],
-  'design-handoff':[{sourceId:'designer-skills',path:'design-ops/commands/handoff.md'},{sourceId:'designer-skills',path:'design-ops/skills/handoff-spec/SKILL.md'},{sourceId:'impeccable',path:'skill/reference/document.md'}]
+const optionalReferences = {
+  'creative-intake':["designer-skills"],
+  'product-design-discovery':["designer-skills"],
+  'minor-ui-change':["designer-skills","impeccable"],
+  'ui-candidate-sprint':["designer-skills","taste-skill"],
+  'ui-prototype-experiment':["designer-skills"],
+  'research-synthesis':["designer-skills"],
+  'concept-sprint':["designer-skills","impeccable"],
+  'web-design-expansion':["designer-skills","taste-skill","impeccable"],
+  'saas-feature-design':["designer-skills","taste-skill","impeccable"],
+  'design-system-evolution':["designer-skills","impeccable"],
+  'design-assurance':["designer-skills","impeccable"],
+  'brand-campaign-assets':["taste-skill","impeccable"],
+  'visual-direction-adapter':["taste-skill","impeccable"],
+  'hallmark-design-review':['hallmark'],
+  'design-handoff':["designer-skills","impeccable"]
 };
-export const skillCatalog = Object.fromEntries(items.map(([id,name,description])=>[id,{id,name,description,triggers:description.split(' Use ')[1]??description,...(upstreamSources[id]?{upstreamSources:upstreamSources[id]}:{})}]));
+export const skillCatalog = Object.fromEntries(items.map(([id,name,description])=>[id,{id,name,description,triggers:description.split(' Use ')[1]??description,...(optionalReferences[id]?{optionalReferenceIds:optionalReferences[id]}:{})}]));

@@ -1,8 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import { GraphEngine } from './core-import.mjs';
-import { pack, createCreativeHostApi } from '../index.mjs';
+import { GraphEngine, runValidationDigest } from './core-import.mjs';
+import { pack, createCreativeHostApi as createCreativeHostApiImpl } from '../index.mjs';
+
+const createCreativeHostApi=options=>createCreativeHostApiImpl({...options,runValidationDigest});
 
 const stableJson=value=>JSON.stringify(value,(key,item)=>item&&typeof item==='object'&&!Array.isArray(item)?Object.fromEntries(Object.keys(item).sort().map(name=>[name,item[name]])):item);
 const sha=value=>createHash('sha256').update(stableJson(value)).digest('hex');

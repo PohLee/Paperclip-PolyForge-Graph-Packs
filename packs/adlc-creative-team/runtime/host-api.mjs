@@ -25,6 +25,29 @@ function getGraph(packId,graphId) { return packId==='creative-team'?[...graphs,.
 function requestedCount(run) { return run.input.creative_brief?.requestedCount??run.input.requestedCount; }
 function asRefs(candidates) { return candidates.map(c=>({id:c.id,version:c.version})); }
 
+const graphIds=[...graphs,...productDesignGraphs,...brandGraphs].map(item=>item.id);
+const decisionGraphIds=new Set([...graphs,...productDesignGraphs,...brandGraphs].filter(item=>item.nodes.some(node=>node.type==='decision')).map(item=>item.id));
+const serviceRequirements=Object.fromEntries(graphIds.map(id=>[id,new Set()]));
+const requireServices=(ids,...names)=>{ for(const id of ids) for(const name of names) serviceRequirements[id]?.add(name); };
+requireServices([...decisionGraphIds],'resolveDecisionEvidence');
+requireServices(['concept-sprint'],'artifactRootForRun','hasImageProvider','decodeImage');
+requireServices(['concept-to-web-design'],'loadExternalArtifact','artifactRootForRun','decodeImage','getArtifactProvenance');
+requireServices(['saas-feature-design'],'loadExternalArtifact');
+requireServices(['design-system-evolution'],'loadExternalArtifact');
+requireServices(['brand-campaign-assets'],'loadExternalArtifact');
+requireServices(['logo-concept-design','brand-identity-kit','brand-asset-adoption','brand-guidelines','brand-packaging-brief','brand-rollout-plan','brand-architecture-naming'],'loadExternalArtifact','loadBrandContext');
+requireServices(['brand-identity-kit','brand-asset-adoption','logo-concept-design'],'artifactRootForRun');
+requireServices(['brand-identity-kit'],'getArtifactProvenance');
+requireServices(['brand-asset-adoption'],'artifactRootForRun');
+requireServices(['design-assurance'],'loadExternalArtifact','getArtifactProvenance');
+requireServices(['ui-candidate-sprint','ui-prototype-experiment'],'loadExternalArtifact');
+requireServices(['minor-ui-change','product-design-discovery'],'loadExternalArtifact');
+
+/** Trusted adapter prerequisites; this map is source-owned, never read from Pack JSON. */
+export const creativeRequiredServicesByGraph=Object.freeze(Object.fromEntries(
+  Object.entries(serviceRequirements).map(([id,names])=>[id,Object.freeze([...names].sort())])
+));
+
 async function insideRoot(root, relative) {
   if(typeof relative!=='string'||!relative||path.isAbsolute(relative)||relative.includes('\\')||relative.split('/').includes('..')) throw new Error('Artifact paths must be safe relative paths');
   const realRoot=await realpath(root), candidate=path.resolve(realRoot,relative), rel=path.relative(realRoot,candidate);
@@ -34,8 +57,23 @@ async function insideRoot(root, relative) {
   return {realRoot,realCandidate};
 }
 
-export function createCreativeHostApi({engine,artifactRootForRun,hasImageProvider,decodeImage,loadExternalArtifact,getArtifactProvenance,resolveDecisionEvidence,resolveActor,authorizeBrandSelection,loadBrandContext}={}) {
+export function createCreativeHostApi({engine,artifactRootForRun,hasImageProvider,decodeImage,loadExternalArtifact,getArtifactProvenance,resolveDecisionEvidence,resolveActor,authorizeBrandSelection,loadBrandContext,runValidationDigest,services={}}={}) {
   if(!engine) throw new TypeError('engine is required');
+  if(typeof runValidationDigest!=='function') throw new TypeError('Trusted runValidationDigest function is required');
+  artifactRootForRun=services.artifactRootForRun??artifactRootForRun;
+  hasImageProvider=services.hasImageProvider??hasImageProvider;
+  decodeImage=services.decodeImage??decodeImage;
+  loadExternalArtifact=services.loadExternalArtifact??loadExternalArtifact;
+  getArtifactProvenance=services.getArtifactProvenance??getArtifactProvenance;
+  resolveDecisionEvidence=services.resolveDecisionEvidence??resolveDecisionEvidence;
+  resolveActor=services.resolveActor??resolveActor;
+  authorizeBrandSelection=services.authorizeBrandSelection??authorizeBrandSelection;
+  loadBrandContext=services.loadBrandContext??loadBrandContext;
+  const snapshotDigest=run=>{
+    const value=runValidationDigest(run);
+    if(typeof value!=='string'||!value.trim()) throw new Error('Trusted runValidationDigest returned an invalid digest');
+    return value;
+  };
   const rootFor=async run=>{
     const root=typeof artifactRootForRun==='function'?await artifactRootForRun(run):artifactRootForRun;
     if(!root) throw new Error('Trusted artifact storage root is not configured for this run');
@@ -58,7 +96,9 @@ export function createCreativeHostApi({engine,artifactRootForRun,hasImageProvide
   async function trustedActor(claimedActor,context) {
     if(typeof resolveActor!=='function') throw new Error('Trusted host actor resolver is required; caller-supplied actor fields are not accepted');
     const actor=await resolveActor({claimedActor,context});
-    if(!actor||typeof actor.id!=='string'||!['agent','human'].includes(actor.kind)||!Array.isArray(actor.roles)||typeof actor.executionId!=='string'||!actor.executionId) throw new Error('Host actor resolver returned an invalid authenticated actor');
+    const validExecution=actor?.kind==='agent'?typeof actor.executionId==='string'&&Boolean(actor.executionId.trim()):actor?.kind==='human'&&(actor.executionId===null||(typeof actor.executionId==='string'&&Boolean(actor.executionId.trim())));
+    const validSystem=actor?.kind==='system'&&context.operation==='submitNode'&&['join','end'].includes(context.node?.type)&&typeof actor.id==='string'&&Boolean(actor.id.trim())&&Array.isArray(actor.roles)&&actor.roles.length===0&&actor.executionId===null;
+    if(!actor||typeof actor.id!=='string'||!actor.id.trim()||!['agent','human','system'].includes(actor.kind)||!Array.isArray(actor.roles)||(!validExecution&&!validSystem)) throw new Error('Host actor resolver returned an invalid authenticated actor');
     return actor;
   }
   async function externalRecord(ref,kind,context={}) {
@@ -152,10 +192,11 @@ export function createCreativeHostApi({engine,artifactRootForRun,hasImageProvide
     }
     return {path:realCandidate,root:realRoot};
   }
-  async function requireDecisionEvidence(run,nodeId,outcome) {
+  async function requireDecisionEvidence(run,nodeId,outcome,decisions) {
     const node=run.graph.nodes.find(item=>item.id===nodeId);
     if(!node||node.type!=='decision') throw new Error('Decision evidence requested for a non-decision node');
-    const prior=await engine.listDecisions({runId:run.id});
+    const prior=decisions??await engine.listDecisions({runId:run.id});
+    if(!Array.isArray(prior)) throw new Error('Decision snapshot must be an array');
     if(nodeId==='naming-disposition'&&outcome==='shortlist') {
       const candidates=latestPayload(run,'develop-name-candidates','brand_name_candidates');
       const screening=latestPayload(run,'screen-name-conflicts','brand_name_screening');
@@ -247,6 +288,18 @@ export function createCreativeHostApi({engine,artifactRootForRun,hasImageProvide
     if(gate) {
       const report=latestPayload(run,gate[1],gate[0]);
       if(!report||report.disposition!==gate[2]) throw new Error(`${nodeId} ${outcome} requires matching review disposition evidence`);
+      if(nodeId==='assurance-disposition'&&outcome==='verified') {
+        const subject=latestPayload(run,'pin-review-subject','review_subject');
+        const visual=latestPayload(run,'visual-review','visual_review_findings');
+        const behavior=latestPayload(run,'behavior-review','behavior_review_findings');
+        const equalRefs=(left,right)=>Array.isArray(left)&&Array.isArray(right)&&left.length===right.length&&left.every((ref,index)=>sameRef(ref,right[index])&&ref.digest===right[index].digest);
+        if(!subject||!visual||!behavior||!equalRefs(report.subjectRefs,subject.subjectRefs)||!equalRefs(visual.subjectRefs,subject.subjectRefs)||!equalRefs(behavior.subjectRefs,subject.subjectRefs)) throw new Error('Verified design assurance must cite the exact pinned subjects from both current reviews');
+        const combined=[...(visual.findings??[]),...(behavior.findings??[])];
+        if(stableJson(report.findings??[])!==stableJson(combined)) throw new Error('Verified design assurance must preserve every finding and disposition from both current reviews');
+        if(stableJson(report.subjectAuthorExecutionIds??[])!==stableJson(subject.subjectAuthorExecutionIds??[])) throw new Error('Verified design assurance must use trusted pinned subject author provenance');
+        const attempt=run.nodeStates.disposition?.attempts?.at(-1);
+        if(!attempt?.actor?.executionId||report.reviewerExecutionId!==attempt.actor.executionId) throw new Error('Verified design assurance reviewer identity must match the authenticated disposition actor');
+      }
       if(report.findings?.some(f=>!['resolved','accepted-exception'].includes(f.status))) throw new Error(`${nodeId} cannot accept unresolved findings`);
       if(report.unverified===true) throw new Error(`${nodeId} cannot accept unverified evidence`);
       if(['web_design_review','saas_design_review','design_review'].includes(gate[0])) {
@@ -259,7 +312,7 @@ export function createCreativeHostApi({engine,artifactRootForRun,hasImageProvide
     const rule=run.pack.decisionRules.find(item=>item.type===node.decisionType&&item.mode===run.mode);
     if(!rule||!rule.requiredEvidence?.length) throw new Error(`No explicit evidence rule for ${node.decisionType}/${run.mode}`);
     if(typeof resolveDecisionEvidence!=='function') throw new Error('Trusted decision-evidence resolver is not configured');
-    const evidence=await resolveDecisionEvidence({run,node,outcome,requiredKinds:rule.requiredEvidence});
+    const evidence=await resolveDecisionEvidence({run,node,outcome,requiredKinds:rule.requiredEvidence,decisions:prior});
       if(!Array.isArray(evidence)||rule.requiredEvidence.some(kind=>!evidence.some(item=>item.kind===kind&&item.payload&&typeof item.payload==='object'))) throw new Error(`Trusted evidence is incomplete for ${node.decisionType}`);
     for(const item of evidence) {
       const refs=[...(item.subjectRefs??[]),...(item.sourceRef&&typeof item.sourceRef==='object'?[item.sourceRef]:[])];
@@ -269,7 +322,222 @@ export function createCreativeHostApi({engine,artifactRootForRun,hasImageProvide
     return evidence;
   }
 
+  async function validateStartInput(run) {
+    const input=run.input??{},graphId=run.graph?.id;
+    if(input.creative_brief) assertCreativeArtifact('creative_brief',input.creative_brief);
+    const surfaceRequired=['concept-sprint','concept-to-web-design','saas-feature-design','minor-ui-change','product-design-discovery','ui-candidate-sprint','ui-prototype-experiment'].includes(graphId);
+    if(surfaceRequired&&!['persuade','operate','read','experience'].includes(input.creative_brief?.surfaceMode)) throw new Error(`${graphId} requires a concrete creative_brief.surfaceMode`);
+    if(['brand-foundation','concept-sprint','concept-to-web-design','saas-feature-design','brand-campaign-assets','brand-architecture-naming','logo-concept-design','brand-identity-kit','brand-asset-adoption','brand-guidelines','brand-packaging-brief','brand-rollout-plan'].includes(graphId)&&!input.creative_brief) throw new Error(`${graphId} requires a validated creative_brief`);
+    if(graphId==='concept-sprint') {
+      const briefCount=input.creative_brief?.requestedCount,topCount=input.requestedCount;
+      if(briefCount!=null&&topCount!=null&&briefCount!==topCount) throw new Error('requestedCount must match creative_brief.requestedCount');
+      if(![3,4,5].includes(briefCount??topCount??3)) throw new Error('Concept sprint requires targetCount 3, 4, or 5');
+      if(!input.imageProviderId||typeof hasImageProvider!=='function'||!await hasImageProvider(input.imageProviderId,{run})) throw new Error('Concept sprint needs an installed, authorized image provider');
+      await rootFor(run);
+    }
+    if(graphId==='concept-to-web-design') {
+      const set=await inputArtifact(input,'conceptSetRef','concept_set',{run}),selection=await inputArtifact(input,'conceptSelectionRef','concept_selection',{run});
+      await verifyExternalSetImages(set);
+      if(!validateSelection(selection.payload,set.payload).valid) throw new Error('Web design needs a current selection bound to the exact set, concept, version, and image digest');
+      const authors=await getArtifactProvenance?.(input.conceptSelectionRef,{run});
+      if(!Array.isArray(authors)||!authors.some(item=>item.kind==='human'&&item.roles?.includes('human-owner'))) throw new Error('Concept selection must be an authenticated human-owner preference record');
+    }
+    if(graphId==='saas-feature-design') {
+      await inputArtifact(input,'designBaselineRef','design_baseline',{run});
+      if(!Array.isArray(input.beContracts)||!input.beContracts.length||!input.beContracts.every(isRef)) throw new Error('SaaS design needs exact versioned BE contract references');
+      for(const ref of input.beContracts) {
+        if(ref.kind!=='be_contract'||!/^[a-f0-9]{64}$/.test(ref.digest??'')) throw new Error('Every pinned BE contract ref must include kind=be_contract and its exact SHA-256 digest');
+        await externalRecord(ref,'be_contract',{run,input});
+      }
+    }
+    if(graphId==='design-system-evolution') {
+      if(input.designBaselineRef&&input.bootstrapRef) throw new Error('Choose an existing design baseline or an explicit bootstrap context, not both');
+      if(input.designBaselineRef) await inputArtifact(input,'designBaselineRef','design_baseline',{run});
+      else {
+        if(!isRef(input.bootstrapRef)||!['brand_baseline','concept_selection'].includes(input.bootstrapRef.kind)) throw new Error('Design-system bootstrap needs a pinned brand_baseline or concept_selection reference');
+        const bootstrap=await externalRecord(input.bootstrapRef,input.bootstrapRef.kind,{run,input});
+        if(input.bootstrapRef.kind==='concept_selection') {
+          const set=await inputArtifact(input,'conceptSetRef','concept_set',{run});
+          await verifyExternalSetImages(set);
+          if(!validateSelection(bootstrap.payload,set.payload).valid) throw new Error('Bootstrap concept selection must bind the exact current concept set');
+          const authors=await getArtifactProvenance?.(input.bootstrapRef,{run});
+          if(!Array.isArray(authors)||!authors.some(author=>author.kind==='human'&&author.roles?.includes('human-owner'))) throw new Error('Bootstrap concept selection must be authenticated human preference');
+        }
+      }
+    }
+    if(graphId==='brand-campaign-assets'||['logo-concept-design','brand-identity-kit','brand-asset-adoption','brand-guidelines','brand-packaging-brief','brand-rollout-plan'].includes(graphId)) await inputArtifact(input,'brandBaselineRef','brand_baseline',{run});
+    if(['brand-architecture-naming','logo-concept-design','brand-identity-kit','brand-asset-adoption','brand-guidelines','brand-packaging-brief','brand-rollout-plan'].includes(graphId)) {
+      if(input.brandLanguage!==undefined&&input.brandLanguage!=='en') throw new Error('Brand workflows currently support English only');
+      if(typeof input.projectId!=='string'||!input.projectId.trim()) throw new Error('Brand workflow requires projectId');
+      if(typeof loadBrandContext!=='function') throw new Error('Trusted brand context loader is not configured');
+      const records=await loadBrandContext({projectId:input.projectId,graphId,actor:null,run});
+      const current=buildBrandContextSnapshot({projectId:input.projectId,facts:records?.facts,decisionRefs:records?.decisionRefs});
+      if(stableJson(current)!==stableJson(input.brand_context_snapshot)) throw new Error('Pinned brand context differs from the current trusted project snapshot');
+    }
+    if(graphId==='brand-identity-kit') {
+      const set=await inputArtifact(input,'logoCandidateSetRef','logo_candidate_set',{run}),selection=await inputArtifact(input,'logoSelectionRef','logo_concept_selection',{run});
+      if(!set.artifactRoot) throw new Error('Selected logo set needs a trusted artifact root');
+      for(const candidate of set.payload.candidates) {
+        const {realCandidate}=await insideRoot(set.artifactRoot,candidate.svg.path),bytes=await readFile(realCandidate);
+        if(digest(bytes)!==candidate.svg.digest||!inspectLogoSvg(bytes).valid) throw new Error('Selected logo set SVG bytes do not match the accepted candidate');
+      }
+      const authors=await getArtifactProvenance?.(input.logoSelectionRef,{run});
+      const owner=Array.isArray(authors)&&authors.some(item=>item.kind==='human'&&item.roles?.includes('human-owner'));
+      const delegated=!owner&&typeof authorizeBrandSelection==='function'&&await authorizeBrandSelection({selection:selection.payload,authors,actor:null,input,run});
+      if(!owner&&!delegated) throw new Error('Logo selection requires authenticated owner choice or verified delegation');
+    }
+    if(graphId==='brand-asset-adoption') {
+      const kit=await inputArtifact(input,'brandKitRef','brand_identity_kit',{run}),review=await inputArtifact(input,'brandKitReviewRef','brand_identity_kit_review',{run});
+      const context=await externalRecord(kit.payload.contextRef,'identity_kit_context',{run,input});
+      if(!sameRef(context.payload.brandBaselineRef,input.brandBaselineRef)||!sameRef(review.payload.kitRef,kit)||review.payload.disposition!=='accepted'||review.payload.findings?.some(item=>!['resolved','accepted-exception'].includes(item.status))) throw new Error('Brand adoption requires a reviewed kit based on the current baseline');
+      await verifyBrandKitAssets(kit);
+    }
+    if(graphId==='design-assurance') {
+      if(!Array.isArray(input.reviewSubjectRefs)||!input.reviewSubjectRefs.length||!input.reviewSubjectRefs.every(isRef)) throw new Error('Design assurance needs exact reviewSubjectRefs before review begins');
+      for(const ref of input.reviewSubjectRefs) {
+        await externalRecord(ref,ref.kind??'design_artifact',{run,input});
+        const provenance=await getArtifactProvenance?.(ref,{run});
+        if(!Array.isArray(provenance)||!provenance.some(item=>typeof item.executionId==='string'&&item.executionId)) throw new Error('Design assurance subject has no trusted author provenance');
+      }
+    }
+    if(graphId==='minor-ui-change'&&(!isRef(input.designBaselineRef)||!isRef(input.requirementsRef))) throw new Error('Minor UI change needs exact pinned designBaselineRef and requirementsRef');
+    if(graphId==='product-design-discovery'&&!isRef(input.requirementsRef)) throw new Error('Product design discovery needs an exact pinned requirementsRef');
+    if(graphId==='ui-candidate-sprint') await inputArtifact(input,'productDesignDirectionRef','product_design_direction',{run});
+    if(graphId==='ui-prototype-experiment') await inputArtifact(input,'uiCandidateSetRef','ui_candidate_set',{run});
+  }
+
+  async function validateRun({run,decisions}={}) {
+    const issues=[],validatedSubjectRefs=[];
+    const addIssue=(code,path,message,action)=>issues.push({code,path,message,action});
+    if(!run||run.packId!=='creative-team'||!run.graph||!run.nodeStates) {
+      addIssue('creative-run-invalid','run','Snapshot is not a Creative run with graph state.','Load the exact persisted Creative run snapshot and retry.');
+      return {valid:false,issues,validatedSubjectRefs};
+    }
+    if(!Array.isArray(decisions)) {
+      addIssue('decision-snapshot-missing','decisions','Recovery validation requires the exact decision-record snapshot.','Load the run decision records and pass them unchanged to validateRun.');
+      return {valid:false,issues,validatedSubjectRefs};
+    }
+    const lineage=createArtifactLineage(run),activeStatuses=new Set(['completed','awaiting_self_review','awaiting_supervisor_review']);
+    const currentRefs=new Map();
+    const collectRefs=(value,key='',pathName='')=>{
+      if(Array.isArray(value)) { value.forEach((item,index)=>collectRefs(item,key,`${pathName}[${index}]`)); return; }
+      if(!value||typeof value!=='object') return;
+    if(/Refs?$/.test(key)&&isRef(value)) { currentRefs.set(`${value.kind??''}:${refId(value)}@${value.version}:${value.digest??''}`,{ref:value,path:pathName}); return; }
+      for(const [childKey,child] of Object.entries(value)) collectRefs(child,childKey,pathName?`${pathName}.${childKey}`:childKey);
+    };
+    collectRefs(run.input,'input','input');
+    try { await validateStartInput(run); }
+    catch(error) { addIssue('start-input-invalid','input',String(error.message??error),'Restore the exact start inputs and trusted upstream records, or start a new run with valid pinned inputs.'); }
+    if(Array.isArray(run.input?.beContracts)) for(const ref of run.input.beContracts) {
+      if(!isRef(ref)||ref.kind!=='be_contract'||!/^[a-f0-9]{64}$/.test(ref.digest??'')) addIssue('be-contract-reference-invalid','input.beContracts','Every BE contract must retain exact kind, id, version, and SHA-256 digest.','Pin each BE contract to its exact immutable artifact record.');
+      else currentRefs.set(`be_contract:${refId(ref)}@${ref.version}:${ref.digest}`,{ref,path:'input.beContracts'});
+    }
+    for(const node of run.graph.nodes) {
+      const state=run.nodeStates[node.id],attempt=state?.attempts?.at(-1);
+      if(!state||!activeStatuses.has(state.status)) continue;
+      if(!attempt) {
+        addIssue('current-attempt-missing',`nodeStates.${node.id}.attempts`,'Active node state has no current persisted attempt.','Restore the exact current attempt or restart this workflow; recovery cannot certify output from a missing attempt.');
+        continue;
+      }
+      if(node.type==='task') {
+        const payloads=attempt.output?.creativeArtifacts??{};
+        if(stableJson(state.output?.creativeArtifacts??{})!==stableJson(payloads)) addIssue('node-output-mismatch',`nodeStates.${node.id}.output.creativeArtifacts`,'Operational node output differs from the current attempt payload; downstream routes may read the stale or altered state output.','Restore the node output from its current attempt or rerun the producing node.');
+        const activeArtifacts=state.artifacts??[];
+        for(const kind of node.produces??[]) {
+          const artifact=[...activeArtifacts].reverse().find(item=>item.kind===kind);
+          const payload=payloads[kind];
+          const attemptArtifact=[...(attempt.artifacts??[])].reverse().find(item=>item.kind===kind);
+          if(!artifact||!attemptArtifact||artifact.id!==attemptArtifact.id||artifact.version!==attemptArtifact.version||!payload||payload.id!==artifact.id||payload.version!==artifact.version) {
+            addIssue('current-artifact-mismatch',`nodeStates.${node.id}.artifacts.${kind}`,'Current output is missing or does not match the active attempt artifact envelope.','Restore the exact current artifact payload or rerun the producing node.');
+            continue;
+          }
+          try {
+            assertCreativeArtifact(/^concept_image_\d\d$/.test(kind)?'concept_candidate':kind,payload);
+            validatedSubjectRefs.push({id:artifact.id,version:artifact.version,kind});
+          } catch(error) { addIssue('artifact-schema-invalid',`nodeStates.${node.id}.attempts.current.output.creativeArtifacts.${kind}`,String(error.message??error),'Repair the payload and submit a new artifact version.'); }
+          collectRefs(payload,kind,`nodeStates.${node.id}.output.${kind}`);
+        }
+        try { lineage.submission(node.id,Object.fromEntries((node.produces??[]).filter(kind=>payloads[kind]).map(kind=>[kind,payloads[kind]]))); }
+        catch(error) { addIssue('artifact-lineage-invalid',`nodeStates.${node.id}.output`,String(error.message??error),'Rerun the producer with references to the exact current upstream artifacts.'); }
+        try {
+          for(const kind of node.produces??[]) {
+            const payload=payloads[kind]; if(!payload) continue;
+            if(/^concept_image_\d\d$/.test(kind)) await verifyImage(run,kind,payload);
+            if(kind==='concept_set') for(const candidate of payload.candidates??[]) await verifyImage(run,kind,candidate);
+            if(kind==='concept_gallery') await verifyGallery(run,payload,latestPayload(run,'freeze-concept-set','concept_set'));
+            if(kind==='logo_candidate_set') for(const candidate of payload.candidates??[]) await verifyBrandSvg(run,candidate);
+            if(kind==='brand_identity_kit') for(const asset of payload.assetRefs??[]) {
+              const {realCandidate}=await insideRoot(await rootFor(run),asset.path);
+              if(digest(await readFile(realCandidate))!==asset.digest) throw new Error('Identity kit asset bytes differ from pinned digest');
+            }
+          }
+        } catch(error) { addIssue('artifact-bytes-invalid',`nodeStates.${node.id}.artifacts`,String(error.message??error),'Restore trusted artifact bytes or resubmit from the configured artifact store.'); }
+        if(node.id==='disposition') {
+          const report=payloads.design_review,subject=latestPayload(run,'pin-review-subject','review_subject');
+          const visual=latestPayload(run,'visual-review','visual_review_findings'),behavior=latestPayload(run,'behavior-review','behavior_review_findings');
+          const equalRefs=(left,right)=>Array.isArray(left)&&Array.isArray(right)&&left.length===right.length&&left.every((ref,index)=>sameRef(ref,right[index])&&ref.digest===right[index].digest);
+          const findings=[...(visual?.findings??[]),...(behavior?.findings??[])];
+          if(!report||!subject||!visual||!behavior||!equalRefs(report.subjectRefs,subject.subjectRefs)||!equalRefs(visual.subjectRefs,subject.subjectRefs)||!equalRefs(behavior.subjectRefs,subject.subjectRefs)||stableJson(report.findings??[])!==stableJson(findings)||stableJson(report.subjectAuthorExecutionIds??[])!==stableJson(subject.subjectAuthorExecutionIds??[])||report.reviewerExecutionId!==attempt.actor?.executionId||!attempt.actor?.executionId||subject.subjectAuthorExecutionIds?.includes(attempt.actor.executionId)) addIssue('design-assurance-invalid',`nodeStates.${node.id}.output.design_review`,'Disposition does not preserve current frozen subjects, source findings, trusted authors, or independent reviewer identity.','Rerun source reviews against the frozen subjects; then submit a disposition preserving their findings.');
+        }
+        if(node.id==='pin-review-subject') {
+          const subject=payloads.review_subject,authors=new Set();
+          try {
+            if(typeof getArtifactProvenance!=='function') throw new Error('Trusted artifact provenance resolver is not configured');
+            for(const ref of subject?.subjectRefs??[]) {
+              const local=exactRecord(run,ref);
+              if(local) { if(local.attempt.actor?.executionId) authors.add(local.attempt.actor.executionId); }
+              else {
+                await externalRecord(ref,ref.kind??'design_artifact',{run,input:run.input});
+                const provenance=await getArtifactProvenance(ref);
+                if(!Array.isArray(provenance)||!provenance.some(item=>typeof item.executionId==='string'&&item.executionId)) throw new Error('External subject has no trusted author execution provenance');
+                for(const item of provenance) if(item.executionId) authors.add(item.executionId);
+              }
+            }
+            const actual=[...(subject?.subjectAuthorExecutionIds??[])].sort(),expected=[...authors].sort();
+            if(!expected.length||stableJson(actual)!==stableJson(expected)) throw new Error('Pinned author identities differ from trusted provenance');
+          } catch(error) { addIssue('design-assurance-provenance-invalid',`nodeStates.${node.id}.output.review_subject`,String(error.message??error),'Restore exact subject records/provenance and repin the frozen review subjects.'); }
+        }
+        if(node.id==='visual-review'||node.id==='behavior-review') {
+          const kind=node.id==='visual-review'?'visual_review_findings':'behavior_review_findings';
+          const review=payloads[kind],subject=latestPayload(run,'pin-review-subject','review_subject');
+          const equalRefs=(left,right)=>Array.isArray(left)&&Array.isArray(right)&&left.length===right.length&&left.every((ref,index)=>sameRef(ref,right[index])&&ref.digest===right[index].digest);
+          if(!review||!equalRefs(review.subjectRefs,subject?.subjectRefs)||!attempt.actor?.executionId||review.reviewerExecutionId!==attempt.actor.executionId||subject?.subjectAuthorExecutionIds?.includes(attempt.actor.executionId)) addIssue('design-assurance-review-invalid',`nodeStates.${node.id}.output.${kind}`,'Review does not cite the current frozen subjects or authenticated independent reviewer.','Rerun this source review with a trusted independent execution.');
+        }
+      }
+      if(node.type==='decision'&&state.outcome!==undefined&&state.outcome!==null) {
+        const decision=decisions.find(item=>item.id===attempt.decisionId&&item.runId===run.id&&item.nodeId===node.id&&item.status==='decided'&&item.outcome===state.outcome);
+        if(!decision) { addIssue('decision-record-mismatch',`nodeStates.${node.id}.outcome`,'Current route has no matching persisted decision record.','Restore the current decision record or reapply the decision through the trusted wrapper.'); continue; }
+        try {
+          lineage.decision(node.id,state.outcome);
+          const currentEvidence=await requireDecisionEvidence(run,node.id,state.outcome,decisions);
+          if(stableJson(currentEvidence)!==stableJson(decision.evidence??[])) throw new Error('Persisted decision evidence no longer matches current trusted evidence');
+          collectRefs(decision.evidence??[],'evidence',`decisions.${decision.id}.evidence`);
+        } catch(error) { addIssue('decision-evidence-invalid',`decisions.${decision.id}.evidence`,String(error.message??error),'Restore trusted current evidence or rerun the decision with its required evidence.'); }
+      }
+    }
+    for(const {ref,path:refPath} of currentRefs.values()) {
+      const local=exactRecord(run,ref);
+      if(local) {
+        if(ref.kind&&ref.kind!==local.item.kind) addIssue('local-reference-kind-mismatch',refPath,'Reference kind differs from the exact local artifact record.','Update the reference kind to match the producing artifact.');
+        if(ref.digest) {
+          const observed=local.payload&&digest(Buffer.from(stableJson(local.payload)));
+          if(!observed||ref.digest!==observed) addIssue('local-reference-digest-mismatch',refPath,'Reference digest does not match the canonical exact local artifact payload.','Update the reference to the current artifact digest or rerun its producer.');
+        }
+        continue;
+      }
+      if(!ref.kind) { addIssue('external-reference-kind-missing',refPath,'External artifact reference has no trusted artifact kind.','Pin an exact external artifact kind, id, version, and digest.'); continue; }
+      try {
+        const row=await externalRecord(ref,ref.kind,{run,input:run.input});
+        if(row.kind==='concept_set') await verifyExternalSetImages(row);
+        validatedSubjectRefs.push({id:row.id,version:row.version,kind:row.kind,digest:row.digest});
+      } catch(error) { addIssue('external-reference-invalid',refPath,String(error.message??error),'Restore this exact external artifact and trusted provenance in the host artifact store.'); }
+    }
+    if(!validatedSubjectRefs.length) addIssue('no-current-artifact-evidence','run.nodeStates','No current Creative artifact evidence was available to attest from this snapshot.','Continue the existing workflow normally or start a new run; this snapshot cannot be certified without persisted output evidence.');
+    return {valid:issues.length===0,issues,validatedSubjectRefs};
+  }
+
   return Object.freeze({
+    validateRun,
     async startRun(args) {
       const actor=await trustedActor(args.actor,{operation:'startRun',packId:args.packId,graphId:args.graphId});
       const graph=getGraph(args.packId,args.graphId);
@@ -392,12 +660,14 @@ export function createCreativeHostApi({engine,artifactRootForRun,hasImageProvide
 
     async submitNode({runId,nodeId,actor,output={},artifacts=[],payloads={},...rest}) {
       const run=await engine.getRun(runId); if(!run||run.packId!=='creative-team') throw new Error('Creative run not found');
-      actor=await trustedActor(actor,{operation:'submitNode',run,nodeId});
       const node=run.graph.nodes.find(n=>n.id===nodeId); if(!node||!['task','join','end'].includes(node.type)) throw new Error('Creative work node not found');
+      actor=await trustedActor(actor,{operation:'submitNode',run,nodeId,node});
+      const expectedRunDigest=snapshotDigest(run);
       if(!(await engine.getReadyNodes(runId)).some(n=>n.id===nodeId)) throw new Error('Creative task is not ready');
+      if(node.independentOf?.length&&!actor.executionId) throw new Error('Independent review requires a trusted execution identity');
       if(node.type==='join'||node.type==='end') {
         if(artifacts.length||Object.keys(payloads).length) throw new Error('Automatic join/end nodes do not accept artifact payloads');
-        return engine.submitNode({runId,nodeId,actor,output,...rest});
+        return engine.submitNode({runId,nodeId,actor,output,...rest,expectedRunDigest});
       }
       const requiredKinds=node.produces??[];
       if(requiredKinds.length!==artifacts.length||requiredKinds.some(kind=>!artifacts.some(a=>a.kind===kind))) throw new Error(`Task ${nodeId} must submit every declared output artifact`);
@@ -549,9 +819,21 @@ export function createCreativeHostApi({engine,artifactRootForRun,hasImageProvide
         if(authorIds.includes(actor.executionId)) throw new Error('Reviewer execution must differ from external candidate authors');
         enrichedPayloads[node.produces[0]]={...reviewPayload,subjectAuthorExecutionIds:authorIds,reviewerExecutionId:actor.executionId};
       }
+      if(nodeId==='disposition') {
+        const report=enrichedPayloads.design_review;
+        const subject=latestPayload(run,'pin-review-subject','review_subject');
+        const visual=latestPayload(run,'visual-review','visual_review_findings');
+        const behavior=latestPayload(run,'behavior-review','behavior_review_findings');
+        const equalRefs=(left,right)=>Array.isArray(left)&&Array.isArray(right)&&left.length===right.length&&left.every((ref,index)=>sameRef(ref,right[index])&&ref.digest===right[index].digest);
+        if(!report||!subject||!visual||!behavior||!equalRefs(report.subjectRefs,subject.subjectRefs)||!equalRefs(visual.subjectRefs,subject.subjectRefs)||!equalRefs(behavior.subjectRefs,subject.subjectRefs)) throw new Error('Design assurance disposition must cite the exact pinned subjects from both current reviews');
+        const findings=[...(visual.findings??[]),...(behavior.findings??[])];
+        if(stableJson(report.findings??[])!==stableJson(findings)) throw new Error('Design assurance disposition must preserve every finding and disposition from both current reviews');
+        if(!actor.executionId||subject.subjectAuthorExecutionIds?.includes(actor.executionId)) throw new Error('Design assurance disposition actor must be independent from pinned subject authors');
+        enrichedPayloads.design_review={...report,subjectAuthorExecutionIds:subject.subjectAuthorExecutionIds,reviewerExecutionId:actor.executionId};
+      }
       createArtifactLineage(run).submission(nodeId,enrichedPayloads);
       const enriched={...output,creativeArtifacts:enrichedPayloads};
-      return engine.submitNode({runId,nodeId,actor,output:enriched,artifacts,...rest});
+      return engine.submitNode({runId,nodeId,actor,output:enriched,artifacts,...rest,expectedRunDigest});
     },
 
     async decideNode({runId,nodeId,actor,outcome,...rest}) {
@@ -561,7 +843,45 @@ export function createCreativeHostApi({engine,artifactRootForRun,hasImageProvide
       if(!(await engine.getReadyNodes(runId)).some(n=>n.id===nodeId)) throw new Error('Creative decision is not ready');
       if(nodeId==='adopt-brand-assets'&&(actor.kind!=='human'||!actor.roles.includes('human-owner'))) throw new Error('Formal brand asset adoption requires an authenticated human owner');
       const evidence=await requireDecisionEvidence(run,nodeId,outcome);
-      return engine.decideNode({runId,nodeId,actor,outcome,...rest,evidence});
+      const expectedRunDigest=snapshotDigest(run);
+      return engine.decideNode({runId,nodeId,actor,outcome,...rest,evidence,expectedRunDigest});
+    },
+    async resolveHumanGate({runId,nodeId,actor,outcome,...rest}) {
+      const run=await engine.getRun(runId); if(!run||run.packId!=='creative-team') throw new Error('Creative run not found');
+      actor=await trustedActor(actor,{operation:'resolveHumanGate',run,nodeId,outcome});
+      const node=run.graph.nodes.find(n=>n.id===nodeId); if(!node||node.type!=='decision') throw new Error('Creative decision node not found');
+      if(run.status!=='paused'||run.pendingHuman?.kind!=='decision'||run.pendingHuman.nodeId!==nodeId) throw new Error('Creative decision is not waiting for a human');
+      if(actor.kind!=='human'||!actor.roles.includes('human-owner')) throw new Error('Human owner decision required');
+      if(nodeId==='adopt-brand-assets'&&(actor.kind!=='human'||!actor.roles.includes('human-owner'))) throw new Error('Formal brand asset adoption requires an authenticated human owner');
+      const decisions=await engine.listDecisions({runId});
+      const evidence=await requireDecisionEvidence(run,nodeId,outcome,decisions);
+      const expectedRunDigest=snapshotDigest(run);
+      return engine.resolveHumanGate({runId,nodeId,actor,outcome,...rest,evidence,expectedRunDigest});
+    },
+    async recordSelfReview({runId,nodeId,actor,findings=[],fixes=[],artifactVersion,revisedArtifact=null,revisedPayload,revisedOutput:callerRevisedOutput,evidence=[],...rest}) {
+      if(callerRevisedOutput!==undefined) throw new Error('revisedOutput is host-owned; submit revisedPayload with its artifact envelope');
+      const run=await engine.getRun(runId); if(!run||run.packId!=='creative-team') throw new Error('Creative run not found');
+      actor=await trustedActor(actor,{operation:'recordSelfReview',run,nodeId});
+      const nodeState=run.nodeStates[nodeId],attempt=nodeState?.attempts?.at(-1);
+      if(!attempt||attempt.actor?.id!==actor.id||attempt.actor?.executionId!==actor.executionId) throw new Error('Self review must use the authenticated producing actor and execution');
+      let revisedOutput;
+      if(revisedArtifact) {
+        if(typeof revisedArtifact.kind!=='string'||typeof revisedArtifact.id!=='string'||typeof revisedArtifact.version!=='string') throw new Error('Creative revised artifact needs kind, id, and version');
+        const current=[...(nodeState.artifacts??[])].reverse().find(item=>item.kind===revisedArtifact.kind);
+        if(!current||revisedArtifact.id!==current.id||revisedArtifact.version===current.version) throw new Error('Revised artifact must preserve current identity and use a new version');
+        if(!revisedPayload||revisedPayload.id!==revisedArtifact.id||revisedPayload.version!==revisedArtifact.version) throw new Error(`Revised artifact envelope identity differs from ${revisedArtifact.kind} payload`);
+        assertCreativeArtifact(/^concept_image_\d\d$/.test(revisedArtifact.kind)?'concept_candidate':revisedArtifact.kind,revisedPayload);
+        if(/^concept_image_\d\d$/.test(revisedArtifact.kind)) await verifyImage(run,revisedArtifact.kind,revisedPayload);
+        if(revisedArtifact.kind==='logo_candidate_set') for(const candidate of revisedPayload.candidates) await verifyBrandSvg(run,candidate);
+        if(revisedArtifact.kind==='brand_identity_kit') for(const asset of revisedPayload.assetRefs) {
+          const {realCandidate}=await insideRoot(await rootFor(run),asset.path);
+          if(digest(await readFile(realCandidate))!==asset.digest) throw new Error('Identity kit asset bytes differ from pinned digest');
+        }
+        createArtifactLineage(run).submission(nodeId,{[revisedArtifact.kind]:revisedPayload});
+        revisedOutput={...attempt.output,creativeArtifacts:{...(attempt.output?.creativeArtifacts??{}),[revisedArtifact.kind]:revisedPayload}};
+      } else if(revisedPayload!==undefined) throw new Error('revisedPayload requires a revisedArtifact envelope');
+      const expectedRunDigest=snapshotDigest(run);
+      return engine.recordSelfReview({runId,nodeId,actor,findings,fixes,artifactVersion,revisedArtifact,revisedOutput,evidence,...rest,expectedRunDigest});
     },
   });
 }

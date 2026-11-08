@@ -1,20 +1,21 @@
 ---
 name: visual-direction-adapter
-description: Apply pinned Taste and Impeccable source methods according to explorationMode and surfaceMode. Use only at concept, art direction, implementation, or review nodes that need those methods.
+description: Apply Creative visual direction methods according to explorationMode and surfaceMode. Use at concept, art direction, implementation or review nodes that need a consistent comparison basis.
 ---
 
-# Upstream visual direction adapter
+# Creative visual direction
 
-Load source methods only when the current node needs them. Resolve a pinned path with `node scripts/resolve-source.mjs <source-id> <tracked/path>` from the pack root and read the printed file as reference guidance. Discovery metadata lists the same source ID and path. Never run upstream installers, scripts, binaries, hooks, or services.
+Use this method directly; no external source files or tools are required. The legacy Skill ID is retained for role compatibility.
 
-First interpret the pack modes. `explorationMode` decides what is fixed and what may vary:
+1. Pin the brief, approved project brand and selected baseline. Resolve what may vary using `explorationMode`:
+   - `brand-territory`: hold audience, positioning, promise, content and dimensions fixed; vary visual language.
+   - `product-structure`: hold brand, task, content, data and viewport fixed; vary information and interaction structure.
+   - `surface-composition`: hold selected concept and function fixed; vary hierarchy and composition.
+2. Resolve `surfaceMode`. For `persuade`, organize real proof around a clear visitor action. For `operate`, make the primary task, workspace scope, data meaning and recovery controls easy to find. For `read`, prioritize scan paths and readable content on the existing surface. For `experience`, use the brief's intended interaction or editorial rhythm. If ambiguity changes direction, ask or record a blocked requirement. Strategy-only work may remain surface-neutral; G03/G04/G05 require a concrete mode.
+3. Write a direction contract: fixed traits, variable axes, hierarchy, type roles, spacing rhythm, palette roles, imagery purpose and interaction intent. Reuse approved tokens; do not invent brand facts, fake performance metrics or decoration masquerading as data. App density must serve actual tasks, not imitate a landing page.
+4. Compare alternatives using identical content and viewports. Explain each material difference and tradeoff. Do not substitute a color change for a distinct hypothesis or change both the task and visual language without authorization.
+5. Inspect the result against the direction contract: focus of attention, readable hierarchy, consistent spacing, meaningful color, honest states, narrow-screen behavior and motion alternatives. Request host rendering for visual claims; label missing evidence unverified.
 
-- `brand-territory`: hold audience, positioning, promise, content, and dimensions fixed; vary visual language.
-- `product-structure`: hold brand, task, content, data, and viewport fixed; vary information and interaction structure.
-- `surface-composition`: hold selected concept and function fixed; vary hierarchy and composition.
+Precedence: confirmed requirements and approved brand promise; platform, accessibility and business constraints; approved design baseline; modes; specialized craft guidance; optional taste preferences. Never replace an approved project brand with upstream house-style opinions.
 
-`surfaceMode` is the request taxonomy, not a Taste profile name. Map `persuade` to Taste's public page profile. Map `operate` to Taste's work-app profile. Map `read` to the profile of the existing surface being inspected: use page guidance for a public page, app guidance for a work screen. Map `experience` to the target surface from the brief; use app guidance for task-driven interaction and page guidance for a primarily editorial or public-facing experience. Record the resolved profile in the brief when ambiguity affects the design.
-
-Use the Taste canonical method `skills/taste-skill/SKILL.md`; read `skills/taste-skill/references/app-screens.md` for the app profile. For Impeccable, use `skill/SKILL.src.md` as the router, then load only the relevant method such as `skill/reference/new-work.md`, `visualize.md`, `critique.md`, or `audit.md`. Use designer-skills methods such as parallel concepts and concept selection only in the corresponding graph stage.
-
-Resolve conflicts in this order: confirmed requirements and approved brand promise; platform, accessibility, and business constraints; approved design baseline; exploration and surface profiles; specialized craft methods; optional taste preferences. An approved project brand overrides house-style opinions. Treat taste preferences as optional. Do not apply page-only motion or imagery guidance to an app screen unless the brief calls for it and it improves the task.
+Deliver the direction contract, versioned candidates or scoped findings, evidence references and unresolved tradeoffs. Completion requires the requested artifact and review evidence, not merely a written aesthetic rationale. Optional provenance is embedded in Pack metadata; external reading is never a prerequisite.

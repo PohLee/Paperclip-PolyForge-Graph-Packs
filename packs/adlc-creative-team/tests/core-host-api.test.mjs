@@ -5,8 +5,10 @@ import os from 'node:os';
 import path from 'node:path';
 import { createHash } from 'node:crypto';
 import { deflateSync } from 'node:zlib';
-import { GraphEngine } from './core-import.mjs';
-import { pack, createCreativeHostApi, validateCreativeArtifact, assembleGallery, validateStaticImage } from '../index.mjs';
+import { GraphEngine, runValidationDigest } from './core-import.mjs';
+import { pack, createCreativeHostApi as createCreativeHostApiImpl, validateCreativeArtifact, assembleGallery, validateStaticImage } from '../index.mjs';
+
+const createCreativeHostApi=options=>createCreativeHostApiImpl({...options,runValidationDigest});
 
 const capabilities={'image-generation':'1.0.0','html-file-write':'1.0.0','design-rendering':'1.0.0','project-source-read':'1.0.0','be-contract-read':'1.0.0','asset-production':'1.0.0'};
 const fixtureActor=({claimedActor})=>({id:claimedActor?.id??'host-user',kind:claimedActor?.kind??'human',roles:claimedActor?.roles??['human-owner'],executionId:claimedActor?.executionId??'host-execution'});
@@ -28,6 +30,44 @@ async function hostFixture() {
     resolveDecisionEvidence:async({requiredKinds})=>requiredKinds.map(kind=>({kind,payload:{kind},sourceRef:{id:'unused',version:'1'}}))});
   return {root,engine,api,dispose:()=>rm(root,{recursive:true,force:true})};
 }
+
+test('G07 binds verified disposition to frozen subjects, trusted reviewers and every finding',async()=>{
+  const root=await mkdtemp(path.join(os.tmpdir(),'creative-g07-'));
+  const engine=new GraphEngine({availableCapabilities:capabilities}); await engine.registerPack(pack);
+  const stable=value=>JSON.stringify(value,(key,item)=>item&&typeof item==='object'&&!Array.isArray(item)?Object.fromEntries(Object.keys(item).sort().map(name=>[name,item[name]])):item);
+  const brief={id:'assurance-subject',version:'1',objective:'Review a fixed candidate',audience:'Operators'};
+  const subjectRef={id:brief.id,version:brief.version,kind:'creative_brief',digest:sha(Buffer.from(stable(brief)))};
+  const row={id:brief.id,version:brief.version,kind:'creative_brief',payload:brief,digest:subjectRef.digest};
+  const api=createCreativeHostApi({engine,artifactRootForRun:root,resolveActor:({claimedActor})=>claimedActor,
+    loadExternalArtifact:async({ref:requested,kind})=>requested.id===row.id&&requested.version===row.version&&kind===row.kind?row:null,
+    getArtifactProvenance:async()=>[{kind:'agent',roles:['product-designer'],executionId:'candidate-author'}],
+    resolveDecisionEvidence:async({run,requiredKinds})=>{
+      const attempt=run.nodeStates.disposition.attempts.at(-1),item=attempt.artifacts.find(artifact=>artifact.kind==='design_review');
+      return requiredKinds.map(kind=>({kind,payload:attempt.output.creativeArtifacts.design_review,sourceRef:{id:item.id,version:item.version,kind:item.kind}}));
+    }});
+  const runFor=async findings=>{
+    const run=await api.startRun({packId:pack.id,packVersion:pack.version,graphId:'design-assurance',mode:'manual',actor:{id:'owner',kind:'human',roles:['human-owner'],executionId:null},input:{reviewSubjectRefs:[subjectRef]}});
+    const submit=async(nodeId,role,executionId,kind,payload)=>api.submitNode({runId:run.id,nodeId,actor:{id:executionId,kind:'agent',roles:[role],executionId},artifacts:[payloadArtifact(kind,payload)],payloads:{[kind]:payload}});
+    await submit('pin-review-subject','design-ops-producer','pin-exec','review_subject',{id:'pinned-subject',version:'1',subjectRefs:[subjectRef],subjectAuthorExecutionIds:['claimed'],scope:'candidate only'});
+    for(const [nodeId,kind] of [['visual-review','visual_review_findings'],['behavior-review','behavior_review_findings']]) await submit(nodeId,'design-qa-accessibility',`${nodeId}-exec`,kind,{id:`${nodeId}-artifact`,version:'1',subjectRefs:[subjectRef],reviewerExecutionId:`${nodeId}-exec`,subjectAuthorExecutionIds:['claimed-author'],findings:findings[nodeId]??[]});
+    await api.submitNode({runId:run.id,nodeId:'assurance-reviews-ready',actor:{id:'join',kind:'human',roles:['human-owner'],executionId:null}});
+    return {run,submit};
+  };
+  try {
+    const p1={id:'finding-p1',severity:'P1',status:'open',summary:'Keyboard path is blocked'};
+    const exploitable=await runFor({'visual-review':[p1],'behavior-review':[]});
+    const forged={id:'forged-report',version:'1',subjectRefs:[{id:'invented',version:'1'}],reviewerExecutionId:'invented-reviewer',subjectAuthorExecutionIds:['invented-author'],scope:'all',disposition:'verified',findings:[]};
+    await assert.rejects(exploitable.submit('disposition','design-director','director-exec','design_review',forged),/exact pinned subjects|every finding/);
+    await assert.rejects(exploitable.submit('disposition','design-director','director-exec','design_review',{...forged,id:'hidden-p1',subjectRefs:[subjectRef]}),/every finding/);
+    await assert.rejects(exploitable.submit('disposition','design-director','director-exec','design_review',{...forged,id:'relabeled-p1',subjectRefs:[subjectRef],findings:[{...p1,status:'resolved'}]}),/preserve every finding/);
+    const clean=await runFor({'visual-review':[],'behavior-review':[]});
+    await assert.rejects(clean.submit('disposition','design-director','candidate-author','design_review',{...forged,id:'author-review',subjectRefs:[subjectRef],findings:[]}),/independent from pinned subject authors/);
+    await clean.submit('disposition','design-director','director-exec','design_review',{...forged,id:'clean-report',subjectRefs:[subjectRef],findings:[]});
+    await api.decideNode({runId:clean.run.id,nodeId:'assurance-disposition',actor:{id:'owner',kind:'human',roles:['human-owner','design-director'],executionId:null},outcome:'verified',reason:'Both reviews are complete and independent'});
+    await api.submitNode({runId:clean.run.id,nodeId:'verified',actor:{id:'owner',kind:'human',roles:['human-owner'],executionId:null}});
+    assert.equal((await engine.getRun(clean.run.id)).nodeStates.verified.status,'completed');
+  } finally { await rm(root,{recursive:true,force:true}); }
+});
 
 test('runtime requires a concrete surface only for surface-specific graphs',async()=>{
   const {api,dispose}=await hostFixture();

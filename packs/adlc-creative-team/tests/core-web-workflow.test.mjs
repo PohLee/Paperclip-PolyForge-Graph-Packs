@@ -5,8 +5,10 @@ import { mkdtemp, mkdir, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { deflateSync } from 'node:zlib';
-import { GraphEngine } from './core-import.mjs';
-import { createCreativeHostApi, createSelection, pack, validateStaticImage } from '../index.mjs';
+import { GraphEngine, runValidationDigest } from './core-import.mjs';
+import { createCreativeHostApi as createCreativeHostApiImpl, createSelection, pack, validateStaticImage } from '../index.mjs';
+
+const createCreativeHostApi=options=>createCreativeHostApiImpl({...options,runValidationDigest});
 
 const capabilities = {
   'image-generation':'1.0.0', 'html-file-write':'1.0.0', 'design-rendering':'1.0.0',

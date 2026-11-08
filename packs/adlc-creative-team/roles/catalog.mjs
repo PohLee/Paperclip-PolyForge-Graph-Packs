@@ -17,17 +17,17 @@ const roles = [
 export const roleCatalog = roles.map(([id,name,reportsToRole,supervisor,soul,role,capabilities,rules])=>({id,name,reportsToRole,supervisor,soul,role,capabilities,rules}));
 export const roleSkills = {
   'head-of-design':['decision-and-versioning','concept-sprint','design-system-evolution','product-design-discovery','ui-candidate-sprint','ui-prototype-experiment','minor-ui-change','brand-guidelines','brand-asset-adoption'],
-  'design-director':['web-design-expansion','saas-feature-design','design-assurance','product-design-discovery','ui-candidate-sprint','ui-prototype-experiment','minor-ui-change'],
+  'design-director':['hallmark-design-review','web-design-expansion','saas-feature-design','design-assurance','product-design-discovery','ui-candidate-sprint','ui-prototype-experiment','minor-ui-change'],
   'creative-director':['brand-foundation','brand-campaign-assets','concept-sprint','brand-architecture-naming','logo-concept-design','brand-identity-kit','brand-guidelines','brand-packaging-brief','brand-rollout-measurement'],
   'design-ops-producer':['creative-intake','decision-and-versioning','design-handoff','brand-context','brand-guidelines','brand-rollout-measurement','brand-asset-adoption'],
   'design-researcher':['creative-intake','research-synthesis','product-design-discovery','ui-prototype-experiment','brand-context','brand-architecture-naming','brand-rollout-measurement'],
-  'product-designer':['creative-intake','concept-sprint','web-design-expansion','product-design-discovery','ui-candidate-sprint','minor-ui-change'],
+  'product-designer':['hallmark-design-review','creative-intake','concept-sprint','web-design-expansion','product-design-discovery','ui-candidate-sprint','minor-ui-change'],
   'interaction-designer':['saas-feature-design','design-assurance'],
   'design-systems-designer':['design-system-evolution','saas-feature-design'],
-  'design-engineer':['web-design-expansion','saas-feature-design','design-handoff','ui-candidate-sprint','ui-prototype-experiment'],
-  'design-qa-accessibility':['design-assurance','visual-direction-adapter','product-design-discovery','ui-candidate-sprint','minor-ui-change','logo-concept-design','brand-identity-kit'],
+  'design-engineer':['hallmark-design-review','web-design-expansion','saas-feature-design','design-handoff','ui-candidate-sprint','ui-prototype-experiment'],
+  'design-qa-accessibility':['hallmark-design-review','design-assurance','visual-direction-adapter','product-design-discovery','ui-candidate-sprint','minor-ui-change','logo-concept-design','brand-identity-kit'],
   'brand-strategist':['brand-foundation','research-synthesis','brand-context','brand-architecture-naming','brand-verbal-identity','brand-rollout-measurement'],
   'brand-identity-designer':['brand-foundation','brand-campaign-assets','logo-concept-design','brand-identity-kit','brand-packaging-brief'],
-  'art-director':['concept-sprint','visual-direction-adapter','brand-campaign-assets','logo-concept-design'],
+  'art-director':['hallmark-design-review','concept-sprint','visual-direction-adapter','brand-campaign-assets','logo-concept-design'],
   'brand-voice-content':['brand-foundation','brand-campaign-assets','web-design-expansion','brand-verbal-identity','brand-guidelines']
 };

@@ -2,11 +2,13 @@
 
 Pack-owned code is licensed under LGPL-2.1-only. This notice records upstream provenance and does not change the license of any upstream source.
 
-The pack pins the following earlier upstream sources for method adaptation. No upstream code or skill text is copied into the pack-owned role and skill documents. When materialized, each snapshot retains the repository's tracked license and notice files. The separately licensed logo helper scripts are listed below.
+The following optional references informed independently maintained Creative methods. Full repositories, upstream Skill bodies and their runtimes are not bundled. Provenance and retained license/notice texts are recorded in `sources/references.json` and `sources/licenses/`. These references are not runtime dependencies. The separately licensed existing logo helper scripts are listed below.
 
 - `Owl-Listener/designer-skills`, commit `9a6930cf84a822eb458624bd11c61aac5bbdf224` — MIT.
 - `Leonxlnx/taste-skill`, commit `12af471f627f866411b4bd785b19646d3672784c` — MIT.
 - `pbakaus/impeccable`, commit `02523aec3e4c4580102d996d1b6a71fbe062e03f` — Apache-2.0. Preserve the upstream `NOTICE` file and license when redistributing material from this source.
+
+- `nutlope/hallmark`, commit `407fa689f4a276f2fd389208d271d0fef08f5058` — MIT, Copyright (c) 2026 Hallmark contributors. Product-specific page review method reference only; no theme library, imagery, checker or installer is bundled.
 
 The pack's original role descriptions, adapters, and graph guidance are maintained separately from upstream files. Upstream authors and project names indicate provenance, not endorsement.
 
