@@ -6,7 +6,7 @@ import { packs as sourcePacks, packCatalog as sourcePackCatalog } from './index.
 
 // These release files are installed alongside the package by the deployment.
 // Keep this list explicit so an unrelated file in dist never becomes executable.
-const installedReleasePaths = [
+export const installedReleasePaths = Object.freeze([
   ['adlc', '0.2.0'],
   ['adlc', '0.2.1'],
   ['adlc', '0.2.3'],
@@ -14,9 +14,12 @@ const installedReleasePaths = [
   ['adlc', '0.2.5'],
   ['marketing', '0.0.1'],
   ['marketing', '0.0.3'],
+  ['marketing', '0.0.4'],
   ['creative-team', '0.1.0'],
   ['creative-team', '0.2.0'],
-];
+  ['creative-team', '0.3.1'],
+  ['creative-team', '0.3.2'],
+].map(pair => Object.freeze(pair)));
 const root = fileURLToPath(new URL('.', import.meta.url));
 
 function loadInstalledRelease(id, version) {
