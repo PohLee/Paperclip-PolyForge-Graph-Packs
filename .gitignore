@@ -1,3 +1,5 @@
 dist/
 # External tools belong to the host harness, never vendored source snapshots.
 /packs/adlc-creative-team/sources/upstream/
+
+/packs/adlc-creative-team/.host-artifacts/

@@ -13,13 +13,14 @@ export { auditPalette, contrastRatio } from './adapters/brand-tools/palette.mjs'
 export { buildBrandContextSnapshot, resolveBrandQuestion } from './adapters/brand-tools/context.mjs';
 export { inspectLogoSvg } from './adapters/brand-tools/svg.mjs';
 
+const readText = path => readFileSync(path, 'utf8').replace(/\r\n/g, '\n');
 const root = dirname(fileURLToPath(import.meta.url));
 const digest = value => createHash('sha256').update(value).digest('hex');
 const roleDocs = ['soul','role','goal','instruction','decision_model'];
 const allGraphs=[...graphs,...productDesignGraphs,...brandGraphs];
 
 function readRole(spec) {
-  const documents = Object.fromEntries(roleDocs.map(name => [name, readFileSync(resolve(root,'roles',spec.id,`${name}.md`),'utf8')]));
+  const documents = Object.fromEntries(roleDocs.map(name => [name, readText(resolve(root,'roles',spec.id,`${name}.md`))]));
   const match = documents.decision_model.match(/```json\s*([\s\S]*?)\s*```/);
   if (!match) throw new Error(`Missing JSON decision model for role ${spec.id}`);
   const decisionModel = JSON.parse(match[1]);
@@ -30,7 +31,7 @@ function readRole(spec) {
 }
 
 function readSkill(id) {
-  const source = `skills/${id}.md`, content = readFileSync(resolve(root,source),'utf8');
+  const source = `skills/${id}.md`, content = readText(resolve(root,source));
   return { id,source,content,digest:digest(content),...skillCatalog[id] };
 }
 
@@ -61,11 +62,11 @@ for (const node of graphDecisionNodes) for (const mode of ['manual','assisted','
 }
 
 const policyFiles = ['authority.md','runtime-capabilities.md'];
-const policyDocuments = Object.fromEntries(policyFiles.map(file=>[file.replace('.md',''),readFileSync(resolve(root,'policies',file),'utf8')]));
+const policyDocuments = Object.fromEntries(policyFiles.map(file=>[file.replace('.md',''),readText(resolve(root,'policies',file))]));
 const policyDocumentDigests = Object.fromEntries(Object.entries(policyDocuments).map(([name,value])=>[name,digest(value)]));
 // Attribution only: no checkout paths, source resolution, or upstream execution.
-const methodReferences = JSON.parse(readFileSync(resolve(root,'sources/references.json'),'utf8'));
-const brandMethods = JSON.parse(readFileSync(resolve(root,'sources/brand-methods.json'),'utf8'));
+const methodReferences = JSON.parse(readText(resolve(root,'sources/references.json')));
+const brandMethods = JSON.parse(readText(resolve(root,'sources/brand-methods.json')));
 
 export const runtimeRequirements = Object.freeze({
   execution: 'Host dispatches ready tasks and submits outputs using authenticated Core actor context. The pack does not execute agents.',
@@ -80,12 +81,15 @@ const conditionalReportingLines=[{when:{packId:'adlc',minVersion:'0.2.4',maxExcl
 export const organization=Object.freeze({executiveRole:'head-of-design',roleScope:'design',packRolesNamespace:'creative-team',conditionalReportingLines});
 
 export function resolveOrganization(activePacks=[]) {
+  const parseVersion=value=>{
+    const match=typeof value==='string'&&value.match(/^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$/);
+    return match?match.slice(1,4).map(Number):null;
+  };
+  const compare=(left,right)=>left[0]-right[0]||left[1]-right[1]||left[2]-right[2];
+  const {packId,minVersion,maxExclusiveVersion}=conditionalReportingLines[0].when;
   const hasCompatibleAdlc=activePacks.some(item=>{
-    if(item?.id!=='adlc'||typeof item.version!=='string') return false;
-    const match=item.version.match(/^(\d+)\.(\d+)\.(\d+)/);
-    if(!match) return false;
-    const [,major,minor,patch]=match.map(Number);
-    return major===0&&((minor===2&&patch>=4)||minor===3);
+    const version=parseVersion(item?.version);
+    return item?.id===packId&&version&&compare(version,parseVersion(minVersion))>=0&&compare(version,parseVersion(maxExclusiveVersion))<0;
   });
   const resolvedRoles=Object.fromEntries(Object.entries(roles).map(([id,role])=>[
     id,id==='head-of-design'&&hasCompatibleAdlc?{...role,reportsToRole:'adlc:cpo'}:role
@@ -95,12 +99,12 @@ export function resolveOrganization(activePacks=[]) {
 }
 
 export const pack = Object.freeze({
-  id:'creative-team',version:'0.3.1',schemaVersion:1,
+  id:'creative-team',version:'0.3.2',schemaVersion:1,
   compatibility:{coreRange:'>=0.8.4 <0.9.0',contracts:{graph:1,decision:1,evidence:1}},
   organization,graphs:allGraphs,roles,skills,decisionRules,policyDocuments,policyDocumentDigests,methodReferences,brandMethods,runtimeRequirements,
   policies:{decisionTraceRequired:false,artifactValidation:'host-callable-pack-validator',review:{independentExecutionRequired:true},
     conceptSprint:{minCount:3,maxCount:5,completionRequiresRealImages:true,oneGallery:true}},
-  release:{digest:'sha256:30092e383a7e1605652ddabbc14ed9eb0de880df172c8812e9f7622eb6b01cc6',builtAt:'2026-11-08T00:00:00.000Z',status:'candidate'},
+  release:{digest:'sha256:df7036767e209ea87d4bc985f179ea25f6083607702a609028de2826de5782a5',builtAt:'2026-11-13T00:00:00.000Z',status:'candidate'},
 });
 
 export function loadPack() { return pack; }

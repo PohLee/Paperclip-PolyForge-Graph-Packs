@@ -60,3 +60,12 @@ test('Creative recovery rejects legacy design-system runs missing baseline or bo
   assert.equal(result.valid,false);
   assert.ok(result.issues.some(issue=>issue.code==='start-input-invalid'&&issue.message.includes('Choose an existing design baseline or an explicit bootstrap context')));
 });
+
+
+test('submission rejects a payload without an artifact envelope',async()=>{
+  const engine=new GraphEngine(); await engine.registerPack(pack);
+  const api=createApi({engine,resolveActor:({claimedActor})=>claimedActor});
+  const run=await api.startRun({packId:'creative-team',packVersion:pack.version,graphId:'creative-intake',mode:'manual',actor:{id:'owner',kind:'human',roles:['human-owner'],executionId:null},input:{}});
+  const payload={id:'inventory',version:'1',summary:'Context',sources:['Notes']};
+  await assert.rejects(api.submitNode({runId:run.id,nodeId:'read-context',actor,artifacts:[{id:'inventory',version:'1',kind:'context_inventory'}],payloads:{context_inventory:payload,extra:{}}}),/no matching artifact/);
+});

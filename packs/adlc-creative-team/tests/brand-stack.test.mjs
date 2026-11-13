@@ -105,6 +105,11 @@ test('brand identity start rejects non-English input and unauthenticated logo se
     const run=await delegated.startRun({packId:'creative-team',packVersion:pack.version,graphId:'brand-identity-kit',mode:'manual',actor:actor('human-owner','owner'),input});
     assert.equal(checked,true);
     assert.equal(run.graph.id,'brand-identity-kit');
+    const badSelection={...rows.get('logo_concept_selection:choice').payload,candidateId:'missing'};
+    rows.set('logo_concept_selection:choice',{...rows.get('logo_concept_selection:choice'),payload:badSelection,digest:digest(stable(badSelection))});
+    await assert.rejects(delegated.startRun({packId:'creative-team',packVersion:pack.version,graphId:'brand-identity-kit',mode:'manual',actor:actor('human-owner','owner'),input}),/exact candidate/);
+    const recovery=await delegated.validateRun({run:await engine.getRun(run.id),decisions:await engine.listDecisions({runId:run.id})});
+    assert.ok(recovery.issues.some(issue=>issue.code==='start-input-invalid'&&issue.message.includes('exact candidate')));
   } finally { await rm(root,{recursive:true,force:true}); }
 });
 

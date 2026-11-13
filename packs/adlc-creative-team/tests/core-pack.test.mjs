@@ -98,3 +98,9 @@ test('Core rejects a concept reviewer that reuses a render execution identity', 
   await assert.rejects(engine.submitNode({runId:run.id,nodeId:'review-set',actor:taskActor('design-qa-accessibility','shared'),artifacts:[artifactFor('concept_set_review','shared')]}),/Independent review/);
   await engine.submitNode({runId:run.id,nodeId:'review-set',actor:taskActor('design-qa-accessibility','independent'),artifacts:[artifactFor('concept_set_review','independent')]});
 });
+
+
+test('organization excludes prerelease and malformed ADLC versions',()=>{
+  assert.equal(resolveOrganization([{id:'adlc',version:'0.3.0+build'}]).roles['head-of-design'].reportsToRole,'adlc:cpo');
+  for(const version of ['0.3.0-rc.1','0.3.1junk']) assert.equal(resolveOrganization([{id:'adlc',version}]).roles['head-of-design'].reportsToRole,null);
+});

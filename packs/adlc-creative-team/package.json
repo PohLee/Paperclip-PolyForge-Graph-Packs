@@ -1,6 +1,6 @@
 {
   "name": "@polyforge/adlc-creative-team",
-  "version": "0.3.1",
+  "version": "0.3.2",
   "private": true,
   "type": "module",
   "description": "Standalone ADLC Creative Team Pack for PolyForge Graph Core",

@@ -11,7 +11,7 @@ const expected = args['core-digest'], version = args['core-version'];
 if (!args['core-artifact']) throw new Error('Pass --core-artifact');
 function files(dir) { return readdirSync(dir,{withFileTypes:true}).flatMap(entry => entry.isDirectory() ? files(resolve(dir,entry.name)) : [resolve(dir,entry.name)]); }
 const hash = createHash('sha256');
-for (const file of files(root).sort()) { hash.update(relative(root,file).split(sep).join('/')); hash.update('\0'); hash.update(readFileSync(file)); }
+for (const file of files(root).map(file=>relative(root,file).split(sep).join('/')).sort()) { hash.update(file); hash.update('\0'); hash.update(readFileSync(resolve(root,file))); }
 const actual = `sha256:${hash.digest('hex')}`;
 if (args['print-digest'] === 'true') { process.stdout.write(`${actual}\n`); process.exit(0); }
 if (!/^sha256:[a-f0-9]{64}$/.test(expected ?? '') || !version) throw new Error('Pass --core-digest sha256:<hex> and --core-version');

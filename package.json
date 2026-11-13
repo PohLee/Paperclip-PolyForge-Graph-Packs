@@ -24,6 +24,7 @@
     "packs/marketing/**",
     "packs/adlc-creative-team/index.mjs",
     "packs/adlc-creative-team/README.md",
+    "packs/adlc-creative-team/LICENSE",
     "packs/adlc-creative-team/THIRD_PARTY_NOTICES.md",
     "packs/adlc-creative-team/package.json",
     "packs/adlc-creative-team/adapters/**",
@@ -33,7 +34,6 @@
     "packs/adlc-creative-team/policies/**",
     "packs/adlc-creative-team/roles/**",
     "packs/adlc-creative-team/runtime/**",
-    "packs/adlc-creative-team/scripts/**",
     "packs/adlc-creative-team/skills/**",
     "packs/adlc-creative-team/templates/**",
     "packs/adlc-creative-team/sources/brand-methods.json",
@@ -51,6 +51,9 @@
     "release:creative-team": "node scripts/tag-pack.mjs creative-team",
     "test:root": "node --test test/*.test.mjs",
     "test": "node --test test/*.test.mjs packs/adlc-creative-team/tests/*.test.mjs packs/adlc-creative-team/tests/skills/*.test.mjs packs/adlc-creative-team/tests/source/*.test.mjs",
-    "test:full-suite": "node --test test/*.test.mjs packs/adlc-creative-team/tests/*.test.mjs packs/adlc-creative-team/tests/skills/*.test.mjs packs/adlc-creative-team/tests/source/*.test.mjs"
+    "test:full-suite": "npm test"
+  },
+  "engines": {
+    "node": ">=21"
   }
 }

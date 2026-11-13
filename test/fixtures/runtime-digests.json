@@ -1,0 +1,28 @@
+{
+  "adlc@0.3.2": {
+    "packs/adlc/product-method-contracts.mjs": "82f69b6daab8307de528e1498883d273ef5ed8f141f50cd8016d5831b551027f",
+    "packs/adlc/runtime/host-api.mjs": "20b9d7fd83d4c52b2a56a9a1b079af679d04e47f74bb2828ea8ae15de1ce6ba1"
+  },
+  "creative-team@0.3.1": {
+    "packs/adlc-creative-team/adapters/brand-tools/context.mjs": "81a525e700e399ab7c22e69c94b89bb1bbac18ae211525e1a676d15259863bce",
+    "packs/adlc-creative-team/adapters/brand-tools/palette.mjs": "85ae3ec12c464eef58593063628035769471b883c984f9e9e02bb9c89fcff473",
+    "packs/adlc-creative-team/adapters/brand-tools/svg.mjs": "e4d279e57f78f4d93e6ef85d9a400981ea442520a2281ade9ed69b2a2efd8d10",
+    "packs/adlc-creative-team/adapters/concept-gallery/index.mjs": "c8aec5405937dd4c1c5395e9452c8bfdfafb6905eb0b0ef24c0b8080684f02d8",
+    "packs/adlc-creative-team/adapters/image-provider/index.mjs": "da70d95a41e4c25dba1458f050fca469deba20fa803624bc9f4bf24b30b9a7f2",
+    "packs/adlc-creative-team/adapters/interview/index.mjs": "068aef77e86ae871a880e1ad12f8080434160754f7e61b565f5995c1a61875e3",
+    "packs/adlc-creative-team/contracts/validate.mjs": "8864ab872aab133ebfe833a8503dc518cebfe35bd86b4c645fb5e32704127189",
+    "packs/adlc-creative-team/runtime/artifact-lineage.mjs": "2eb667b1c5e1076cfc7b984acc5c10af0827ea6cf58fa19aebd88cef09821ee9",
+    "packs/adlc-creative-team/runtime/host-api.mjs": "f187716e1426434762d40928d3f43bc7f595e37a265118aa6c0b3ec09560c885"
+  },
+  "creative-team@0.3.2": {
+    "packs/adlc-creative-team/adapters/brand-tools/context.mjs": "81a525e700e399ab7c22e69c94b89bb1bbac18ae211525e1a676d15259863bce",
+    "packs/adlc-creative-team/adapters/brand-tools/palette.mjs": "85ae3ec12c464eef58593063628035769471b883c984f9e9e02bb9c89fcff473",
+    "packs/adlc-creative-team/adapters/brand-tools/svg.mjs": "9ce41bc26d87392d32d9223fa7ee5a3bcbab4ca825bef620d2fffc0cdf767600",
+    "packs/adlc-creative-team/adapters/concept-gallery/index.mjs": "c8aec5405937dd4c1c5395e9452c8bfdfafb6905eb0b0ef24c0b8080684f02d8",
+    "packs/adlc-creative-team/adapters/image-provider/index.mjs": "da70d95a41e4c25dba1458f050fca469deba20fa803624bc9f4bf24b30b9a7f2",
+    "packs/adlc-creative-team/adapters/interview/index.mjs": "068aef77e86ae871a880e1ad12f8080434160754f7e61b565f5995c1a61875e3",
+    "packs/adlc-creative-team/contracts/validate.mjs": "8864ab872aab133ebfe833a8503dc518cebfe35bd86b4c645fb5e32704127189",
+    "packs/adlc-creative-team/runtime/artifact-lineage.mjs": "2eb667b1c5e1076cfc7b984acc5c10af0827ea6cf58fa19aebd88cef09821ee9",
+    "packs/adlc-creative-team/runtime/host-api.mjs": "366593ee6ee32062198b0dcf924a9bc7ff309cc8a7b7883512a906119258229a"
+  }
+}

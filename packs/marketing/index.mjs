@@ -5,6 +5,7 @@ import { createHash } from 'node:crypto';
 import { graphs } from './graphs.mjs';
 import { roleCatalog } from './roles/catalog.mjs';
 
+const readText = path => readFileSync(path, 'utf8').replace(/\r\n/g, '\n');
 const root = fileURLToPath(new URL('.', import.meta.url));
 const digest = value => createHash('sha256').update(value).digest('hex');
 const documents = ['soul','role','goal','instruction','decision_model'];
@@ -12,14 +13,16 @@ const roleSkills = { cmo:['acquisition-planning','measurement-provenance'], 'gro
 for (const skillsForRole of Object.values(roleSkills)) skillsForRole.push('temporary-agent-snapshot');
 const skills = Object.fromEntries([...new Set(Object.values(roleSkills).flat())].map(id => {
   const source = id === 'temporary-agent-snapshot' ? '../../docs/TEMPORARY_AGENT_SNAPSHOT.md' : `skills/${id}.md`;
-  const content = readFileSync(resolve(root,source),'utf8');
+  const content = readText(resolve(root,source));
   return [id,{ id, source, content, digest:digest(content),
     description:id==='temporary-agent-snapshot'?'Open a same-Agent Shadow-Agent snapshot for bounded research or analysis':
       id==='acquisition-planning'?'Plan sourced, bounded acquisition work':'Check metric provenance and missingness' }];
 }));
 const roles = Object.fromEntries(roleCatalog.map(spec => {
-  const files = Object.fromEntries(documents.map(name => [name,readFileSync(resolve(root,'roles',spec.id,`${name}.md`),'utf8')]));
-  const model = JSON.parse(files.decision_model.match(/```json\s*([\s\S]*?)\s*```/)[1]);
+  const files = Object.fromEntries(documents.map(name => [name,readText(resolve(root,'roles',spec.id,`${name}.md`))]));
+  const match = files.decision_model.match(/```json\s*([\s\S]*?)\s*```/);
+  if (!match) throw new Error(`Missing JSON decision model: ${spec.id}`);
+  const model = JSON.parse(match[1]);
   return [spec.id,{ id:spec.id, name:spec.name, reportsToRole:spec.reportsToRole, supervisorRole:spec.supervisor,
     documents:files, documentDigests:Object.fromEntries(Object.entries(files).map(([name,value]) => [name,digest(value)])),
     skills:roleSkills[spec.id], capabilityRequirements:spec.capabilities, decisionModel:model }];

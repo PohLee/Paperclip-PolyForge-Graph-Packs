@@ -38,9 +38,10 @@ test('G07 binds verified disposition to frozen subjects, trusted reviewers and e
   const brief={id:'assurance-subject',version:'1',objective:'Review a fixed candidate',audience:'Operators'};
   const subjectRef={id:brief.id,version:brief.version,kind:'creative_brief',digest:sha(Buffer.from(stable(brief)))};
   const row={id:brief.id,version:brief.version,kind:'creative_brief',payload:brief,digest:subjectRef.digest};
+  let provenanceAvailable=true;
   const api=createCreativeHostApi({engine,artifactRootForRun:root,resolveActor:({claimedActor})=>claimedActor,
     loadExternalArtifact:async({ref:requested,kind})=>requested.id===row.id&&requested.version===row.version&&kind===row.kind?row:null,
-    getArtifactProvenance:async()=>[{kind:'agent',roles:['product-designer'],executionId:'candidate-author'}],
+    getArtifactProvenance:async()=>provenanceAvailable?[{kind:'agent',roles:['product-designer'],executionId:'candidate-author'}]:[],
     resolveDecisionEvidence:async({run,requiredKinds})=>{
       const attempt=run.nodeStates.disposition.attempts.at(-1),item=attempt.artifacts.find(artifact=>artifact.kind==='design_review');
       return requiredKinds.map(kind=>({kind,payload:attempt.output.creativeArtifacts.design_review,sourceRef:{id:item.id,version:item.version,kind:item.kind}}));
@@ -54,6 +55,13 @@ test('G07 binds verified disposition to frozen subjects, trusted reviewers and e
     return {run,submit};
   };
   try {
+    provenanceAvailable=false;
+    const startArgs={packId:pack.id,packVersion:pack.version,graphId:'design-assurance',mode:'manual',actor:{id:'owner',kind:'human',roles:['human-owner'],executionId:null},input:{reviewSubjectRefs:[subjectRef]}};
+    await assert.rejects(api.startRun(startArgs),/trusted author provenance/);
+    const raw=await engine.startRun(startArgs);
+    const recovery=await api.validateRun({run:await engine.getRun(raw.id),decisions:await engine.listDecisions({runId:raw.id})});
+    assert.ok(recovery.issues.some(issue=>issue.code==='start-input-invalid'&&issue.message.includes('trusted author provenance')));
+    provenanceAvailable=true;
     const p1={id:'finding-p1',severity:'P1',status:'open',summary:'Keyboard path is blocked'};
     const exploitable=await runFor({'visual-review':[p1],'behavior-review':[]});
     const forged={id:'forged-report',version:'1',subjectRefs:[{id:'invented',version:'1'}],reviewerExecutionId:'invented-reviewer',subjectAuthorExecutionIds:['invented-author'],scope:'all',disposition:'verified',findings:[]};

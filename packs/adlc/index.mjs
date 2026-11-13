@@ -10,6 +10,7 @@ import { roleCatalog } from './roles/catalog.mjs';
 import { skillCatalog } from './skills/catalog.mjs';
 export { createAdlcHostApi } from './runtime/host-api.mjs';
 
+const readText = path => readFileSync(path, 'utf8').replace(/\r\n/g, '\n');
 const root = fileURLToPath(new URL('.', import.meta.url));
 const docs = ['soul', 'role', 'goal', 'instruction', 'decision_model'];
 const digest = value => createHash('sha256').update(value).digest('hex');
@@ -29,7 +30,7 @@ for (const role of ['cto-caio', 'principal-engineer', 'lead-engineer', 'product-
 for (const role of ['cto-caio', 'principal-engineer', 'lead-engineer', 'qa-engineer']) roleSkills[role].push('code-delivery', 'check-execution');
 for (const role of ['cto-caio', 'principal-engineer', 'lead-engineer', 'qa-engineer']) roleSkills[role].push('technical-design-review');
 for (const role of ['cto-caio', 'principal-engineer', 'lead-engineer']) roleSkills[role].push('design-drift');
-  roleSkills.cpo.push('verification-review');
+roleSkills.cpo.push('verification-review');
 for (const role of ['product-owner', 'product-manager']) roleSkills[role].push('incoming-request-advisor', 'requirements-handoff');
 for (const role of ['cpo', 'internal-product-analyst', 'external-product-analyst', 'product-manager', 'product-owner']) roleSkills[role].push('autonomous-investigation');
 for (const role of ['cpo', 'external-product-analyst', 'product-manager']) roleSkills[role].push('epic-hypothesis-probe', 'competitive-intel-watch');
@@ -41,12 +42,12 @@ if (skillIds.length !== Object.keys(skillCatalog).length || skillIds.some(id => 
 }
 const skills = Object.fromEntries(skillIds.map(id => {
   const source = id === 'temporary-agent-snapshot' ? '../../docs/TEMPORARY_AGENT_SNAPSHOT.md' : `skills/${id}.md`;
-  const content = readFileSync(resolve(root, source), 'utf8');
+  const content = readText(resolve(root, source));
   return [id, { id, source, content, digest: digest(content), ...skillCatalog[id] }];
 }));
 
 function loadRole(spec) {
-  const documents = Object.fromEntries(docs.map(name => [name, readFileSync(resolve(root, 'roles', spec.id, `${name}.md`), 'utf8')]));
+  const documents = Object.fromEntries(docs.map(name => [name, readText(resolve(root, 'roles', spec.id, `${name}.md`))]));
   const match = documents.decision_model.match(/```json\s*([\s\S]*?)\s*```/);
   if (!match) throw new Error(`Missing JSON decision model: ${spec.id}`);
   const model = JSON.parse(match[1]);
@@ -62,8 +63,8 @@ function loadRole(spec) {
 
 const roles = Object.fromEntries(roleCatalog.map(spec => [spec.id, loadRole(spec)]));
 const graphs = [lifecycleGraphs[0], lifecycleGraphs[1], ...engineeringGraphs, ...lifecycleGraphs.slice(2), ...architectureDeliveryGraphs, ...designAssuranceGraphs];
-const operatingPolicies = readFileSync(resolve(root, 'OPERATING_POLICIES.md'), 'utf8');
-const evidenceContracts = readFileSync(resolve(root, 'docs/EVIDENCE_CONTRACTS.md'), 'utf8');
+const operatingPolicies = readText(resolve(root, 'OPERATING_POLICIES.md'));
+const evidenceContracts = readText(resolve(root, 'docs/EVIDENCE_CONTRACTS.md'));
 const decisionRules = Object.values(roles).flatMap(role => role.decisionModel.rules.flatMap(rule =>
   Object.entries(rule.modes).map(([mode, policy]) => ({
     type: rule.type, mode, allowedRoles: policy.allowedRoles, allowedKinds: policy.allowedKinds,

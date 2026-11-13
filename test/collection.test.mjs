@@ -13,7 +13,7 @@ test('collection exports independent Pack releases and keeps ADLC default', asyn
   assert.equal(pack, adlcPack);
   assert.deepEqual(Object.keys(packCatalog), ['adlc','marketing','creative-team']);
   assert.equal(packCatalog['creative-team'], creativeTeamPack);
-  assert.deepEqual(packs.map(item => `${item.id}@${item.version}`), ['adlc@0.3.2','marketing@0.0.4','creative-team@0.3.1']);
+  assert.deepEqual(packs.map(item => `${item.id}@${item.version}`), ['adlc@0.3.2','marketing@0.0.4','creative-team@0.3.2']);
   const engine = new GraphEngine();
   for (const item of packs) {
     assert.deepEqual(item.compatibility.contracts, CORE_RUNTIME.contracts);
