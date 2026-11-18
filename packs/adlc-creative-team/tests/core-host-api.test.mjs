@@ -127,8 +127,9 @@ test('each graph has a valid terminal artifact contract fixture',()=>{
     'brand-guidelines':['brand_guidelines_review',{id:'guide-review',version:'1',draftRef:ref('draft','brand_guidelines_draft'),disposition:'accepted',findings:[],reviewerExecutionId:'review-exec'}],
     'brand-packaging-brief':['packaging_brief_review',{id:'packaging-review',version:'1',briefRef:ref('brief','packaging_design_brief'),disposition:'accepted',findings:[],reviewerExecutionId:'review-exec'}],
     'brand-rollout-plan':['brand_rollout_review',{id:'rollout-review',version:'1',rolloutRef:ref('rollout','brand_rollout_plan'),measurementRef:ref('measure','brand_measurement_plan'),disposition:'accepted',findings:[],reviewerExecutionId:'review-exec'}],
+    'brand-foundation-contract':['brand_foundation_package',{id:'foundation',version:'1',strategyRef:ref('strategy','brand_strategy'),identityRef:ref('identity','brand_identity_system'),voiceRef:ref('voice','brand_voice_system'),evidenceRefs:[ref('evidence','brand_evidence_ledger')],reviewRef:ref('review','brand_foundation_review'),acceptanceDecisionRef:ref('decision','decision')}],
   };
-  assert.deepEqual(Object.keys(fixtures),pack.graphs.map(graph=>graph.id));
+  assert.deepEqual(Object.keys(fixtures),pack.graphs.filter(graph=>graph.id!=='brand-foundation-composed').map(graph=>graph.id));
   for(const [graphId,[kind,payload]] of Object.entries(fixtures)) {
     const result=validateCreativeArtifact(kind,payload);
     assert.equal(result.valid,true,`${graphId}: ${result.errors.join('; ')}`);

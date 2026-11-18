@@ -6,6 +6,7 @@ import { engineeringGraphs } from './engineering-graphs.mjs';
 import { lifecycleGraphs } from './lifecycle-graphs.mjs';
 import { architectureDeliveryGraphs } from './architecture-delivery-graphs.mjs';
 import { designAssuranceGraphs } from './design-assurance-graphs.mjs';
+import { workflowCompositionGraphs } from './workflow-composition-graphs.mjs';
 import { roleCatalog } from './roles/catalog.mjs';
 import { skillCatalog } from './skills/catalog.mjs';
 export { createAdlcHostApi } from './runtime/host-api.mjs';
@@ -62,7 +63,7 @@ function loadRole(spec) {
 }
 
 const roles = Object.fromEntries(roleCatalog.map(spec => [spec.id, loadRole(spec)]));
-const graphs = [lifecycleGraphs[0], lifecycleGraphs[1], ...engineeringGraphs, ...lifecycleGraphs.slice(2), ...architectureDeliveryGraphs, ...designAssuranceGraphs];
+const graphs = [lifecycleGraphs[0], lifecycleGraphs[1], ...engineeringGraphs, ...lifecycleGraphs.slice(2), ...architectureDeliveryGraphs, ...designAssuranceGraphs, ...workflowCompositionGraphs];
 const operatingPolicies = readText(resolve(root, 'OPERATING_POLICIES.md'));
 const evidenceContracts = readText(resolve(root, 'docs/EVIDENCE_CONTRACTS.md'));
 const decisionRules = Object.values(roles).flatMap(role => role.decisionModel.rules.flatMap(rule =>
@@ -75,11 +76,11 @@ const decisionRules = Object.values(roles).flatMap(role => role.decisionModel.ru
 ));
 
 export const pack = {
-  id: 'adlc', version: '0.3.2', schemaVersion: 1,
+  id: 'adlc', version: '0.3.3', schemaVersion: 1,
   compatibility: {
     coreRange: '>=0.8.5 <0.9.0',
     contracts: { graph: 1, decision: 1, evidence: 1 },
-    requiredCapabilities: { 'company-control': '>=1.0.0 <2.0.0', 'cross-pack-plans': '>=1.0.0 <2.0.0', 'cross-pack-handoff': '>=1.0.0 <2.0.0' },
+    requiredCapabilities: { 'company-control': '>=1.0.0 <2.0.0', 'cross-pack-plans': '>=1.0.0 <2.0.0', 'cross-pack-handoff': '>=1.0.0 <2.0.0', 'workflow-composition': '^1.0.0' },
     optionalCapabilities: { 'temporary-agents': '>=1.0.0 <2.0.0', 'temporary-agent-snapshot': '>=1.0.0 <2.0.0', 'shadow-review-execution': '>=1.0.0 <2.0.0', 'verified-release-event': '>=1.0.0 <2.0.0', 'dashboard-read-model': '>=1.0.0 <2.0.0' }
   },
   organization: { executiveRole: 'ceo', roleScope: 'company', packRolesNamespace: 'adlc' },
@@ -91,7 +92,7 @@ export const pack = {
       { id: 'unresolved-reviews', label: 'Unresolved severe reviews', source: 'reviews.severeOpen' }
     ],
     views: [
-      { id: 'delivery', label: 'Delivery work', kind: 'run-list', graphIds: ['product-discovery', 'product-experiment', 'requirements-baseline', 'implementation', 'verification'] },
+      { id: 'delivery', label: 'Delivery work', kind: 'run-list', graphIds: ['product-discovery', 'product-experiment', 'requirements-baseline', 'implementation', 'verification', 'system-architecture-workflow', 'architecture-review-composed', 'code-delivery-workflow'] },
       { id: 'product-learning', label: 'Product learning', kind: 'run-list', graphIds: ['product-experiment', 'competitive-watch'] },
       { id: 'release', label: 'Release and observation', kind: 'run-list', graphIds: ['release-process', 'release-observation', 'production-monitoring'] },
       { id: 'decisions', label: 'Product decisions and history', kind: 'decision-history' }
@@ -122,7 +123,10 @@ export const pack = {
     verification: ['product-owner', 'cpo', 'cto-caio', 'human-owner'],
     'release-process': ['product-owner', 'cto-caio', 'human-owner'],
     'release-observation': ['lead-engineer', 'cto-caio', 'human-owner'],
-    'production-monitoring': ['qa-engineer', 'cto-caio', 'human-owner']
+    'production-monitoring': ['qa-engineer', 'cto-caio', 'human-owner'],
+    'system-architecture-workflow': ['principal-engineer', 'cto-caio', 'human-owner'],
+    'code-delivery-workflow': ['principal-engineer', 'cto-caio', 'human-owner'],
+    'architecture-review-composed': ['principal-engineer', 'cto-caio', 'human-owner']
   },
   policyDocuments: { operatingPolicies, evidenceContracts },
   policyDocumentDigests: { operatingPolicies: digest(operatingPolicies), evidenceContracts: digest(evidenceContracts) },
@@ -135,6 +139,7 @@ export const pack = {
     capabilities: 'Resolve each role capabilityRequirement to a real tool, permission or harness before dispatch. Bundled skills are prompt instructions, not claims about installed tools.',
     releaseExecution: 'The host must verify that the acceptance decision covers the exact candidate, enforce the named human release-start decision on its exact plan and candidate before any production action, and validate the execution event against that authorization. Start release-observation only from that verified event; the Graph never invokes a pipeline or certifies a release.',
     monitoringInput: 'The host supplies a versioned monitoring plan and sourced observations with freshness. Scheduling, telemetry collection, paging and automatic recovery are external capabilities; absence of an alert is not health evidence.',
+    workflowComposition: 'The additive system-architecture-workflow@1.0.0 and code-delivery-workflow@1.0.0 entry graphs accept business fields only in input.workflowInput and return a validated projection of the completed evidence-producing task output only after governed completion. They declare evidenceInputSource=workflowInput so existing architecture/delivery validators consume those business fields without copying them into trusted host fields. Legacy Graph contracts and trusted input envelope behavior are unchanged. architecture-review-composed@1.0.0 maps system_id and architecture_brief from parent workflowInput to the exact child workflowInput and starts through Core atomic child binding as the original root actor with no business input enrichment. The Host must install and pin the exact Pack digest, authorize the parent graph start, enforce exact installed/enabled child versions and child graphStartRoles, pin the same ADLC adapter before dispatch, and reconcile via trusted system orchestration. Retain existing evidence validators, product-decision checks, actor/execution provenance and human decision rules; do not expose raw child start as an Agent operation.',
     triageSources: 'The host verifies issue/PR history, duplicate checks and reporter updates; it may pass a recorded ready triage report into discovery or implementation.',
     ticketTracker: 'The host retains completed ticket IDs and evidence, computes the ready frontier, and dispatches only unblocked work.',
     applicationVerification: 'The host supplies an isolated application harness and validates that the declared profile proof ran on the real surface; schema checks cannot authenticate observations.',

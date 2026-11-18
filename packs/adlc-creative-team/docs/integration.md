@@ -66,8 +66,25 @@ The wrapper applies graph-specific checks:
 - **G15** binds an authenticated selection to an exact reviewed logo set and brand baseline, then records measured identity checks and a separate kit review. Its result awaits owner adoption.
 - **G16** pins the exact reviewed kit, checks its real asset bytes, and requires an authenticated human owner decision before publishing a new brand baseline version.
 - **G17–G19** produce baseline-bound guidelines, packaging briefs and rollout/measurement plans. They do not silently alter the baseline, produce printer-ready files or publish a launch.
+- **C01–C02** require Core `workflow-composition@^1.0.0`. Start either entry with `input.workflowInput` containing `brandName`, `category`, `targetAudience`, `brandPromise`, and `proofPoints` (one to twelve strings). The Host must authorize the top-level initiator as `human-owner`; Core independently checks that the same root identity may start C01 as its child. Only a `ready` human decision reaches the package publication task. The adapter integration must bind the child's dispatch, submit, and decision operations to `createCreativeHostApi()` using the original root authorization context, and preserve all existing evidence resolution, artifact schema, provenance, and identity checks. Do not dispatch children via bare Core transitions. `creativeRequiredServicesByGraph` includes both contracted graph IDs and requires `resolveDecisionEvidence` for C01. Parent mapping projects only the child's validated `foundation` result; references remain untrusted data and cannot satisfy another Gate without the usual trusted evidence resolution.
 
 For final artifacts, the wrapper validates schemas and exact links against the run's actual completed artifacts and decisions. This makes the wrapper the required pack-specific enforcement boundary; JSON schemas alone are descriptive.
+
+### Contracted entries (C01–C02)
+
+The exact child pin is `creative-team@0.3.3 / brand-foundation-contract@1.0.0`. The parent `brand-foundation-composed@1.0.0` calls that child and returns the same `foundation` object. A valid example input is:
+
+```json
+{
+  "brandName": "Northstar",
+  "category": "Team scheduling software",
+  "targetAudience": "Operations leads at distributed service teams",
+  "brandPromise": "Make shift changes clear and dependable",
+  "proofPoints": ["Managers can review coverage before publishing", "Team members receive a change history"]
+}
+```
+
+Core starts and links the child atomically, but a host must extend the trusted adapter binding to child runs before production use. The adapter must derive company/project/issue scope and initiator from the root run, resolve decision evidence for C01, validate every declared task artifact on child runs, fence child callbacks to the current parent attempt, and call Core reconciliation only as the trusted system actor. The contract validator checks JSON shape and node completion; it is not a receipt, review, approval, or proof of an external operation. Human acceptance remains a normal governed decision with the existing decision model.
 
 ## Artifact and gallery helpers
 

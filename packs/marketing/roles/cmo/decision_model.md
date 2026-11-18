@@ -140,6 +140,49 @@ The JSON decision matrix is the runtime authority source. Out-of-scope decisions
           "escalateWhen": "Evidence is missing, P0/P1 is unresolved, authority is outside scope, or human approval is mandatory."
         }
       }
+    },
+    {
+      "type": "acquisition-readiness-owner-review",
+      "requiredEvidence": [
+        "artifact_version",
+        "review_findings",
+        "self_review_history"
+      ],
+      "modes": {
+        "manual": {
+          "allowedRoles": [
+            "human-owner"
+          ],
+          "allowedKinds": [
+            "human"
+          ],
+          "requiresHuman": true,
+          "continueWhen": "Write a durable decision on pinned evidence within approved scope.",
+          "escalateWhen": "Evidence is missing, P0/P1 is unresolved, authority is outside scope, or human approval is mandatory."
+        },
+        "assisted": {
+          "allowedRoles": [
+            "human-owner"
+          ],
+          "allowedKinds": [
+            "human"
+          ],
+          "requiresHuman": true,
+          "continueWhen": "Write a durable decision on pinned evidence within approved scope.",
+          "escalateWhen": "Evidence is missing, P0/P1 is unresolved, authority is outside scope, or human approval is mandatory."
+        },
+        "autonomous": {
+          "allowedRoles": [
+            "human-owner"
+          ],
+          "allowedKinds": [
+            "human"
+          ],
+          "requiresHuman": true,
+          "continueWhen": "Write a durable decision on pinned evidence within approved scope.",
+          "escalateWhen": "Evidence is missing, P0/P1 is unresolved, authority is outside scope, or human approval is mandatory."
+        }
+      }
     }
   ]
 }

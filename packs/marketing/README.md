@@ -1,10 +1,20 @@
-# Marketing Pack 0.0.4
+# Marketing Pack 0.0.5
 
 This source Pack targets Core `>=0.8.5 <0.9.0`. This is a minimal execution Pack with a CMO, Growth Strategist, Marketing Analyst, two Graphs, decision matrices, role documents and bundled skills. The company has one CEO; CMO reports to it. A Marketing Pack does not create a second executive.
 
 `acquisition-plan@0.0.1` starts from a persisted `adlc.release-to-marketing@1` handoff, whose source is an actually observed ADLC release with a content-digested execution record and an authenticated host receipt. Core pins the target Pack/Graph version and shared project. It pins product history, drafts bounded channel hypotheses, checks risks, and records a CMO disposition. `acquisition_plan_ready` means a reviewed proposal. It carries no authority to publish, message, or spend.
 
 `outcome-review@0.0.1` checks one observation window against the pinned plan and baseline. The host authenticates metrics. An absent, stale or unverified source produces `measurement_unknown`; the CMO cannot infer a successful outcome. Every decision cites exact evidence versions. Role instructions define out-of-scope rejection, CEO rerouting, human escalation, self-review limits, and review independence.
+
+This release adds the opt-in Core `workflow-composition` capability and two contracted entry workflows. `acquisition-brief@1.0.0` accepts a business brief (`product`, `audience`, `objective`, optional `constraints`) and projects the completed task's structured `node.output.acquisition_plan` into its result. `acquisition-readiness-review@1.0.0` calls that exact child workflow, then returns its plan together with the completed CMO `node.output.risk_assessment` after explicit human-owner review in every mode. The composed parent requires `constraints` (an empty array is allowed) because it maps that field into the child. Task artifact references and evidence checks remain governed separately by Core; projected fields do not turn caller claims into verified evidence. Example input:
+
+```json
+{"product":"Inventory forecasting for independent grocers","audience":"Operations leads at 5–30 store groups","objective":"Test qualified demo interest","constraints":["No paid spend without owner approval","Use only consented contact lists"]}
+```
+
+These inputs are caller-provided context. They do not prove a release, product decision, baseline, metric, consent, approval, or observed result. The proposal task must identify unsupported claims and assumptions; the CMO assessment records risk and authorization gaps. A successful workflow result is a projection of the completed Core node outputs, not proof that statements in those artifacts are true. It grants no authority to publish, message, or spend. Start roles are CMO and human owner. Existing `acquisition-plan@0.0.1` handoff and `outcome-review@0.0.1` provenance rules remain unchanged.
+
+The parent/child path is supported for Core and Paperclip only when this exact Pack version is installed and enabled, the initiating CMO or human owner is authorized for both graphs, and the child task can be dispatched through the ordinary Marketing role mapping. The parent passes only the declared business fields in `workflowInput`; company/project/issue context is inherited by Core. Do not add `handoffId`, receipts, metric provenance, decisions, or other trusted top-level inputs through a mapping. The Paperclip Host must authorize root starts against `graphStartRoles` and preserve its company, root issue, initiator, checkout and audit checks. Core checks the original root initiator against child `graphStartRoles`; the system orchestration actor cannot confer that role. This Pack declares no Marketing-specific trusted adapter services, so its child graph follows ordinary role dispatch. If the Host classifies a graph as adapter-governed, it must bind the child to that graph's existing trusted adapter or reject composition until child-start adapter binding exists. No child path in this release invokes the legacy handoff or measurement workflows.
 
 Build role Markdown with `node packs/marketing/scripts/build-roles.mjs`. Build its immutable payload with `node scripts/build-pack.mjs marketing`.
 

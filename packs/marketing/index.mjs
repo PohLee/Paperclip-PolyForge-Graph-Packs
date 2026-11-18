@@ -35,12 +35,13 @@ const decisionRules = Object.values(roles).flatMap(role => role.decisionModel.ru
 }))));
 
 export const pack = {
-  id:'marketing', version:'0.0.4', schemaVersion:1, graphs, roles, skills, decisionRules,
+  id:'marketing', version:'0.0.5', schemaVersion:1, graphs, roles, skills, decisionRules,
   compatibility:{ coreRange:'>=0.8.5 <0.9.0', contracts:{graph:1,decision:1,evidence:1},
-    requiredCapabilities:{'company-control':'>=1.0.0 <2.0.0','cross-pack-plans':'>=1.0.0 <2.0.0','cross-pack-handoff':'>=1.0.0 <2.0.0'},
+    requiredCapabilities:{'company-control':'>=1.0.0 <2.0.0','cross-pack-plans':'>=1.0.0 <2.0.0','cross-pack-handoff':'>=1.0.0 <2.0.0','workflow-composition':'^1.0.0'},
     optionalCapabilities:{'temporary-agents':'>=1.0.0 <2.0.0','temporary-agent-snapshot':'>=1.0.0 <2.0.0','sourced-metrics':'>=1.0.0 <2.0.0','shadow-review-execution':'>=1.0.0 <2.0.0','dashboard-read-model':'>=1.0.0 <2.0.0'} },
   organization:{ executiveRole:'ceo', roleScope:'company', packRolesNamespace:'marketing' },
-  graphStartRoles:{'acquisition-plan':['cmo','human-owner'],'outcome-review':['cmo','human-owner']},
+  graphStartRoles:{'acquisition-plan':['cmo','human-owner'],'outcome-review':['cmo','human-owner'],
+    'acquisition-brief':['cmo','human-owner'],'acquisition-readiness-review':['cmo','human-owner']},
   incomingHandoffs:[{contract:'adlc.release-to-marketing',contractVersion:1,sourcePackId:'adlc',sourceGraphId:'release-observation',requiredStatus:'release_recorded',targetGraphId:'acquisition-plan',evidenceReceiptKind:'release',requiredCapability:'verified-release-event'}],
   dashboard:{ title:'Marketing',description:'Acquisition proposals and sourced outcome reviews.',
     metrics:[{id:'active-plans',label:'Active acquisition plans',source:'runs.active'},{id:'measured-outcomes',label:'Measured outcomes',source:'outcomes.observed'},{id:'unknown-measurements',label:'Unknown measurements',source:'outcomes.unknown'}],

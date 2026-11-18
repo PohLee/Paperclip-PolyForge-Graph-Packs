@@ -1,6 +1,6 @@
 # ADLC Creative Team Pack
 
-Standalone, versioned Pack for design and creative workflows. Pack ID `creative-team`, version `0.3.2`, supplies nineteen Core-compatible DAGs, 14 role definitions, 26 skills, evidence and artifact contracts, offline interview/gallery helpers, brand tools, and a trusted host wrapper that enforces pack-specific checks against Core run state and real files.
+Standalone, versioned Pack for design and creative workflows. Pack ID `creative-team`, version `0.3.3`, supplies nineteen legacy DAGs plus two opt-in contracted workflows, 14 role definitions, 26 skills, evidence and artifact contracts, offline interview/gallery helpers, brand tools, and a trusted host wrapper that enforces pack-specific checks against Core run state and real files.
 
 The pack loads and registers locally. It does not install agents, activate itself, generate images, connect to browser/Figma/BE services, publish content, or register an ADLC bridge. A host must provide authenticated identity, capability dispatch, immutable artifact storage, and the trusted evidence services described in [Core integration](docs/integration.md).
 
@@ -27,8 +27,10 @@ The pack loads and registers locally. It does not install agents, activate itsel
 | G17 | `brand-guidelines` | Baseline-bound visual and verbal guideline candidate |
 | G18 | `brand-packaging-brief` | Supplier-aware packaging brief candidate |
 | G19 | `brand-rollout-plan` | Internal and external rollout plan with measurement plan |
+| C01 | `brand-foundation-contract` | Contracted brand strategy, identity, voice, review, and human acceptance package |
+| C02 | `brand-foundation-composed` | Parent workflow that invokes C01 and returns its validated package |
 
-Each graph contains only Core task, decision, all-join, and end nodes. Graphs are independently started and hand artifacts to the next Graph by exact versioned references; this release does not declare a nested Graph-call node. Decision rules are explicit for all supported execution modes. G03 creates static visual-concept images; G10/G11 create product structure and representative UI candidates; G04 expands a selected concept into a full responsive website. These outputs have separate contracts. G03 defaults to three concepts when no count is supplied; counts outside 3–5 and conflicting count inputs are rejected. An incomplete concept set cannot become gallery-ready.
+Legacy graphs remain independently started and keep their existing input shape. C01 and C02 are opt-in workflow-contract entries using Core's exact-version composition node. Their business input is under `input.workflowInput`; company, project, issue, delivery, and authenticated identity remain in the trusted run envelope. C01 returns a brand foundation package only on the accepted path; needs-evidence and direction-pending outcomes produce `rework_required`, which blocks C02. The returned references and decision evidence are data; Core contracts do not attest them. The existing trusted adapter must still validate each task artifact and human decision. G03 creates static visual-concept images; G10/G11 create product structure and representative UI candidates; G04 expands a selected concept into a full responsive website. These outputs have separate contracts. G03 defaults to three concepts when no count is supplied; counts outside 3–5 and conflicting count inputs are rejected. An incomplete concept set cannot become gallery-ready.
 
 ## Role structure
 
@@ -38,7 +40,7 @@ The four UI/UX workflows were split from ADLC `ui-ux-design` and now belong to t
 
 ## Load and verify
 
-From the repository root, load-smoke with no production capabilities advertised:
+Version 0.3.3 requires Core capability `workflow-composition@^1.0.0`. From the repository root, load-smoke with no production capabilities advertised:
 
 ```powershell
 node packs/adlc-creative-team/scripts/smoke.mjs

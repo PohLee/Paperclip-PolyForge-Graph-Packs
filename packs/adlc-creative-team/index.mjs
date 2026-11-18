@@ -6,6 +6,7 @@ import { roleCatalog, roleSkills } from './roles/catalog.mjs';
 import { skillCatalog } from './skills/catalog.mjs';
 import { graphs, productDesignGraphs } from './graphs/catalog.mjs';
 import { brandGraphs } from './graphs/brand-catalog.mjs';
+import { compositionGraphs } from './graphs/composition-catalog.mjs';
 import { validateCreativeArtifact, assertCreativeArtifact } from './contracts/validate.mjs';
 export { INTERVIEW_ARTIFACT_SCHEMA, validateInterviewArtifact, createInterviewArtifact, projectRequirements, renderInterviewHtml } from './adapters/interview/index.mjs';
 export { CONCEPT_SET_ARTIFACT_SCHEMA, CONCEPT_SELECTION_SCHEMA, validateConceptSet, validateSelection, createSelection, createImageProviderAdapter, inspectStaticImage, validateStaticImage, renderGalleryHtml, assembleGallery } from './adapters/concept-gallery/index.mjs';
@@ -17,7 +18,7 @@ const readText = path => readFileSync(path, 'utf8').replace(/\r\n/g, '\n');
 const root = dirname(fileURLToPath(import.meta.url));
 const digest = value => createHash('sha256').update(value).digest('hex');
 const roleDocs = ['soul','role','goal','instruction','decision_model'];
-const allGraphs=[...graphs,...productDesignGraphs,...brandGraphs];
+const allGraphs=[...graphs,...productDesignGraphs,...brandGraphs,...compositionGraphs];
 
 function readRole(spec) {
   const documents = Object.fromEntries(roleDocs.map(name => [name, readText(resolve(root,'roles',spec.id,`${name}.md`))]));
@@ -99,17 +100,19 @@ export function resolveOrganization(activePacks=[]) {
 }
 
 export const pack = Object.freeze({
-  id:'creative-team',version:'0.3.2',schemaVersion:1,
-  compatibility:{coreRange:'>=0.8.4 <0.9.0',contracts:{graph:1,decision:1,evidence:1}},
+  id:'creative-team',version:'0.3.3',schemaVersion:1,
+  compatibility:{coreRange:'>=0.8.9 <0.9.0',contracts:{graph:1,decision:1,evidence:1},requiredCapabilities:{'workflow-composition':'^1.0.0'}},
+  graphStartRoles:{'brand-foundation-contract':['human-owner'],'brand-foundation-composed':['human-owner']},
   organization,graphs:allGraphs,roles,skills,decisionRules,policyDocuments,policyDocumentDigests,methodReferences,brandMethods,runtimeRequirements,
   policies:{decisionTraceRequired:false,artifactValidation:'host-callable-pack-validator',review:{independentExecutionRequired:true},
     conceptSprint:{minCount:3,maxCount:5,completionRequiresRealImages:true,oneGallery:true}},
-  release:{digest:'sha256:df7036767e209ea87d4bc985f179ea25f6083607702a609028de2826de5782a5',builtAt:'2026-11-13T00:00:00.000Z',status:'candidate'},
+  release:{digest:'sha256:7ce4dd7905dae654868c29744808393770e1d53b5f2d3f7af33f61c5f300c2dd',builtAt:'2026-11-18T00:00:00.000Z',status:'candidate'},
 });
 
 export function loadPack() { return pack; }
 export { validateCreativeArtifact, assertCreativeArtifact };
 export { productDesignGraphs };
 export { brandGraphs };
+export { compositionGraphs };
 export { createCreativeHostApi, creativeRequiredServicesByGraph } from './runtime/host-api.mjs';
 export default pack;

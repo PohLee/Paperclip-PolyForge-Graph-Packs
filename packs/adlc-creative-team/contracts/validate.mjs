@@ -49,6 +49,8 @@ const required = {
   behavior_review_findings:['id','version','subjectRefs','reviewerExecutionId','subjectAuthorExecutionIds','findings'],
   design_review:['id','version','subjectRefs','reviewerExecutionId','subjectAuthorExecutionIds','scope','disposition','findings'],
   brand_evidence_ledger:['id','version','sources','claims','unknowns'], brand_strategy:['id','version','evidenceRef','audience','positioning','promise','proof'],
+  brand_foundation_review:['id','version','strategyRef','identityRef','voiceRef','disposition','findings','reviewerExecutionId','subjectAuthorExecutionIds'],
+  brand_foundation_package:['id','version','strategyRef','identityRef','voiceRef','evidenceRefs','reviewRef','acceptanceDecisionRef'],
   brand_context_snapshot:['id','version','projectId','fields','unknowns'],
   brand_architecture_map:['id','version','contextRef','model','relationships','tradeoffs'],
   brand_name_candidates:['id','version','architectureRef','territories','candidates'],

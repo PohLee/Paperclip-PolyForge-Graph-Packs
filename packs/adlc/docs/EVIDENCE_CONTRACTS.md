@@ -100,6 +100,14 @@ Optional `system-architecture` starts with `system_id` and `architecture_brief`.
 
 CTO acceptance is separate from proposed/partial/implemented status. Every invariant has a stable INV-ID, rule, enforcement, proof and active/retired status. For revision supply `previous_architecture` using the context below; preserve old IDs and provide `changeReason` on rule changes or retirement.
 
+The additive contracted `system-architecture-workflow@1.0.0` and `architecture-review-composed@1.0.0` accept the same business keys inside `workflowInput`; the composed parent maps only these keys to the exact child contract:
+
+```json
+{"workflowInput":{"system_id":"orders","architecture_brief":"Define bounded order ownership and write paths."}}
+```
+
+These Graphs declare `evidenceInputSource: "workflowInput"`, so the existing architecture validator checks the system identity and baseline against this business input. The Host's company, project, issue, delivery, actor and authorization fields stay in the trusted envelope. Child linkage adds no business-field enrichment.
+
 New implementation runs require `architecture_context`:
 
 ```json
@@ -117,6 +125,14 @@ After planning, Principal Engineer selects backend/frontend/fullstack/parallel. 
 ```json
 {"delivery_target":{"repository":"owner/repo","prUrl":"https://github.com/owner/repo/pull/123","headSha":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"},"required_checks":["test"],"required_approvals":1}
 ```
+
+The contracted `code-delivery-workflow@1.0.0` takes those evidence-contract fields under `workflowInput`, plus the candidate identity:
+
+```json
+{"workflowInput":{"implementation_candidate":{"artifacts":[{"artifactId":"CODE-1","version":"v1"}]},"delivery_target":{"repository":"owner/repo","prUrl":"https://github.com/owner/repo/pull/123","headSha":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"},"required_checks":["test"],"required_approvals":1}}
+```
+
+It declares `inputContracts: ["delivery-target"]` and `evidenceInputSource: "workflowInput"`; Core runs the existing delivery-target and delivery-report validators against the mapped business object. It does not copy these fields into the trusted host envelope.
 
 Submit kind `delivery_report` and:
 

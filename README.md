@@ -4,9 +4,9 @@ The official collection exports independently versioned Packs for [PolyForge Gra
 
 | Pack | Version | Scope |
 | --- | --- | --- |
-| [ADLC](packs/adlc/README.md) | `adlc@0.3.2` | Product discovery through observed software release and monitoring |
-| [Marketing](packs/marketing/README.md) | `marketing@0.0.4` | Acquisition planning and sourced outcome review |
-| [ADLC Creative Team](packs/adlc-creative-team/README.md) | `creative-team@0.3.2` | Creative intake, brand strategy, naming, logo, identity, guidelines, packaging, rollout, concept and design workflows |
+| [ADLC](packs/adlc/README.md) | `adlc@0.3.3` | Product discovery through observed software release and monitoring |
+| [Marketing](packs/marketing/README.md) | `marketing@0.0.5` | Acquisition planning and sourced outcome review |
+| [ADLC Creative Team](packs/adlc-creative-team/README.md) | `creative-team@0.3.3` | Creative intake, brand strategy, naming, logo, identity, guidelines, packaging, rollout, concept and design workflows |
 
 ```js
 import { packs, packCatalog } from '@paperclip-polyforge/packs';
@@ -56,3 +56,7 @@ versions, payload digests and compatibility ranges are unchanged. See the
 [architecture acceptance record](../Paperclip-PolyForge-Graph/docs/architecture-deepening-2026-10-30.md).
 
 The earlier 0.8.0 test used local Core artifact `sha256:6241292cc678ef7c877fbc3578d298f399a399090e43d12f6671d03dafcf4dad`, ADLC 0.2.0 payload `sha256:d138a969666124fc0da62c2750aa75f3fc019124bb95725fae9c3498c7a27e12`, and Marketing 0.0.1 payload `sha256:d5dac8b69b1983c0ae94e92d142523db90746e6b1299478827afe87ec20ac260`. ADLC 0.2.1 candidate payload is `sha256:82948420027ec8ba6d6e3410248b6a90348761c81b52630047f8fac90f856fb5`. Existing active runs keep their pinned 0.2.0 snapshot; registration of 0.2.1 does not change them. `docs/COMPATIBILITY.md` describes the artifact gate. Core company control, cross-Pack plans and handoffs remain required for the Pack. The Shadow execution capability is required only for the verification Graph; sourced metrics, verified release events and Dashboard read models remain gated at their affected routes.
+
+## Workflow composition releases
+
+ADLC 0.3.3, Marketing 0.0.5 and Creative Team 0.3.3 add opt-in contracted workflows and require the workflow-composition capability provided by PolyForge 0.8.10. Legacy graphs keep their contracts. New business input remains under workflowInput; mapped data is not an execution receipt or approval. See each Pack README for exact graph references and inputs. Governed child starts require the trusted adapter binding in the matching PolyForge plugin; the original initiator and current attempt remain authoritative.

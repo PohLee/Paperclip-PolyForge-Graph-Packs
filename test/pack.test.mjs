@@ -17,10 +17,11 @@ test('published pack registers with the core validator and has the lifecycle inv
   assert.deepEqual(pack.graphs.map(graph => graph.id), [
     'request-triage', 'product-discovery', 'implementation', 'verification',
     'release-process', 'release-observation', 'production-monitoring', 'requirements-baseline', 'product-experiment', 'competitive-watch',
-    'system-architecture', 'code-delivery', 'technical-design', 'design-drift'
+    'system-architecture', 'code-delivery', 'technical-design', 'design-drift',
+    'system-architecture-workflow', 'code-delivery-workflow', 'architecture-review-composed'
   ]);
   assert.equal(Object.keys(pack.roles).length, 10);
-  assert.equal(new Set(pack.graphs.map(graph => `${graph.id}@${graph.version}`)).size, 14);
+  assert.equal(new Set(pack.graphs.map(graph => `${graph.id}@${graph.version}`)).size, 17);
 });
 
 test('every task role and supervisor maps to a documented blueprint', () => {
@@ -64,7 +65,7 @@ test('ADLC department heads report to the company CEO without changing review es
     'principal-engineer': 'cto-caio', 'lead-engineer': 'principal-engineer',
     'qa-engineer': 'cto-caio', 'security-engineer': 'cto-caio'
   };
-  assert.equal(pack.version, '0.3.2');
+  assert.equal(pack.version, '0.3.3');
   assert.deepEqual(Object.fromEntries(Object.values(pack.roles).map(role => [role.id, role.reportsToRole])), reportsTo);
   assert.deepEqual(Object.fromEntries(Object.values(pack.roles).map(role => [role.id, role.supervisorRole])), reviewEscalation);
   assert.equal(Object.values(pack.roles).filter(role => role.reportsToRole === 'ceo').length, 2);
@@ -74,7 +75,7 @@ test('ADLC department heads report to the company CEO without changing review es
     assert.match(role.documents.role, /## Artifact review\n\nDefault review escalation role:/);
     assert.match(role.documents.instruction, /organizational reporting line.*Graph node/s);
   }
-  assert.deepEqual(pack.graphs.map(graph => graph.version), ['0.2.0', '0.2.0', '0.1.6', '0.1.6', '0.1.0', '0.1.0', '0.1.0', '0.1.0', '0.1.0', '0.1.0', '0.1.0', '0.1.0', '0.1.0', '0.1.0']);
+  assert.deepEqual(pack.graphs.map(graph => graph.version), ['0.2.0', '0.2.0', '0.1.6', '0.1.6', '0.1.0', '0.1.0', '0.1.0', '0.1.0', '0.1.0', '0.1.0', '0.1.0', '0.1.0', '0.1.0', '0.1.0', '1.0.0', '1.0.0', '1.0.0']);
   assert.equal(pack.policies.cpoCtoConflict.protocolVersion, 2);
 });
 

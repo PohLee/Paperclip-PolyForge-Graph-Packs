@@ -2,7 +2,7 @@
 
 Versioned Agentic Development Life Cycle domain pack for the separate [PolyForge Graph core](../../../Paperclip-PolyForge-Graph). Import `pack` from `index.mjs`, register it with `GraphEngine.registerPack(pack)`, and bind its role IDs to real Paperclip agents or authenticated human operations in the host. The pack contains no agent UUIDs or installed-tool claims.
 
-Current pack source version: `adlc@0.3.2`, targeting pinned Core `>=0.8.5 <0.9.0`. Request triage and discovery are `0.2.0`; verification and implementation are `0.1.6`; other graphs are `0.1.0`. UI and interaction design workflows belong to the Creative Team Pack. Every artifact-producing task requires an attempt-bound work Decision Record. Implementation and verification pin `versioned_requirement` and `acceptance_criteria` as their delivery contract; verification also pins a versioned `verification_plan`. See [evidence contracts and input examples](docs/EVIDENCE_CONTRACTS.md), [Product Manager Skills adaptation](docs/PRODUCT_MANAGER_SKILLS_ADAPTATION.md), [method/agent mapping](docs/FACTORY_BLUEPRINT_ADAPTATION.md), [MCode adaptation](docs/MCODE_STACK_ADAPTATION.md), [Matt/pstack adaptation](docs/MATT_PSTACK_ADAPTATION.md), and [Elephant Goldfish research](docs/ELEPHANT_GOLDFISH_RESEARCH.md).
+Current pack source version: `adlc@0.3.3`, targeting pinned Core `>=0.8.5 <0.9.0` and requiring `workflow-composition@^1.0.0`. Request triage and discovery are `0.2.0`; verification and implementation are `0.1.6`; existing graphs otherwise retain their prior versions. Three additive workflow-composition graphs are `1.0.0`; legacy inputs and behavior remain unchanged. UI and interaction design workflows belong to the Creative Team Pack. Every artifact-producing task requires an attempt-bound work Decision Record. Implementation and verification pin `versioned_requirement` and `acceptance_criteria` as their delivery contract; verification also pins a versioned `verification_plan`. See [evidence contracts and input examples](docs/EVIDENCE_CONTRACTS.md), [Product Manager Skills adaptation](docs/PRODUCT_MANAGER_SKILLS_ADAPTATION.md), [method/agent mapping](docs/FACTORY_BLUEPRINT_ADAPTATION.md), [MCode adaptation](docs/MCODE_STACK_ADAPTATION.md), [Matt/pstack adaptation](docs/MATT_PSTACK_ADAPTATION.md), and [Elephant Goldfish research](docs/ELEPHANT_GOLDFISH_RESEARCH.md).
 
 ## Included workflows
 
@@ -22,6 +22,9 @@ Current pack source version: `adlc@0.3.2`, targeting pinned Core `>=0.8.5 <0.9.0
 | `code-delivery@0.1.0` | `code_delivery_ready`, `code_merge_observed`, `code_delivery_held` | optional final PR-head checks, review, approvals and merge event; no merge or production action |
 | `technical-design@0.1.0` | `accepted_technical_design` | optional complex-feature design, fresh-session comprehension report, four-axis audit, per-finding disposition and CTO gate |
 | `design-drift@0.1.0` | `design_code_reconciled` or `design_code_drift_held` | optional accepted-design versus pinned-code comparison with sourced drift rows |
+| `system-architecture-workflow@1.0.0` | validated `architectureBaseline` projection after graph completion | callable equivalent architecture baseline with explicit `workflowInput` schema and existing CTO acceptance gate |
+| `code-delivery-workflow@1.0.0` | validated `deliveryReport` projection after graph completion | callable final PR-head evidence workflow with explicit `workflowInput` schema and existing CTO decision gate |
+| `architecture-review-composed@1.0.0` | accepted `architectureBaseline` from its exact contracted child workflow | parent orchestration of `system-architecture-workflow@1.0.0`; human gate, adapter binding and evidence checks are retained |
 
 Design and implementation use bounded `reworkTarget` resets that keep prior attempts and decisions. Verification `rework_required` is a distinct terminal status that hands work back for a changed candidate and new verification run. Old reports remain attached to the version they actually assessed. Human escalation pauses a run.
 
@@ -37,6 +40,28 @@ await engine.registerPack(pack);
 await engine.startRun({ packId: pack.id, packVersion: pack.version,
   graphId: 'implementation', mode: 'assisted', input, actor });
 ```
+
+The contracted entry graphs use the Core workflow runtime or the authenticated `workflow-run` tool. Business values go under `workflowInput`; host-owned identity, issue, project, execution, product decisions and evidence remain in the trusted envelope. Example inputs:
+
+```js
+// system-architecture-workflow@1.0.0
+{ workflowInput: { system_id: 'billing-api', architecture_brief: 'Split invoice writes from payment capture; preserve idempotency.' } }
+
+// architecture-review-composed@1.0.0 (same business input; child receives only this mapped object)
+{ workflowInput: { system_id: 'billing-api', architecture_brief: 'Split invoice writes from payment capture; preserve idempotency.' } }
+
+// code-delivery-workflow@1.0.0
+{ workflowInput: {
+  implementation_candidate: { artifacts: [{ artifactId: 'billing-candidate', version: 'v1' }] },
+  delivery_target: { repository: 'acme/billing', prUrl: 'https://github.com/acme/billing/pull/42', headSha: '0123456789abcdef0123456789abcdef01234567' },
+  required_checks: ['unit-tests', 'security-scan'],
+  required_approvals: 1
+} }
+```
+
+The projected output is the completed task's submitted artifact payload. Core validates that it is an object and exposes it only after accepted completion. The projection itself is not a trusted evidence receipt, acceptance decision or proof that external checks occurred; the existing adapters and decision/evidence gates still govern those claims.
+
+`architecture-review-composed` exercises Core's trusted child-start adapter binding. It maps `system_id` and `architecture_brief` from the parent `workflowInput` into the exact child `workflowInput`; the child starts as the original root actor and Core adds no business input fields. The Host still must install and pin this Pack's exact digest, authorize the parent graph start, enforce the child's exact identity and `graphStartRoles`, and bind the child to the same ADLC adapter before dispatch. Core atomic child linking, human approval, actor/execution provenance, evidence validation and product-decision checks remain in force. Do not expose raw child start to Agents.
 
 The host supplies trusted actor identity, role bindings, execution identity, available capabilities, and versioned artifacts. The `roles` map contains five Markdown documents per role and SHA-256 digests. `decisionRules` are parsed from role decision models. Bundled skills are carried in `pack.skills`; each role lists the skills it uses. The host provides them to the runtime and resolves real capabilities. Supervisor review uses a distinct execution identity. Normal human gates need `human-owner` plus the gate's domain role; resolving an escalated human gate requires authenticated `human-owner` authority. The host must invoke `product-method-contracts.mjs` for product-method artifacts; Core does not call those pack-owned checks.
 

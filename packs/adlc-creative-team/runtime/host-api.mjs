@@ -3,6 +3,7 @@ import { readFile, realpath, readdir } from 'node:fs/promises';
 import path from 'node:path';
 import { graphs, productDesignGraphs } from '../graphs/catalog.mjs';
 import { brandGraphs } from '../graphs/brand-catalog.mjs';
+import { compositionGraphs } from '../graphs/composition-catalog.mjs';
 import { inspectLogoSvg } from '../adapters/brand-tools/svg.mjs';
 import { buildBrandContextSnapshot } from '../adapters/brand-tools/context.mjs';
 import { renderGalleryHtml, validateConceptSet, validateSelection, validateStaticImage } from '../adapters/concept-gallery/index.mjs';
@@ -21,12 +22,12 @@ function records(run) {
   return run.graph.nodes.flatMap(node=>(run.nodeStates[node.id]?.attempts??[]).flatMap(attempt=>(attempt.artifacts??[]).map(item=>({item,attempt,node, payload:attempt.output?.creativeArtifacts?.[item.kind]}))));
 }
 const exactRecord=(run,ref)=>createArtifactLineage(run).exactRecord(ref);
-function getGraph(packId,graphId) { return packId==='creative-team'?[...graphs,...productDesignGraphs,...brandGraphs].find(g=>g.id===graphId):undefined; }
+function getGraph(packId,graphId) { return packId==='creative-team'?[...graphs,...productDesignGraphs,...brandGraphs,...compositionGraphs].find(g=>g.id===graphId):undefined; }
 function requestedCount(run) { return run.input.creative_brief?.requestedCount??run.input.requestedCount; }
 function asRefs(candidates) { return candidates.map(c=>({id:c.id,version:c.version})); }
 
-const graphIds=[...graphs,...productDesignGraphs,...brandGraphs].map(item=>item.id);
-const decisionGraphIds=new Set([...graphs,...productDesignGraphs,...brandGraphs].filter(item=>item.nodes.some(node=>node.type==='decision')).map(item=>item.id));
+const graphIds=[...graphs,...productDesignGraphs,...brandGraphs,...compositionGraphs].map(item=>item.id);
+const decisionGraphIds=new Set([...graphs,...productDesignGraphs,...brandGraphs,...compositionGraphs].filter(item=>item.nodes.some(node=>node.type==='decision')).map(item=>item.id));
 const serviceRequirements=Object.fromEntries(graphIds.map(id=>[id,new Set()]));
 const requireServices=(ids,...names)=>{ for(const id of ids) for(const name of names) serviceRequirements[id]?.add(name); };
 requireServices([...decisionGraphIds],'resolveDecisionEvidence');
@@ -343,6 +344,11 @@ export function createCreativeHostApi({engine,artifactRootForRun,hasImageProvide
         }
         const linkKinds={
           brand_architecture_map:{contextRef:'brand_context_snapshot'},
+          brand_strategy:{evidenceRef:'brand_evidence_ledger'},
+          brand_territories:{strategyRef:'brand_strategy'},
+          brand_identity_system:{strategyRef:'brand_strategy',territoryRef:'brand_territories'},
+          brand_voice_system:{strategyRef:'brand_strategy'},
+          brand_foundation_review:{strategyRef:'brand_strategy',identityRef:'brand_identity_system',voiceRef:'brand_voice_system'},
           brand_name_candidates:{architectureRef:'brand_architecture_map'},
           brand_name_screening:{candidateRef:'brand_name_candidates'},
           brand_naming_review:{candidateRef:'brand_name_candidates',screeningRef:'brand_name_screening'},
@@ -361,6 +367,7 @@ export function createCreativeHostApi({engine,artifactRootForRun,hasImageProvide
           packaging_context:{brandBaselineRef:'brand_baseline'},packaging_design_brief:{contextRef:'packaging_context'},packaging_brief_review:{briefRef:'packaging_design_brief'},
           brand_rollout_context:{brandBaselineRef:'brand_baseline'},brand_rollout_plan:{contextRef:'brand_rollout_context'},brand_measurement_plan:{contextRef:'brand_rollout_context'},brand_rollout_review:{rolloutRef:'brand_rollout_plan',measurementRef:'brand_measurement_plan'},
           brand_baseline:{strategyRef:'brand_strategy',identityRef:'brand_identity_system',voiceRef:'brand_voice_system'},
+          brand_foundation_package:{strategyRef:'brand_strategy',identityRef:'brand_identity_system',voiceRef:'brand_voice_system',evidenceRefs:'brand_evidence_ledger',reviewRef:'brand_foundation_review'},
           web_design_package:{conceptRef:'concept_candidate',pageMapRef:'page_section_map',desktopRef:'desktop_web_design',mobileRef:'mobile_web_design',reviewRef:'web_design_review'},
           saas_design_package:{handoffRef:'creative_design_handoff',baselineRef:'design_baseline',apiContractRefs:'be_contract',stateMatrixRef:'saas_state_permission_matrix',reviewRef:'saas_design_review'},
           design_baseline:{tokensRef:'design_system_inventory',componentsRef:'design_system_change_proposal',patternsRef:'design_system_validation',migrationRef:'design_system_review'},
@@ -393,15 +400,16 @@ export function createCreativeHostApi({engine,artifactRootForRun,hasImageProvide
           const value=payload[field];
           for(const ref of Array.isArray(value)?value:[value]) await verifyRef(run,ref,kind,{actor});
         }
-        if(['brand_baseline','design_baseline','campaign_final_package','minor_ui_design_package','product_design_direction','ui_candidate_set','ui_design_selection'].includes(artifact.kind)) {
+        if(['brand_baseline','brand_foundation_package','design_baseline','campaign_final_package','minor_ui_design_package','product_design_direction','ui_candidate_set','ui_design_selection'].includes(artifact.kind)) {
           const decisionByKind={
             brand_baseline:run.graph.id==='brand-asset-adoption'?{decisionNode:'adopt-brand-assets',outcome:'adopt'}:{decisionNode:'brand-disposition',outcome:'ready'}, design_baseline:{decisionNode:'system-disposition',outcome:'accepted'},
+            brand_foundation_package:{decisionNode:'accept-brand-foundation',outcome:'ready'},
             campaign_final_package:{decisionNode:'campaign-disposition',outcome:'ready'}, minor_ui_design_package:{decisionNode:'minor-disposition',outcome:'accepted'},
             product_design_direction:{decisionNode:'promote-directions'}, ui_candidate_set:{decisionNode:'candidate-disposition',outcome:'ready'},
             ui_design_selection:{decisionNode:'select-final-ui',outcome:'selected'},
           };
           const {decisionNode,outcome}=decisionByKind[artifact.kind];
-          const expected=await requireDecision(run,decisionNode,outcome),actual=payload.decisionRef;
+          const expected=await requireDecision(run,decisionNode,outcome),actual=artifact.kind==='brand_foundation_package'?payload.acceptanceDecisionRef:payload.decisionRef;
           if(!isRef(actual)||refId(actual)!==expected.id||actual.version!==expected.version) throw new Error(`${artifact.kind} must reference the exact accepted decision record`);
         }
   }
