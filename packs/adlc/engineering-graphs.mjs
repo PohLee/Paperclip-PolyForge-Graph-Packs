@@ -4,12 +4,35 @@ const task = (id, role, purpose, extra = {}) => {
   const review = extra.review === null ? null : extra.review ?? (extra.produces?.length ? { supervisorRole: reviewRole[role], maxSelfReviews: 5 } : null);
   const { review: _unused, ...fields } = extra;
   return { id, type: 'task', role, purpose, decisionTraceRequired: Boolean(extra.produces?.length), ...fields,
-    ...(review ? { review: { ...review, decisionType: 'review-disposition' } } : {}) };
+    ...(review ? { review: { decisionType: 'review-disposition', ...review } } : {}) };
 };
 const decision = (id, role, decisionType, outcomes, extra = {}) => ({ id, type: 'decision', role, decisionType, outcomes, ...extra });
 const join = id => ({ id, type: 'join', mode: 'all' });
 const end = (id, output) => ({ id, type: 'end', output });
 const edge = (from, to, when) => when === undefined ? { from, to } : { from, to, when };
+
+const smallChangePilot = {
+  id: 'small-change', version: '0.2.1', start: 'verify-scope',
+  description: 'Isolated pilot with trusted scope admission, committed diff verification and standard-flow fallback.',
+  compatibility: { requiredCapabilities: { 'adlc-small-change-pilot': '^1.0.0' } },
+  hostAdmission: { standardGraphId: 'implementation', reviewedNodeId: 'change-and-check' },
+  requiredRunInputs: ['final_design_identity', 'architecture_context'],
+  deliveryContract: { goalInput: 'versioned_requirement', acceptanceInput: 'acceptance_criteria' },
+  nodes: [
+    task('verify-scope', 'principal-engineer',
+      'Read the host-approved scope and pinned base. Record the executable acceptance check and prepare the permitted paths.',
+      { requiredInputs: ['versioned_requirement', 'product_decision_refs', 'pilot_scope'], produces: ['scope_record'], review: null }),
+    task('change-and-check', 'lead-engineer', 'Make and commit the scoped change. Submit the full candidate commit and check report for the host diff review. Review a new commit through a new submission.',
+      { requiredInputs: ['scope_record'], produces: ['implementation_candidate', 'test_report'],
+        review: { supervisorRole: 'principal-engineer', maxSelfReviews: 1, decisionType: 'small-change-independent-review' } }),
+    decision('pilot-acceptance', 'cto-caio', 'implementation-acceptance', ['accept', 'rework', 'human'],
+      { requiredInputs: ['implementation_candidate', 'test_report'], candidateNodes: ['change-and-check'],
+        candidateKinds: ['implementation_candidate'], reworkTarget: 'change-and-check', maxReworks: 1 }),
+    end('small-change-complete', 'implementation_acceptance')
+  ],
+  edges: [edge('verify-scope', 'change-and-check'), edge('change-and-check', 'pilot-acceptance'),
+    edge('pilot-acceptance', 'small-change-complete', 'accept')]
+};
 
 export const engineeringGraphs = [
   {
@@ -20,7 +43,7 @@ export const engineeringGraphs = [
       decision('classify-implementation', 'principal-engineer', 'implementation-routing', ['feature', 'defect'], { requiredInputs: ['versioned_requirement', 'final_design_identity', 'product_decision_refs'] }),
       task('defect-diagnosis', 'lead-engineer', 'Reproduce the defect, trace the first divergence, compare a working path, and confirm one root-cause hypothesis before proposing a fix.', { produces: ['root_cause_report'] }),
       task('defect-red-check', 'lead-engineer', 'Record an executable reproduction that fails for the diagnosed reason before editing implementation code.', { produces: ['failing_regression_check'] }),
-      task('implementation-readiness', 'principal-engineer', 'Challenge the requirement, design, contracts, and defect evidence where applicable. For complex/high-impact features require the accepted technical design context and cite its current version; record PASS, CONCERNS, or FAIL with owners for missing decisions.', { produces: ['readiness_report'], review: { supervisorRole: 'cto-caio', maxSelfReviews: 5 } }),
+      task('implementation-readiness', 'principal-engineer', 'Challenge the requirement, design, contracts, and defect evidence where applicable. For complex/high-impact features require the accepted technical design context and cite its current version; Check applicable threat-model controls against planned implementation and verification. Record PASS, CONCERNS, or FAIL with owners for missing decisions.', { produces: ['readiness_report'], review: { supervisorRole: 'cto-caio', maxSelfReviews: 5 } }),
       decision('readiness-gate', 'cto-caio', 'implementation-readiness', ['proceed', 'rework', 'human'], { requiredInputs: ['readiness_report'], reworkTarget: 'classify-implementation', maxReworks: 3 }),
       task('implementation-plan', 'principal-engineer', 'Read active product decisions, design identity, readiness result and acceptance criteria; define independently verifiable tickets with blocking edges, owners, interfaces and checks.', { requiredInputs: ['versioned_requirement', 'final_design_identity', 'product_decision_refs', 'readiness_report'], produces: ['implementation_plan'], outputContract: 'work-plan', deliveryMilestone: true, review: { supervisorRole: 'cto-caio', maxSelfReviews: 5 } }),
       decision('implementation-shape', 'principal-engineer', 'implementation-shape', ['backend', 'frontend', 'fullstack', 'parallel'], { requiredInputs: ['implementation_plan', 'architecture_context'] }),
@@ -72,5 +95,6 @@ export const engineeringGraphs = [
       edge('verification-ready', 'acceptance-matrix'), edge('acceptance-matrix', 'acceptance-gate'), edge('acceptance-gate', 'verification-complete', 'accept'),
       edge('acceptance-gate', 'verification-rework', 'rework'), edge('acceptance-gate', 'verification-human', 'human')
     ]
-  }
+  },
+  smallChangePilot
 ];

@@ -15,13 +15,13 @@ test('published pack registers with the core validator and has the lifecycle inv
   const engine = new GraphEngine();
   await engine.registerPack(pack);
   assert.deepEqual(pack.graphs.map(graph => graph.id), [
-    'request-triage', 'product-discovery', 'implementation', 'verification',
+    'request-triage', 'product-discovery', 'implementation', 'verification', 'small-change',
     'release-process', 'release-observation', 'production-monitoring', 'requirements-baseline', 'product-experiment', 'competitive-watch',
     'system-architecture', 'code-delivery', 'technical-design', 'design-drift',
     'system-architecture-workflow', 'code-delivery-workflow', 'architecture-review-composed'
   ]);
   assert.equal(Object.keys(pack.roles).length, 10);
-  assert.equal(new Set(pack.graphs.map(graph => `${graph.id}@${graph.version}`)).size, 17);
+  assert.equal(new Set(pack.graphs.map(graph => `${graph.id}@${graph.version}`)).size, 18);
 });
 
 test('every task role and supervisor maps to a documented blueprint', () => {
@@ -30,7 +30,7 @@ test('every task role and supervisor maps to a documented blueprint', () => {
     if (node.role) assert.ok(ids.has(node.role), `${graph.id}/${node.id} uses unknown role ${node.role}`);
     if (node.review) {
       assert.ok(ids.has(node.review.supervisorRole), `${graph.id}/${node.id} has unknown supervisor`);
-      assert.equal(node.review.maxSelfReviews, 5);
+      assert.equal(node.review.maxSelfReviews, graph.id === 'small-change' ? 1 : 5);
     }
     if (node.type === 'task' && node.produces?.length) assert.equal(node.decisionTraceRequired, true, `${graph.id}/${node.id} needs a decision trace`);
     for (const author of node.independentOf ?? []) {
@@ -65,7 +65,7 @@ test('ADLC department heads report to the company CEO without changing review es
     'principal-engineer': 'cto-caio', 'lead-engineer': 'principal-engineer',
     'qa-engineer': 'cto-caio', 'security-engineer': 'cto-caio'
   };
-  assert.equal(pack.version, '0.3.3');
+  assert.equal(pack.version, '0.3.7');
   assert.deepEqual(Object.fromEntries(Object.values(pack.roles).map(role => [role.id, role.reportsToRole])), reportsTo);
   assert.deepEqual(Object.fromEntries(Object.values(pack.roles).map(role => [role.id, role.supervisorRole])), reviewEscalation);
   assert.equal(Object.values(pack.roles).filter(role => role.reportsToRole === 'ceo').length, 2);
@@ -75,20 +75,30 @@ test('ADLC department heads report to the company CEO without changing review es
     assert.match(role.documents.role, /## Artifact review\n\nDefault review escalation role:/);
     assert.match(role.documents.instruction, /organizational reporting line.*Graph node/s);
   }
-  assert.deepEqual(pack.graphs.map(graph => graph.version), ['0.2.0', '0.2.0', '0.1.6', '0.1.6', '0.1.0', '0.1.0', '0.1.0', '0.1.0', '0.1.0', '0.1.0', '0.1.0', '0.1.0', '0.1.0', '0.1.0', '1.0.0', '1.0.0', '1.0.0']);
+  assert.deepEqual(pack.graphs.filter(graph => graph.id !== 'small-change').map(graph => graph.version), ['0.2.0', '0.2.0', '0.1.6', '0.1.6', '0.1.0', '0.1.0', '0.1.0', '0.1.0', '0.1.0', '0.1.0', '0.1.0', '0.1.0', '0.1.0', '0.1.0', '1.0.0', '1.0.0', '1.0.0']);
   assert.equal(pack.policies.cpoCtoConflict.protocolVersion, 2);
 });
 
-test('Markdown decision models are consumed as runtime rules for all three modes', () => {
+test('Markdown decision models expose the standard modes and the isolated pilot review rule', () => {
   const modes = ['manual', 'assisted', 'autonomous'];
-  const types = new Set(pack.decisionRules.map(rule => rule.type));
+  const pilotType = 'small-change-independent-review';
+  const standardRules = pack.decisionRules.filter(rule => rule.type !== pilotType);
+  const types = new Set(standardRules.map(rule => rule.type));
   for (const type of types) for (const mode of modes) {
     const matches = pack.decisionRules.filter(rule => rule.type === type && rule.mode === mode);
     assert.equal(matches.length, 1, `${type}/${mode}`);
     assert.ok(matches[0].source.endsWith('/decision_model.md'));
     assert.ok(matches[0].requiredEvidence.length > 0);
   }
-  assert.ok(pack.decisionRules.every(rule => rule.mode !== 'manual' || rule.requiresHuman));
+  assert.ok(standardRules.every(rule => rule.mode !== 'manual' || rule.requiresHuman));
+  const [pilot, extra] = pack.decisionRules.filter(rule => rule.type === pilotType);
+  assert.equal(extra, undefined);
+  assert.deepEqual([pilot.mode, pilot.allowedKinds, pilot.allowedRoles, pilot.requiresHuman],
+    ['manual', ['agent'], ['principal-engineer'], false]);
+  const graph = pack.graphs.find(item => item.id === 'small-change');
+  assert.equal(graph.nodes.find(item => item.id === 'change-and-check').review.decisionType, pilotType);
+  const acceptance = graph.nodes.find(item => item.id === 'pilot-acceptance').decisionType;
+  assert.equal(standardRules.find(rule => rule.type === acceptance && rule.mode === 'manual').requiresHuman, true);
   assert.ok(pack.decisionRules.filter(rule => rule.type === 'product-decision-replacement').every(rule => rule.requiresHuman));
 });
 
@@ -104,11 +114,15 @@ test('implementation rejection restarts the plan with a bounded audit-preserving
 
 test('important artifact tasks self review and hand off to an independent reviewer', () => {
   for (const graph of pack.graphs) for (const node of graph.nodes.filter(item => item.type === 'task' && item.produces?.length)) {
+    if (graph.id === 'small-change' && node.id === 'verify-scope') {
+      assert.equal(node.review, undefined);
+      continue;
+    }
     if (['cpo-alignment', 'cto-alignment'].includes(node.id)) {
       assert.equal(node.review, undefined, `${node.id} is a signed position rather than an artifact approval`);
       continue;
     }
-    assert.equal(node.review?.maxSelfReviews, 5, `${graph.id}/${node.id} lacks five-round self review`);
+    assert.equal(node.review?.maxSelfReviews, graph.id === 'small-change' ? 1 : 5, `${graph.id}/${node.id} has the wrong self-review limit`);
     assert.ok(node.review.supervisorRole !== node.role, `${graph.id}/${node.id} lacks independent reviewer role`);
   }
   for (const id of ['freeze-candidate', 'qa', 'security', 'regression']) {

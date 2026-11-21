@@ -3,6 +3,8 @@ import {
   validateRequirementsHandoff, validateCompetitiveDiff, validateCompetitiveRoute, validateInvestmentCase,
 } from '../product-method-contracts.mjs';
 
+import { assessSmallChangeAdmission, inspectSmallChangeSubmission } from './small-change.mjs';
+
 const validators=Object.freeze({
   request_brief:validateRequestBrief, evidence_ledger:validateEvidenceLedger, experiment_record:validateExperimentRecord,
   requirements_handoff:validateRequirementsHandoff, competitive_diff:validateCompetitiveDiff, investment_case:validateInvestmentCase,
@@ -19,7 +21,7 @@ function latestPayload(run,nodeId,kind) {
 }
 
 /** Trusted host boundary for pack-owned ADLC product-method contracts. */
-export function createAdlcHostApi({engine,resolveActor,runValidationDigest}={}) {
+export function createAdlcHostApi({engine,resolveActor,runValidationDigest,services}={}) {
   if(!engine) throw new TypeError('engine is required');
   if(typeof runValidationDigest!=='function') throw new TypeError('Trusted runValidationDigest function is required');
   async function trustedActor(claimedActor,context) {
@@ -104,9 +106,14 @@ export function createAdlcHostApi({engine,resolveActor,runValidationDigest}={}) 
     validateRun,
     async startRun(args) {
       if(args.packId!=='adlc') throw new Error('ADLC packId is required');
-      return engine.startRun({...args,actor:await trustedActor(args.actor,{operation:'startRun',graphId:args.graphId})});
+      const actor=await trustedActor(args.actor,{operation:'startRun',graphId:args.graphId});
+      const { admission: _callerAdmission, ...request } = args;
+      if (args.graphId !== 'small-change') return engine.startRun({ ...request, actor });
+      if (actor.kind !== 'human' || !actor.roles.includes('human-owner')) throw new Error('Small-change admission requires a human owner');
+      const admission = await assessSmallChangeAdmission(request, services?.inspectSmallChange);
+      return engine.startRun({ ...request, actor, admission });
     },
-    async submitNode({runId,nodeId,actor,output={},artifacts=[],payloads={},...rest}) {
+    async submitNode({runId,nodeId,actor,output={},artifacts=[],payloads={},submissionReview: _callerReview,...rest}) {
       const run=await engine.getRun(runId);
       if(!run||run.packId!=='adlc') throw new Error('ADLC run not found');
       const node=run.graph.nodes.find(item=>item.id===nodeId);
@@ -127,7 +134,11 @@ export function createAdlcHostApi({engine,resolveActor,runValidationDigest}={}) 
         productMethods[artifact.kind]=validateArtifact(artifact.kind,payload);
       }
       for(const kind of Object.keys(payloads)) if(validators[kind]&&!artifacts.some(item=>item.kind===kind)) throw new Error(`${kind} payload has no matching artifact envelope`);
-      return engine.submitNode({runId,nodeId,actor,output:{...output,adlcProductMethods:productMethods},artifacts,...rest,expectedRunDigest});
+      const submissionReview = run.graph.hostAdmission?.reviewedNodeId === nodeId
+        ? await inspectSmallChangeSubmission(run, artifacts, services?.inspectSmallChange)
+        : undefined;
+      return engine.submitNode({runId,nodeId,actor,output:{...output,adlcProductMethods:productMethods},artifacts,
+        ...rest,expectedRunDigest,submissionReview});
     },
     async decideNode({runId,nodeId,actor,outcome,...rest}) {
       const run=await engine.getRun(runId);

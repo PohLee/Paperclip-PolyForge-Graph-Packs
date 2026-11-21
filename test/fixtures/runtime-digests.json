@@ -29,6 +29,14 @@
     "packs/adlc/product-method-contracts.mjs": "82f69b6daab8307de528e1498883d273ef5ed8f141f50cd8016d5831b551027f",
     "packs/adlc/runtime/host-api.mjs": "20b9d7fd83d4c52b2a56a9a1b079af679d04e47f74bb2828ea8ae15de1ce6ba1"
   },
+  "adlc@0.3.4": {
+    "packs/adlc/product-method-contracts.mjs": "82f69b6daab8307de528e1498883d273ef5ed8f141f50cd8016d5831b551027f",
+    "packs/adlc/runtime/host-api.mjs": "20b9d7fd83d4c52b2a56a9a1b079af679d04e47f74bb2828ea8ae15de1ce6ba1"
+  },
+  "adlc@0.3.5": {
+    "packs/adlc/product-method-contracts.mjs": "82f69b6daab8307de528e1498883d273ef5ed8f141f50cd8016d5831b551027f",
+    "packs/adlc/runtime/host-api.mjs": "20b9d7fd83d4c52b2a56a9a1b079af679d04e47f74bb2828ea8ae15de1ce6ba1"
+  },
   "creative-team@0.3.3": {
     "packs/adlc-creative-team/adapters/brand-tools/context.mjs": "81a525e700e399ab7c22e69c94b89bb1bbac18ae211525e1a676d15259863bce",
     "packs/adlc-creative-team/adapters/brand-tools/palette.mjs": "85ae3ec12c464eef58593063628035769471b883c984f9e9e02bb9c89fcff473",
@@ -39,5 +47,15 @@
     "packs/adlc-creative-team/contracts/validate.mjs": "f6eb70736b84facaf0556895173f49a3979bac9eedbed9da783d524fdf82e897",
     "packs/adlc-creative-team/runtime/artifact-lineage.mjs": "2eb667b1c5e1076cfc7b984acc5c10af0827ea6cf58fa19aebd88cef09821ee9",
     "packs/adlc-creative-team/runtime/host-api.mjs": "d80c1a1cd8077a361e1fdf7f2227cf200f09ac1db211b006453940698886fba3"
+  },
+  "adlc@0.3.6": {
+    "packs/adlc/product-method-contracts.mjs": "82f69b6daab8307de528e1498883d273ef5ed8f141f50cd8016d5831b551027f",
+    "packs/adlc/runtime/host-api.mjs": "03eb2a10946f7d46a906713ee8c497d3429e3fbc462e6ba60f8bcce1e18c05a0",
+    "packs/adlc/runtime/small-change.mjs": "6b7053d06bd48a2dce01fa2ba5e0c9fc422fe138e5e868c543f3dfea97082d80"
+  },
+  "adlc@0.3.7": {
+    "packs/adlc/product-method-contracts.mjs": "82f69b6daab8307de528e1498883d273ef5ed8f141f50cd8016d5831b551027f",
+    "packs/adlc/runtime/host-api.mjs": "03eb2a10946f7d46a906713ee8c497d3429e3fbc462e6ba60f8bcce1e18c05a0",
+    "packs/adlc/runtime/small-change.mjs": "6b7053d06bd48a2dce01fa2ba5e0c9fc422fe138e5e868c543f3dfea97082d80"
   }
 }

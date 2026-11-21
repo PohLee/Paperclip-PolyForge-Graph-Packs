@@ -59,6 +59,27 @@ Decision authority for this role. The JSON block is loaded by the pack at runtim
       }
     },
     {
+      "type": "small-change-independent-review",
+      "requiredEvidence": [
+        "artifact_version",
+        "review_findings",
+        "self_review_history"
+      ],
+      "modes": {
+        "manual": {
+          "allowedRoles": [
+            "principal-engineer"
+          ],
+          "allowedKinds": [
+            "agent"
+          ],
+          "requiresHuman": false,
+          "continueWhen": "A durable Decision Record has been written and all required evidence points to the artifact version examined.",
+          "escalateWhen": "Required evidence is missing, P0/P1 risk is unresolved without permitted acceptance, or actor authority is insufficient."
+        }
+      }
+    },
+    {
       "type": "implementation-routing",
       "requiredEvidence": [
         "versioned_requirement",

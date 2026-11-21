@@ -6,7 +6,7 @@ import { engineeringGraphs } from './engineering-graphs.mjs';
 import { lifecycleGraphs } from './lifecycle-graphs.mjs';
 import { architectureDeliveryGraphs } from './architecture-delivery-graphs.mjs';
 import { designAssuranceGraphs } from './design-assurance-graphs.mjs';
-import { workflowCompositionGraphs } from './workflow-composition-graphs.mjs';
+import { createWorkflowCompositionGraphs } from './workflow-composition-graphs.mjs';
 import { roleCatalog } from './roles/catalog.mjs';
 import { skillCatalog } from './skills/catalog.mjs';
 export { createAdlcHostApi } from './runtime/host-api.mjs';
@@ -63,7 +63,8 @@ function loadRole(spec) {
 }
 
 const roles = Object.fromEntries(roleCatalog.map(spec => [spec.id, loadRole(spec)]));
-const graphs = [lifecycleGraphs[0], lifecycleGraphs[1], ...engineeringGraphs, ...lifecycleGraphs.slice(2), ...architectureDeliveryGraphs, ...designAssuranceGraphs, ...workflowCompositionGraphs];
+const packVersion = '0.3.7';
+const graphs = [lifecycleGraphs[0], lifecycleGraphs[1], ...engineeringGraphs, ...lifecycleGraphs.slice(2), ...architectureDeliveryGraphs, ...designAssuranceGraphs, ...createWorkflowCompositionGraphs(packVersion)];
 const operatingPolicies = readText(resolve(root, 'OPERATING_POLICIES.md'));
 const evidenceContracts = readText(resolve(root, 'docs/EVIDENCE_CONTRACTS.md'));
 const decisionRules = Object.values(roles).flatMap(role => role.decisionModel.rules.flatMap(rule =>
@@ -76,7 +77,7 @@ const decisionRules = Object.values(roles).flatMap(role => role.decisionModel.ru
 ));
 
 export const pack = {
-  id: 'adlc', version: '0.3.3', schemaVersion: 1,
+  id: 'adlc', version: packVersion, schemaVersion: 1,
   compatibility: {
     coreRange: '>=0.8.5 <0.9.0',
     contracts: { graph: 1, decision: 1, evidence: 1 },
@@ -119,6 +120,7 @@ export const pack = {
     'product-experiment': ['product-manager', 'cpo', 'human-owner'],
     'requirements-baseline': ['product-owner', 'cpo', 'human-owner'],
     'competitive-watch': ['external-product-analyst', 'product-manager', 'cpo', 'human-owner'],
+    'small-change': ['human-owner'],
     implementation: ['product-owner', 'principal-engineer', 'cto-caio', 'human-owner'],
     verification: ['product-owner', 'cpo', 'cto-caio', 'human-owner'],
     'release-process': ['product-owner', 'cto-caio', 'human-owner'],
@@ -205,7 +207,7 @@ export const pack = {
 };
 
 // The release digest identifies the deterministic pack payload, excluding its own digest.
-pack.release = { digest: `sha256:${digest(JSON.stringify(pack))}`, builtAt: '2026-11-03T00:00:00.000Z', status: 'candidate' };
+pack.release = { digest: `sha256:${digest(JSON.stringify(pack))}`, builtAt: '2026-11-21T00:00:00.000Z', status: 'candidate' };
 
 export default pack;
 export {
