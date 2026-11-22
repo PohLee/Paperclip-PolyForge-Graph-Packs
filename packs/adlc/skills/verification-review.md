@@ -2,6 +2,8 @@
 
 Use after a fixed implementation candidate is pinned.
 
+In verification 0.1.7, publish one new report version with the exact candidate refs and observed evidence. For each observation, copy the immutable execution receipt ID and version into `receiptRef`. The display locator in `ref` may point to the saved log, issue document or other evidence location. At acceptance-matrix, cite the exact current QA, security and regression versions and use the recorded same-run report attempt for each criterion proof.
+
 At acceptance-matrix, use `pack.policyDocuments.evidenceContracts` for exact output: current candidate references and one row per input criterion, with pass/fail/unverified, observed proof and gaps. Failed criteria block acceptance. Only an authenticated human owner may accept unverified with reason, risk and matrix-version reference; agents must escalate.
 
 1. Read the exact candidate identity, approved PRD criteria, active product decisions, versioned `verification_plan`, and prior protected behavior. Select independent QA, regression, and security checks from that frozen plan. For user-facing application behavior, use application-verification to maintain a project-local recipe and feature map; supply its proven `project_verification` profile when available.

@@ -65,7 +65,7 @@ test('ADLC department heads report to the company CEO without changing review es
     'principal-engineer': 'cto-caio', 'lead-engineer': 'principal-engineer',
     'qa-engineer': 'cto-caio', 'security-engineer': 'cto-caio'
   };
-  assert.equal(pack.version, '0.3.7');
+  assert.equal(pack.version, '0.3.11');
   assert.deepEqual(Object.fromEntries(Object.values(pack.roles).map(role => [role.id, role.reportsToRole])), reportsTo);
   assert.deepEqual(Object.fromEntries(Object.values(pack.roles).map(role => [role.id, role.supervisorRole])), reviewEscalation);
   assert.equal(Object.values(pack.roles).filter(role => role.reportsToRole === 'ceo').length, 2);
@@ -75,7 +75,7 @@ test('ADLC department heads report to the company CEO without changing review es
     assert.match(role.documents.role, /## Artifact review\n\nDefault review escalation role:/);
     assert.match(role.documents.instruction, /organizational reporting line.*Graph node/s);
   }
-  assert.deepEqual(pack.graphs.filter(graph => graph.id !== 'small-change').map(graph => graph.version), ['0.2.0', '0.2.0', '0.1.6', '0.1.6', '0.1.0', '0.1.0', '0.1.0', '0.1.0', '0.1.0', '0.1.0', '0.1.0', '0.1.0', '0.1.0', '0.1.0', '1.0.0', '1.0.0', '1.0.0']);
+  assert.deepEqual(pack.graphs.filter(graph => graph.id !== 'small-change').map(graph => graph.version), ['0.2.1', '0.2.2', '0.1.7', '0.1.7', '0.1.0', '0.1.0', '0.1.0', '0.1.1', '0.1.0', '0.1.0', '0.1.1', '0.1.0', '0.1.0', '0.1.0', '1.0.1', '1.0.0', '1.0.1']);
   assert.equal(pack.policies.cpoCtoConflict.protocolVersion, 2);
 });
 
@@ -100,6 +100,34 @@ test('Markdown decision models expose the standard modes and the isolated pilot 
   const acceptance = graph.nodes.find(item => item.id === 'pilot-acceptance').decisionType;
   assert.equal(standardRules.find(rule => rule.type === acceptance && rule.mode === 'manual').requiresHuman, true);
   assert.ok(pack.decisionRules.filter(rule => rule.type === 'product-decision-replacement').every(rule => rule.requiresHuman));
+});
+
+test('each supervisor for review-disposition receives the exact evidence guide and bundled skill', () => {
+  const supervisors = [...new Set(pack.graphs.flatMap(graph => graph.nodes
+    .filter(node => node.review?.decisionType === 'review-disposition')
+    .map(node => node.review.supervisorRole)))].sort();
+  assert.deepEqual(supervisors, ['cpo', 'cto-caio', 'principal-engineer', 'product-manager']);
+  const rule = pack.decisionRules.find(item => item.type === 'review-disposition' && item.mode === 'assisted');
+  assert.deepEqual([...rule.allowedRoles].sort(), supervisors);
+  assert.deepEqual(rule.requiredEvidence, ['artifact_version', 'review_findings', 'self_review_history']);
+  for (const id of supervisors) {
+    const role = pack.roles[id];
+    assert.ok(role.skills.includes('review-handoff'), id);
+    const guide = role.documents.decision_model.split('## Supervisor review\n')[1];
+    assert.ok(guide, id);
+    for (const kind of rule.requiredEvidence) assert.ok(guide.includes('`' + kind + '`'), id);
+    assert.ok(guide.includes('subjectRefs: [{ artifactId, version }]'), id);
+    assert.ok(guide.includes('review-handoff.md#supervisor-decision'), id);
+  }
+  const example = JSON.parse(pack.skills['review-handoff'].content.match(/```json\s*([\s\S]*?)\s*```/)[1]);
+  assert.deepEqual(example.evidence.map(item => item.kind), rule.requiredEvidence);
+  const subjectRefs = [
+    { artifactId: 'triage-report-42', version: 'v2' },
+    { artifactId: 'request-brief-42', version: 'v1' }
+  ];
+  for (const item of example.evidence) assert.deepEqual(item.subjectRefs, subjectRefs);
+  assert.deepEqual(example.evidence.find(item => item.kind === 'self_review_history').selfReviewRef,
+    { runId: 'run-42', nodeId: 'assess-request', attempt: 1, round: 1 });
 });
 
 test('implementation rejection restarts the plan with a bounded audit-preserving rework policy', () => {
@@ -179,7 +207,11 @@ async function playGraph(graphId, routes, expectedStatus, options = {}) {
       await engine.decideNode({ runId: run.id, nodeId: node.id, actor, outcome, reason: `Scenario route ${outcome}`, evidence, artifacts });
     } else {
       const artifacts = node.type === 'task' ? (node.produces ?? []).map(kind => {
-        const base = { kind, id: `${node.id}-${kind}-artifact-${count}`, version: 'v1' };
+        const discoveryArtifact = graphId === 'product-discovery' &&
+          ['internal-research', 'external-research', 'synthesize-discovery'].includes(node.id);
+        const base = discoveryArtifact
+          ? { kind, id: `${node.id}-${kind}-artifact`, version: `v${current.nodeStates[node.id].attempts.length + 1}` }
+          : { kind, id: `${node.id}-${kind}-artifact-${count}`, version: 'v1' };
         if (kind !== 'release_execution_record') return base;
         const sourceRefs = ['release_execution_event','implementation_candidate','release_authorization_decision'].map(key =>
           ({ kind:'run_input', key, id:input[key].id, version:input[key].version }));
@@ -199,8 +231,17 @@ async function playGraph(graphId, routes, expectedStatus, options = {}) {
         ? ['freeze-a1', 'freeze-b1'].filter(id => current.nodeStates[id].status === 'completed')
           .map(id => ({ artifactId: current.nodeStates[id].artifacts[0].id,
           version: current.nodeStates[id].artifacts[0].version })) : null;
-      const contractOutput = node.outputContract === 'acceptance-matrix'
-        ? { candidateRefs: [{ artifactId: 'CODE-1', version: 'v1' }], criteria: [{ id: 'AC-1', result: 'pass', evidence: [{ kind: 'report', ref: 'artifact://qa', observed: 'Scenario passed' }] }] }
+      const reportOccurrences = node.verificationReportSources?.map(nodeId => {
+        const state = current.nodeStates[nodeId];
+        const { id, version } = state.artifacts[0];
+        return { artifactId: id, version, runId: run.id, nodeId, attemptNumber: state.attempts.length };
+      });
+      const verificationCandidate = { artifactId: input.implementation_candidate?.id, version: input.implementation_candidate?.version };
+      const contractOutput = node.outputContract === 'verification-report'
+        ? { candidateRefs: [verificationCandidate], evidence: [{ kind: 'report', ref: 'artifact://' + node.id, observed: 'Scenario passed', receiptRef: { id: run.id + '/' + node.id, version: 'v1' } }] }
+        : node.outputContract === 'acceptance-matrix'
+        ? { candidateRefs: [verificationCandidate], reportRefs: reportOccurrences.map(({ artifactId, version }) => ({ artifactId, version })),
+          criteria: [{ id: 'AC-1', result: 'pass', evidence: [{ kind: 'report', ref: 'artifact://qa', observed: 'Scenario passed', receiptRef: { id: run.id + '/qa', version: 'v1' }, sourceRef: reportOccurrences.find(item => item.nodeId === 'qa') }] }] }
         : node.outputContract === 'triage-report'
         ? { requestRefs: [{ artifactId: 'IDEA-1', version: 'v1' }], category: 'enhancement', surface: 'issue',
           disposition: routes['triage-disposition'], duplicateCheck: { result: 'none', sourceRef: 'artifact://search/duplicates' },
@@ -241,14 +282,43 @@ async function playGraph(graphId, routes, expectedStatus, options = {}) {
           codeSha: input.code_sha, rows: [{ id: 'DRIFT-1', designClaim: 'Single writer', codeRef: 'src/order.mjs:1',
             observed: 'Order API writes', evidenceRef: 'artifact://inspection/1', status: 'matched' }] }
         : {};
+      const acceptedResearch = node.review?.requiredSourceRefs?.sources.map(({ nodeId, kind }) => {
+        const { id, version } = current.nodeStates[nodeId].artifacts.find(artifact => artifact.kind === kind);
+        return { kind, id, version };
+      });
+      const synthesis = acceptedResearch && (options.synthesis?.(acceptedResearch, current) ?? {
+        report: { researchRefs: acceptedResearch }
+      });
       await engine.submitNode({ runId: run.id, nodeId: node.id, actor,
-        output: { result: node.id, ...(selectedFinalists ? { selectedFinalists } : {}), ...contractOutput }, artifacts,
+        output: { result: node.id, ...(selectedFinalists ? { selectedFinalists } : {}), ...contractOutput,
+          ...(synthesis && { discovery_brief: synthesis.report }) }, artifacts,
         decisionIds: workDecision ? [workDecision.id] : [] });
       if (node.review) {
-        await engine.recordSelfReview({ runId: run.id, nodeId: node.id, actor, artifactVersion: 'v1', findings: [] });
+        await engine.recordSelfReview({ runId: run.id, nodeId: node.id, actor, artifactVersion: artifacts.at(-1).version, findings: [] });
+        if (node.deliveryMilestone) {
+          const waiting = await engine.getRun(run.id);
+          assert.deepEqual(waiting.deliveryClock.progress, current.deliveryClock.progress,
+            `${node.id} must wait for supervisor acceptance before recording progress`);
+        }
         const supervisor = { kind: 'agent', id: node.review.supervisorRole, roles: [node.review.supervisorRole], executionId: `supervisor-${node.id}-${count}` };
         const rule = pack.decisionRules.find(item => item.type === node.review.decisionType && item.mode === 'autonomous');
-        await engine.reviewWork({ runId: run.id, nodeId: node.id, actor: supervisor, outcome: 'accept', reason: 'Independent check passed', evidence: rule.requiredEvidence.map(kind => ({ kind, subjectRefs: artifacts.map(artifact => ({ artifactId: artifact.id, version: artifact.version })) })) });
+        const review = { runId: run.id, nodeId: node.id, actor: supervisor,
+          evidence: rule.requiredEvidence.map(kind => ({ kind,
+            subjectRefs: artifacts.map(artifact => ({ artifactId: artifact.id, version: artifact.version })) })) };
+        if (synthesis) {
+          const packet = reviewPacket(await engine.getRun(run.id), node.id, 'supervisor');
+          assert.deepEqual(packet.acceptedSourceRefs.map(item => item.ref), acceptedResearch);
+        }
+        if (synthesis?.rework) {
+          await assert.rejects(engine.reviewWork({ ...review, outcome: 'accept', reason: 'Attempted acceptance' }),
+            /discovery_brief\.researchRefs.*request rework/);
+          assert.equal((await engine.getRun(run.id)).nodeStates[node.id].status, 'awaiting_supervisor_review');
+          const { decision } = await engine.reviewWork({ ...review, outcome: 'rework', reason: synthesis.rework });
+          assert.equal(decision.outcome, 'rework');
+          assert.deepEqual((await engine.getRun(run.id)).deliveryClock.progress, current.deliveryClock.progress);
+        } else {
+          await engine.reviewWork({ ...review, outcome: 'accept', reason: 'Independent check passed' });
+        }
       }
     }
   }
@@ -354,13 +424,59 @@ test('discovery can advance, stop, or request more evidence before any build pat
   assert.deepEqual((await engine.getReadyNodes(opened.id)).map(node => node.id), ['frame-discovery']);
   const advanced = await playGraph('product-discovery', { 'discovery-gate': 'advance' }, 'completed');
   assert.equal(advanced.nodeStates['discovery-advance'].status, 'completed');
-  assert.equal(advanced.nodeStates['synthesize-discovery'].artifacts.length, 4);
+  assert.deepEqual(advanced.nodeStates['synthesize-discovery'].output.discovery_brief.researchRefs, [
+    { kind: 'internal_evidence', id: 'internal-research-internal_evidence-artifact', version: 'v1' },
+    { kind: 'external_evidence', id: 'external-research-external_evidence-artifact', version: 'v1' }
+  ]);
+  const discoveryMilestones = [
+    ['internal-research', 'product-manager', ['internal_evidence']],
+    ['external-research', 'product-manager', ['user_research_record', 'external_evidence']],
+    ['synthesize-discovery', 'cpo', ['evidence_ledger', 'discovery_options', 'discovery_brief', 'versioned_intent']]
+  ];
+  const delivery = await advanced._engine.getDeliveryStatus(advanced.id);
+  assert.deepEqual(delivery.acceptedMilestones.map(({ nodeId }) => nodeId), discoveryMilestones.map(([nodeId]) => nodeId));
+  for (const [index, [nodeId, supervisor, kinds]] of discoveryMilestones.entries()) {
+    const state = advanced.nodeStates[nodeId];
+    assert.equal(state.attempts.at(-1).supervisorReview.actor.id, supervisor);
+    assert.deepEqual(state.artifacts.map(({ kind }) => kind), kinds);
+    assert.deepEqual(delivery.acceptedMilestones[index].artifacts, state.artifacts);
+  }
   const stopped = await playGraph('product-discovery', { 'discovery-gate': 'stop' }, 'completed');
   assert.equal(stopped.nodeStates['discovery-stop'].status, 'completed');
   const repeated = await playGraph('product-discovery', { 'discovery-gate': ['more-research', 'advance'] }, 'completed');
   assert.equal(repeated.nodeStates['frame-discovery'].attempts.length, 2);
   assert.equal(repeated.nodeStates['discovery-gate'].attempts.length, 2);
   assert.equal(pack.decisionRules.find(rule => rule.type === 'discovery-disposition' && rule.mode === 'autonomous').requiresHuman, true);
+});
+
+test('the CPO reworks missing, wrong, and superseded research citations before accepting synthesis', async () => {
+  let originalResearch;
+  const run = await playGraph('product-discovery', { 'discovery-gate': ['more-research', 'advance'] }, 'completed', {
+    synthesis(researchRefs, current) {
+      switch (current.nodeStates['synthesize-discovery'].attempts.length) {
+        case 0:
+          originalResearch = researchRefs;
+          return { report: { researchRefs } };
+        case 1:
+          return { report: {}, rework: 'Add both direct research citations' };
+        case 2:
+          return { report: { researchRefs: [{ ...researchRefs[0], id: 'different-artifact' }, researchRefs[1]] },
+            rework: 'Use the internal artifact ID accepted by the Product Manager' };
+        case 3:
+          assert.equal(originalResearch[0].id, researchRefs[0].id);
+          assert.notEqual(originalResearch[0].version, researchRefs[0].version);
+          return { report: { researchRefs: originalResearch }, rework: 'Cite the current research versions' };
+        default:
+          return { report: { researchRefs } };
+      }
+    }
+  });
+  const synthesis = run.nodeStates['synthesize-discovery'];
+  assert.deepEqual(synthesis.attempts.map(attempt => attempt.supervisorReview.outcome),
+    ['accept', 'rework', 'rework', 'rework', 'accept']);
+  assert.deepEqual(synthesis.output.discovery_brief.researchRefs.map(ref => ref.version), ['v2', 'v2']);
+  const { acceptedMilestones } = await run._engine.getDeliveryStatus(run.id);
+  assert.equal(acceptedMilestones.filter(item => item.nodeId === 'synthesize-discovery').length, 2);
 });
 
 test('product experiment records a human disposition after planned and observed steps', async () => {
@@ -377,6 +493,11 @@ test('requirements baseline needs an authorized acceptance before publication', 
   const held = await playGraph('requirements-baseline', { 'requirements-gate': 'hold' }, 'completed');
   assert.equal(accepted.nodeStates['publish-baseline'].status, 'completed');
   assert.equal(held.nodeStates['publish-baseline'].status, 'pending');
+  const acceptedDelivery = await accepted._engine.getDeliveryStatus(accepted.id);
+  assert.deepEqual(acceptedDelivery.acceptedMilestones.map(({ nodeId, artifacts }) => ({ nodeId, artifacts })), [
+    { nodeId: 'publish-baseline', artifacts: accepted.nodeStates['publish-baseline'].artifacts }
+  ]);
+  assert.deepEqual((await held._engine.getDeliveryStatus(held.id)).acceptedMilestones, []);
   assert.equal(pack.decisionRules.find(rule => rule.type === 'requirements-acceptance' && rule.mode === 'autonomous').requiresHuman, true);
 });
 
@@ -393,6 +514,10 @@ test('request triage preserves ready, needs-info and closed outcomes', async () 
     const run = await playGraph('request-triage', { 'triage-disposition': outcome }, 'completed');
     assert.equal(run.nodeStates[end].status, 'completed');
     assert.equal(run.nodeStates['assess-request'].output.disposition, outcome);
+    const delivery = await run._engine.getDeliveryStatus(run.id);
+    assert.deepEqual(delivery.acceptedMilestones.map(({ nodeId, artifacts }) => ({ nodeId, artifacts })), [
+      { nodeId: 'assess-request', artifacts: run.nodeStates['assess-request'].artifacts }
+    ]);
   }
 });
 
@@ -539,6 +664,9 @@ test('optional architecture and code-delivery graphs execute their documented ou
   const architecture = await playGraph('system-architecture', { 'architecture-gate': ['rework', 'accept'] }, 'completed');
   assert.equal(architecture.nodeStates['architecture-baseline'].attempts.length, 2);
   assert.equal(architecture.nodeStates['architecture-baseline'].output.implementationStatus, 'proposed');
+  const delivery = await architecture._engine.getDeliveryStatus(architecture.id);
+  assert.deepEqual(delivery.acceptedMilestones.map(({ nodeId, artifacts }) => ({ nodeId, artifacts })),
+    architecture.nodeStates['architecture-baseline'].attempts.map(({ artifacts }) => ({ nodeId: 'architecture-baseline', artifacts })));
   for (const outcome of ['ready', 'merged', 'hold']) {
     const run = await playGraph('code-delivery', { 'delivery-gate': outcome }, 'completed');
     assert.equal(run.nodeStates['delivery-gate'].outcome, outcome);

@@ -48,7 +48,7 @@ export async function inspectSmallChangeSubmission(run, artifacts, inspect) {
     return conditions('submission', 'The candidate could not be tied to the admitted repository and base');
   }
   const details = { baseSha: base, headSha: head, diff };
-  if (!diff.every(item => item.status === 'M' && admitted.paths.includes(item.path))) {
+  if (!diff.every(item => ['M', 'A'].includes(item.status) && admitted.paths.includes(item.path))) {
     return conditions('submission', 'The committed diff changes files outside the admitted scope', details);
   }
   if (scope?.outcome !== 'within-scope' || scope.headSha !== head || !scope.evidenceRef) {

@@ -10,12 +10,12 @@ const edge = (from, to, when) => when === undefined ? { from, to } : { from, to,
 
 export const lifecycleGraphs = [
   {
-    id: 'request-triage', version: '0.2.0', start: 'assess-request', inputContracts: ['source-request'],
+    id: 'request-triage', version: '0.2.1', start: 'assess-request', inputContracts: ['source-request'],
     description: 'Check an issue, external PR or feedback claim before routing it to discovery or implementation; preserve the brief or information gap.',
     nodes: [
       task('assess-request', 'product-owner', 'cpo',
         'Separate the literal ask from the underlying problem, user, must-haves, constraints, exclusions and unknowns in a validated RequestBrief. Check duplicates, already implemented behavior, prior rejection, and the reported claim. For a bug, reproduce before declaring it ready. Reported urgency grants no authority. Record a durable brief, precise questions or closure reason.',
-        ['triage_report', 'request_brief'], { requiredInputs: ['source_request'], outputContract: 'triage-report' }),
+        ['triage_report', 'request_brief'], { requiredInputs: ['source_request'], outputContract: 'triage-report', deliveryMilestone: true }),
       decision('triage-disposition', 'product-owner', 'request-triage', ['ready', 'needs-info', 'closed'], {
         requiredInputs: ['triage_report'], candidateNodes: ['assess-request'], candidateKinds: ['triage_report'],
         decisionContract: { type: 'triage-routing', sourceNode: 'assess-request' }
@@ -29,22 +29,35 @@ export const lifecycleGraphs = [
     ]
   },
   {
-    id: 'product-discovery', version: '0.2.0', start: 'frame-discovery', inputContracts: ['triage-handoff-optional'],
+    id: 'product-discovery', version: '0.2.2', start: 'frame-discovery', inputContracts: ['triage-handoff-optional'],
+    compatibility: { requiredCapabilities: { 'review-source-refs': '^1.0.0' } },
     description: 'Investigate the problem and user need before a build commitment; retain an explicit advance, research-more, or no-build disposition.',
     nodes: [
       task('frame-discovery', 'product-owner', 'cpo',
         'Reframe the source request as a problem; identify user groups, research questions, assumptions, constraints, success baseline, and stop criteria.',
         ['discovery_plan'], { requiredInputs: ['source_request'] }),
       task('internal-research', 'internal-product-analyst', 'product-manager',
-        'Gather dated usage, support, prior decision, operational and technical constraint evidence. Classify claims as fact, inference or assumption; record supporting and conflicting sources in the evidence ledger.',
-        ['internal_evidence']),
+        'Gather dated usage, support, prior decision, operational and technical constraint evidence. Publish sourced findings or a concrete investigation result. Classify claims as fact, inference or assumption; record supporting and conflicting sources in the evidence ledger.',
+        ['internal_evidence'], { deliveryMilestone: true }),
       task('external-research', 'external-product-analyst', 'product-manager',
-        'Gather direct user evidence where access exists, current journey and barriers, contrary signals, and external alternatives. State sample, source independence, freshness and access limits; no interview means no customer-validation claim.',
-        ['user_research_record', 'external_evidence']),
+        'Gather direct user evidence where access exists, current journey and barriers, contrary signals, and external alternatives. Publish both records. State sample, source independence, freshness, and the concrete results and consequences of any access gaps. Claim customer validation only when supported by direct evidence.',
+        ['user_research_record', 'external_evidence'], { deliveryMilestone: true }),
       join('evidence-ready'),
       task('synthesize-discovery', 'product-manager', 'cpo',
-        'Validate the evidence ledger, compare user needs, alternatives, constraints, baseline and options including no build. Identify risky Epic hypotheses and whether a narrow probe is needed before build; draft versioned intent with open decisions.',
-        ['evidence_ledger', 'discovery_options', 'discovery_brief', 'versioned_intent']),
+        'Compare user needs, constraints, baseline and options including no build. Identify risky Epic hypotheses and draft versioned intent. In output.discovery_brief.researchRefs cite the exact IDs and versions of the Product Manager-accepted internal_evidence and external_evidence. Read the companion user_research_record with external_evidence. The CPO must record rework if either required citation is missing, wrong or stale.',
+        ['evidence_ledger', 'discovery_options', 'discovery_brief', 'versioned_intent'], {
+          deliveryMilestone: true,
+          review: {
+            supervisorRole: 'cpo', maxSelfReviews: 5, decisionType: 'review-disposition',
+            requiredSourceRefs: {
+              reportKind: 'discovery_brief',
+              sources: [
+                { nodeId: 'internal-research', kind: 'internal_evidence' },
+                { nodeId: 'external-research', kind: 'external_evidence' }
+              ]
+            }
+          }
+        }),
       decision('discovery-gate', 'cpo', 'discovery-disposition', ['advance', 'more-research', 'stop'], {
         requiredInputs: ['discovery_brief', 'versioned_intent'], candidateNodes: ['synthesize-discovery'],
         candidateKinds: ['versioned_intent'], reworkTarget: 'frame-discovery', reworkOutcome: 'more-research', maxReworks: 3
@@ -151,7 +164,7 @@ export const lifecycleGraphs = [
     ]
   },
   {
-    id: 'requirements-baseline', version: '0.1.0', start: 'draft-requirements',
+    id: 'requirements-baseline', version: '0.1.1', start: 'draft-requirements',
     description: 'Turn accepted intent into a pinned, traceable requirements baseline after a human product decision.',
     nodes: [
       task('draft-requirements', 'product-owner', 'cpo',
@@ -166,7 +179,7 @@ export const lifecycleGraphs = [
       }),
       task('publish-baseline', 'product-owner', 'cpo',
         'Publish a validated accepted requirements handoff with the exact gate Decision ID, immutable version and full problem-to-outcome trace. A revision needs a change request and impact analysis.',
-        ['requirements_handoff']),
+        ['requirements_handoff'], { deliveryMilestone: true }),
       end('requirements-accepted', 'accepted_requirements_baseline'), end('requirements-held', 'requirements_held')
     ],
     edges: [edge('draft-requirements', 'challenge-requirements'), edge('challenge-requirements', 'requirements-gate'),

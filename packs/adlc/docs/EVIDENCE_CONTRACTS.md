@@ -6,6 +6,21 @@ The ADLC Pack supplies `product-method-contracts.mjs` for RequestBrief, evidence
 
 Requires pinned Core 0.8.5+. The core validates its supported submitted coverage and identity contracts. The host authenticates actors, executes checks and verifies external sources. Schema validity cannot establish that a command ran or a remote PR is still current. Fetch this full pinned policy document when dispatch context is truncated.
 
+In `product-discovery@0.2.2`, submit two direct versioned research citations in the synthesis output:
+
+```json
+{
+  "discovery_brief": {
+    "researchRefs": [
+      { "kind": "internal_evidence", "id": "internal-findings-42", "version": "v2" },
+      { "kind": "external_evidence", "id": "external-findings-42", "version": "v1" }
+    ]
+  }
+}
+```
+
+Copy the IDs and versions from the current Product Manager-accepted research attempts in this run. The external research attempt also includes the reviewed `user_research_record`. The CPO verifies both citations and reviews the synthesis against the source reports. For missing, wrong, or superseded references record `rework`. The Core `review-source-refs` capability checks the references when the CPO submits `accept`.
+
 ## Technical design and comprehension
 
 Use the optional `technical-design` Graph for complex or high-impact features. Start with `feature`, an active approved `product_decision_refs` set, and `versioned_requirement: {id, version}`. The Principal Engineer submits one `technical_design` artifact and structured output:
@@ -88,7 +103,21 @@ Cover every input criterion exactly once. Result is pass/fail/unverified; proof 
 {"kind":"acceptance_exception","criterionId":"AC-1","reason":"Staging unavailable; explicitly defer this check","risk":"Persistence remains unverified","subjectRefs":[{"artifactId":"MATRIX-1","version":"v1"}]}
 ```
 
-All other required gate evidence must still reference both frozen identity and matrix artifacts. Normal and escalated gates enforce the same rule. An exception cannot waive fail. Contracted outputs/artifacts are immutable per attempt: record findings, reach supervisor review, request rework and resubmit output with a new artifact version. Prior attempts remain auditable.
+From `verification@0.1.7`, each of `qa`, `security` and `regression` submits one versioned report with an output like this:
+
+```json
+{"candidateRefs":[{"artifactId":"CODE-1","version":"v1"}],"evidence":[{"kind":"command","ref":"artifact://checks/run-1/manifest.json","observed":"Draft persistence test passed","receiptRef":{"id":"CHECK-RUN-1","version":"v1"}}]}
+```
+
+Use a fresh report version for each submission. Every observation names a versioned execution receipt in `receiptRef: {id, version}`. Use the saved execution receipt ID and version from the check or observation. The same project cannot cite that exact receipt for a different candidate. The display locator in `ref` may be reused when a fresh receipt has been recorded. A previously submitted report ID and version in the same project cannot be resubmitted. An empty report evidence list records no proof. The acceptance matrix adds `reportRefs`, containing the exact artifact ID and version of each accepted QA, security and regression report in the current run. Each criterion proof item includes the completed report occurrence that contains its proof reference:
+
+```json
+{"kind":"command","ref":"artifact://checks/run-1/manifest.json","observed":"Draft persistence test passed","receiptRef":{"id":"CHECK-RUN-1","version":"v1"},"sourceRef":{"artifactId":"QA-1","version":"v1","runId":"current-run-id","nodeId":"qa","attemptNumber":1}}
+```
+
+Core checks the accepted report occurrence and the recorded proof kind, locator, observation and receipt identity and version. The Host and reviewers verify the underlying execution, receipt bytes and observation.
+
+Each required gate evidence item references the current frozen identity, matrix and all three current report versions. Normal and escalated gates enforce the same rule. An exception cannot waive fail. Contracted outputs/artifacts are immutable per attempt: record findings, reach supervisor review, request rework and resubmit output with a new artifact version. Prior attempts remain auditable.
 
 ## Architecture and implementation shape
 
@@ -100,7 +129,7 @@ Optional `system-architecture` starts with `system_id` and `architecture_brief`.
 
 CTO acceptance is separate from proposed/partial/implemented status. Every invariant has a stable INV-ID, rule, enforcement, proof and active/retired status. For revision supply `previous_architecture` using the context below; preserve old IDs and provide `changeReason` on rule changes or retirement.
 
-The additive contracted `system-architecture-workflow@1.0.0` and `architecture-review-composed@1.0.0` accept the same business keys inside `workflowInput`; the composed parent maps only these keys to the exact child contract:
+The additive contracted `system-architecture-workflow@1.0.1` and `architecture-review-composed@1.0.1` accept the same business keys inside `workflowInput`; the composed parent maps only these keys to the exact child contract:
 
 ```json
 {"workflowInput":{"system_id":"orders","architecture_brief":"Define bounded order ownership and write paths."}}

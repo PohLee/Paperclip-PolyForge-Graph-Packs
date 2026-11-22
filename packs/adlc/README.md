@@ -2,7 +2,19 @@
 
 Versioned Agentic Development Life Cycle domain pack for the separate [PolyForge Graph core](../../../Paperclip-PolyForge-Graph). Import `pack` from `index.mjs`, register it with `GraphEngine.registerPack(pack)`, and bind its role IDs to real Paperclip agents or authenticated human operations in the host. The pack contains no agent UUIDs or installed-tool claims.
 
-Current pack source version: `adlc@0.3.7`, targeting pinned Core `>=0.8.5 <0.9.0` and requiring `workflow-composition@^1.0.0`. Request triage and discovery are `0.2.0`; verification and implementation are `0.1.6`; existing graphs otherwise retain their prior versions. Three additive workflow-composition graphs are `1.0.0`; legacy inputs and behavior remain unchanged. UI and interaction design workflows belong to the Creative Team Pack. Every artifact-producing task requires an attempt-bound work Decision Record. Implementation and verification pin `versioned_requirement` and `acceptance_criteria` as their delivery contract; verification also pins a versioned `verification_plan`. See [evidence contracts and input examples](docs/EVIDENCE_CONTRACTS.md), [Product Manager Skills adaptation](docs/PRODUCT_MANAGER_SKILLS_ADAPTATION.md), [method/agent mapping](docs/FACTORY_BLUEPRINT_ADAPTATION.md), [MCode adaptation](docs/MCODE_STACK_ADAPTATION.md), [Matt/pstack adaptation](docs/MATT_PSTACK_ADAPTATION.md), and [Elephant Goldfish research](docs/ELEPHANT_GOLDFISH_RESEARCH.md).
+The current source is `adlc@0.3.11` and targets Core `>=0.8.5 <0.9.0` with `workflow-composition@^1.0.0`. UI and interaction design workflows belong to the Creative Team Pack. Every artifact-producing task requires an attempt-bound work Decision Record. Implementation and verification pin `versioned_requirement` and `acceptance_criteria` as their delivery contract; verification also pins a versioned `verification_plan`. See [evidence contracts and input examples](docs/EVIDENCE_CONTRACTS.md), [Product Manager Skills adaptation](docs/PRODUCT_MANAGER_SKILLS_ADAPTATION.md), [method/agent mapping](docs/FACTORY_BLUEPRINT_ADAPTATION.md), [MCode adaptation](docs/MCODE_STACK_ADAPTATION.md), [Matt/pstack adaptation](docs/MATT_PSTACK_ADAPTATION.md), and [Elephant Goldfish research](docs/ELEPHANT_GOLDFISH_RESEARCH.md).
+
+Version 0.3.11 pins QA, security and regression report attempts to the current candidate in `verification@0.1.7`. QA, security and regression publish fresh report versions with immutable, versioned check receipt references for the pinned candidate. The acceptance matrix cites all three accepted report versions and copies each proof observation from its exact report attempt. Gate acceptance revalidates those bindings. The host authenticates the underlying check execution and verifies what was observed. This Graph requires Core `verification-report-lineage@^1.0.0`. Previously pinned `verification@0.1.6` runs follow their original evidence contract. See the [verification evidence contract](docs/EVIDENCE_CONTRACTS.md#verification).
+
+Version 0.3.11 also publishes `implementation@0.1.7`, which carries the threat-model readiness check first shipped in 0.3.5. Earlier releases kept the `0.1.6` label for that changed text, so cite the pack version with any `implementation@0.1.6` reference. The small-change submission check now also accepts a new file at an exact admitted path.
+
+`architecture-review-composed` pins its child to the same ADLC pack version that contains it. Its content therefore differs between pack releases under one graph version. Core resolves a Graph by pack ID and pack version, so identify it by `adlc@<packVersion>` plus the graph version.
+
+Version 0.3.10 requires the discovery brief to cite the exact ID and version of both Product Manager-accepted research reports in `product-discovery@0.2.2`. The CPO sends synthesis back for rework if either citation is missing, wrong, or stale. This Graph requires the Core `review-source-refs@^1.0.0` capability. See the [discovery citation contract](docs/EVIDENCE_CONTRACTS.md#product-discovery-and-decision-artifacts).
+
+Version 0.3.9 records three reviewed delivery milestones in `product-discovery@0.2.1`. The Product Manager reviews the internal findings and the external research pair, and the CPO reviews the full synthesis. The [product discovery skill](skills/product-discovery.md#reviewed-delivery-milestones) defines evidence quality, access-gap handling, and when to issue a new artifact version.
+
+Version 0.3.8 records delivery progress when a supervisor accepts the triage assessment, the published requirements handoff, or an architecture baseline from either entry graph. Requirements publication follows the human product gate. Architecture has a separate acceptance decision after the artifact review. The [review handoff skill](skills/review-handoff.md) gives the exact `review-disposition` evidence for the CPO, CTO + CAIO, Principal Engineer and Product Manager.
 
 Version 0.3.7 routes `small-change@0.2.1` to the independent Principal Engineer Agent pinned at admission and retains the human final acceptance gate.
 
@@ -16,23 +28,23 @@ Version 0.3.4 adds repository preflight to readiness, traces cross-layer accepta
 
 | Graph | Result | Main route |
 | --- | --- | --- |
-| `request-triage@0.2.0` | `request_ready`, `request_needs_info`, or `request_closed` | separate literal ask from problem in a RequestBrief; check source issue, external PR, or feedback; preserve brief or gap |
-| `product-discovery@0.2.0` | `accepted_intent` or `no_build_decision` | classify sourced evidence and conflicts, identify risky hypotheses, synthesize options, human CPO disposition |
-| `implementation@0.1.6` | `implementation_acceptance` | versioned requirement and acceptance criteria; feature/defect classification and readiness; acyclic ticket plan; integrated candidate and per-ticket proof; root-cause fix/reverify count; independent review; CTO gate with bounded rework |
-| `verification@0.1.6` | `acceptance_decision` | pin one candidate and criterion list; required same-Agent Sub-Agent review before normal QA dispatch; QA, security and bounded full regression reports on the candidate; criterion proof matrix; CPO acceptance or human exception for unverified gaps |
+| `request-triage@0.2.1` | `request_ready`, `request_needs_info`, or `request_closed` | separate literal ask from problem in a RequestBrief; check source issue, external PR, or feedback; preserve brief or gap |
+| `product-discovery@0.2.2` | `accepted_intent` or `no_build_decision` | classify sourced evidence and conflicts, identify risky hypotheses, synthesize options, human CPO disposition |
+| `implementation@0.1.7` | `implementation_acceptance` | versioned requirement and acceptance criteria; feature/defect classification and readiness; acyclic ticket plan; integrated candidate and per-ticket proof; root-cause fix/reverify count; independent review; CTO gate with bounded rework |
+| `verification@0.1.7` | `acceptance_decision` | pin one candidate and criterion list; required same-Agent Sub-Agent review before normal QA dispatch; QA, security and bounded full regression reports; criterion proofs from exact accepted report attempts; CPO acceptance or human exception for unverified gaps |
 | `release-process@0.1.0` | `ready_for_host_execution` or `release_held` | pin the verified candidate; plan, preflight and coordinate; a named human records operational start or hold |
 | `release-observation@0.1.0` | `release_recorded`, `recovery_pending`, or `incident_handoff` | start only from a host-supplied execution event and linked plan/authorization; run smoke and health checks; human outcome decision |
 | `production-monitoring@0.1.0` | `healthy_observation`, `watch_scheduled`, `incident_handoff`, or `health_unverified` | evaluate one sourced observation window against a versioned monitoring plan and route the evidence |
-| `requirements-baseline@0.1.0` | `accepted_requirements_baseline` or `requirements_held` | challenge draft scope and traceability; human CPO gate; publish an immutable accepted handoff |
+| `requirements-baseline@0.1.1` | `accepted_requirements_baseline` or `requirements_held` | challenge draft scope and traceability; human CPO gate; publish an immutable accepted handoff |
 | `product-experiment@0.1.0` | `build_recommended`, `validation_required`, `pivot_required`, or `no_build_decision` | plan, execute and assess one falsifiable probe; CPO records the human disposition |
 | `competitive-watch@0.1.0` | `no_material_change` or `decision_review_required` | compare two sourced snapshots; PM routes material changes for CPO review without changing scope |
-| `system-architecture@0.1.0` | `architecture_acceptance` | optional baseline with diagram, stable invariant IDs, enforcement/proof and separate implementation status; CTO acceptance/rework |
+| `system-architecture@0.1.1` | `architecture_acceptance` | optional baseline with diagram, stable invariant IDs, enforcement/proof and separate implementation status; CTO acceptance/rework |
 | `code-delivery@0.1.0` | `code_delivery_ready`, `code_merge_observed`, `code_delivery_held` | optional final PR-head checks, review, approvals and merge event; no merge or production action |
 | `technical-design@0.1.0` | `accepted_technical_design` | optional complex-feature design, fresh-session comprehension report, four-axis audit, per-finding disposition and CTO gate |
 | `design-drift@0.1.0` | `design_code_reconciled` or `design_code_drift_held` | optional accepted-design versus pinned-code comparison with sourced drift rows |
-| `system-architecture-workflow@1.0.0` | validated `architectureBaseline` projection after graph completion | callable equivalent architecture baseline with explicit `workflowInput` schema and existing CTO acceptance gate |
+| `system-architecture-workflow@1.0.1` | validated `architectureBaseline` projection after graph completion | callable equivalent architecture baseline with explicit `workflowInput` schema and existing CTO acceptance gate |
 | `code-delivery-workflow@1.0.0` | validated `deliveryReport` projection after graph completion | callable final PR-head evidence workflow with explicit `workflowInput` schema and existing CTO decision gate |
-| `architecture-review-composed@1.0.0` | accepted `architectureBaseline` from its exact contracted child workflow | parent orchestration of `system-architecture-workflow@1.0.0`; human gate, adapter binding and evidence checks are retained |
+| `architecture-review-composed@1.0.1` | accepted `architectureBaseline` from its exact contracted child workflow | parent orchestration of `system-architecture-workflow@1.0.1`; human gate, adapter binding and evidence checks are retained |
 
 Design and implementation use bounded `reworkTarget` resets that keep prior attempts and decisions. Verification `rework_required` is a distinct terminal status that hands work back for a changed candidate and new verification run. Old reports remain attached to the version they actually assessed. Human escalation pauses a run.
 
@@ -52,10 +64,10 @@ await engine.startRun({ packId: pack.id, packVersion: pack.version,
 The contracted entry graphs use the Core workflow runtime or the authenticated `workflow-run` tool. Business values go under `workflowInput`; host-owned identity, issue, project, execution, product decisions and evidence remain in the trusted envelope. Example inputs:
 
 ```js
-// system-architecture-workflow@1.0.0
+// system-architecture-workflow@1.0.1
 { workflowInput: { system_id: 'billing-api', architecture_brief: 'Split invoice writes from payment capture; preserve idempotency.' } }
 
-// architecture-review-composed@1.0.0 (same business input; child receives only this mapped object)
+// architecture-review-composed@1.0.1 (same business input; child receives only this mapped object)
 { workflowInput: { system_id: 'billing-api', architecture_brief: 'Split invoice writes from payment capture; preserve idempotency.' } }
 
 // code-delivery-workflow@1.0.0
@@ -96,7 +108,7 @@ These are adaptations of the named methods, not bundled copies or claims that th
 
 Every artifact-producing task records a sourced work choice in the current attempt and submits its ID in `decisionIds`. The core checks actor, execution, attempt, and active product decision references. CPO/CTO conflict protocol v2 requires independent positions and a documented negotiation before human resolution. Named external design, developer-subagent, and security methods are conditional on actual host installation and permission.
 
-Every required evidence item is identified by `kind`. Gate evidence must also reference the exact current candidate artifacts with `subjectRefs`. The host records a decision before following its route. It should link product decisions, history and artifact versions to each change. See [operating policies](OPERATING_POLICIES.md) and the core contract for method details.
+Every required evidence item is identified by `kind`. Gate evidence must also reference the exact current candidate artifacts with `subjectRefs`. A `review-disposition` submission includes `artifact_version`, `review_findings`, and `self_review_history`, each covering every current candidate via `{ artifactId, version }`. See the [review handoff example](skills/review-handoff.md#supervisor-decision). The host records a decision before following its route. It should link product decisions, history and artifact versions to each change. See [operating policies](OPERATING_POLICIES.md) and the core contract for method details.
 
 ## Maintenance
 

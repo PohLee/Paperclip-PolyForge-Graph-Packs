@@ -19,7 +19,7 @@ const architectureOutput = {
 
 // These contracted graphs are additive. Legacy graph inputs are untouched.
 const architectureWorkflow = {
-  id: 'system-architecture-workflow', version: '1.0.0', start: 'architecture-baseline',
+  id: 'system-architecture-workflow', version: '1.0.1', start: 'architecture-baseline',
   description: 'Callable, contracted architecture baseline and human acceptance workflow.',
   evidenceInputSource: 'workflowInput',
   workflowContract: { version: 1, inputSchema: architectureInput, outputSchema: architectureOutput,
@@ -27,7 +27,7 @@ const architectureWorkflow = {
   nodes: [
     task('architecture-baseline', 'principal-engineer', 'cto-caio',
         'Read workflowInput.system_id and workflowInput.architecture_brief and any sourced host context. Create or revise a versioned architecture baseline with systemId matching workflowInput.system_id: component boundaries, data flow, stable invariants, enforcement and proof. Preserve previous invariant IDs. Do not claim acceptance.',
-      ['architecture_baseline'], { outputContract: 'architecture-baseline' }),
+      ['architecture_baseline'], { outputContract: 'architecture-baseline', deliveryMilestone: true }),
     { id: 'architecture-gate', type: 'decision', role: 'cto-caio', decisionType: 'architecture-acceptance', outcomes: ['accept', 'rework', 'human'],
       requiredInputs: ['architecture_baseline'], candidateNodes: ['architecture-baseline'], candidateKinds: ['architecture_baseline'],
       decisionContract: { type: 'architecture-approval', sourceNode: 'architecture-baseline' }, reworkTarget: 'architecture-baseline', maxReworks: 3 },
@@ -79,13 +79,13 @@ const codeDeliveryWorkflow = {
 };
 
 const architectureReviewComposed = packVersion => ({
-  id: 'architecture-review-composed', version: '1.0.0', start: 'architecture-review',
+  id: 'architecture-review-composed', version: '1.0.1', start: 'architecture-review',
   description: 'Compose the contracted architecture baseline under the parent workflow identity and return its accepted artifact.',
   workflowContract: { version: 1, inputSchema: architectureInput, outputSchema: architectureOutput,
     outputMapping: { architectureBaseline: { source: 'node', nodeId: 'architecture-review', path: ['architectureBaseline'] } } },
   nodes: [
     { id: 'architecture-review', type: 'workflow',
-      workflow: { packId: 'adlc', packVersion, graphId: 'system-architecture-workflow', graphVersion: '1.0.0' },
+      workflow: { packId: 'adlc', packVersion, graphId: architectureWorkflow.id, graphVersion: architectureWorkflow.version },
       inputMapping: {
         system_id: { source: 'input', path: ['system_id'] },
         architecture_brief: { source: 'input', path: ['architecture_brief'] }

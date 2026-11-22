@@ -4,10 +4,30 @@ import { createHash } from 'node:crypto';
 import { pack as adlc } from '../packs/adlc/index.mjs';
 import { pack as marketing } from '../packs/marketing/index.mjs';
 import { pack as creative } from '../packs/adlc-creative-team/index.mjs';
+import { installedPacks, installedReleasePaths } from '../catalog.mjs';
 
 test('pack payload digests match LF release values', () => {
-  for (const [pack, expected] of [[adlc,'f8cd929ad445e070db88fc0c9102d0f3c7781c8fa31e71f0880d31d8d56f883b'],[marketing,'b04b6bc0e46b2f7480a0d62c21a5ed98b33a63f88f48cc8ef3ccf2421e2c2568'],[creative,'7ce4dd7905dae654868c29744808393770e1d53b5f2d3f7af33f61c5f300c2dd']]) {
+  for (const [pack, expected] of [[adlc,'40bd857e10637f2be07c7d760f315d73ddc08d1d55b8c3837bd873bbcba6e2b3'],[marketing,'b04b6bc0e46b2f7480a0d62c21a5ed98b33a63f88f48cc8ef3ccf2421e2c2568'],[creative,'7ce4dd7905dae654868c29744808393770e1d53b5f2d3f7af33f61c5f300c2dd']]) {
     const { release, ...payload } = pack;
     assert.equal(createHash('sha256').update(JSON.stringify(payload)).digest('hex'), expected);
   }
+});
+
+test('the catalog keeps the previous discovery release immutable alongside the citation contract', () => {
+  assert.deepEqual(installedReleasePaths.filter(([id, version]) => id === 'adlc' && ['0.3.9', '0.3.10'].includes(version)),
+    [['adlc', '0.3.9'], ['adlc', '0.3.10']]);
+  const discovery = adlc.graphs.find(graph => graph.id === 'product-discovery');
+  assert.equal(discovery.version, '0.2.2');
+  assert.equal(discovery.compatibility.requiredCapabilities['review-source-refs'], '^1.0.0');
+  assert.equal(discovery.nodes.find(node => node.id === 'synthesize-discovery').review.requiredSourceRefs.reportKind, 'discovery_brief');
+});
+
+const historicalDiscovery = installedPacks.find(item => item.id === 'adlc' && item.version === '0.3.9');
+test('the installed adlc@0.3.9 release keeps discovery without the citation contract', {
+  skip: historicalDiscovery ? false : 'dist/adlc/0.3.9 is not installed; build it to check the historical release'
+}, () => {
+  assert.equal(historicalDiscovery.release.digest, 'sha256:ae427d571c77112541a03f728223a1fae0178108490b71f5e7e02dab00bd7630');
+  const discovery = historicalDiscovery.graphs.find(graph => graph.id === 'product-discovery');
+  assert.equal(discovery.version, '0.2.1');
+  assert.equal(discovery.nodes.find(node => node.id === 'synthesize-discovery').review.requiredSourceRefs, undefined);
 });

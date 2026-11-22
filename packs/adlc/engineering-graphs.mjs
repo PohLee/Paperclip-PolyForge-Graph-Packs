@@ -36,14 +36,14 @@ const smallChangePilot = {
 
 export const engineeringGraphs = [
   {
-    id: 'implementation', version: '0.1.6', start: 'classify-implementation', inputContracts: ['architecture-context', 'triage-handoff-optional', 'technical-design-context-optional'],
+    id: 'implementation', version: '0.1.7', start: 'classify-implementation', inputContracts: ['architecture-context', 'triage-handoff-optional', 'technical-design-context-optional'],
     deliveryContract: { goalInput: 'versioned_requirement', acceptanceInput: 'acceptance_criteria' },
     description: 'Route features to readiness and defects through root-cause evidence and a red reproduction, then plan, build, independently review, and accept the fixed candidate.',
     nodes: [
       decision('classify-implementation', 'principal-engineer', 'implementation-routing', ['feature', 'defect'], { requiredInputs: ['versioned_requirement', 'final_design_identity', 'product_decision_refs'] }),
       task('defect-diagnosis', 'lead-engineer', 'Reproduce the defect, trace the first divergence, compare a working path, and confirm one root-cause hypothesis before proposing a fix.', { produces: ['root_cause_report'] }),
       task('defect-red-check', 'lead-engineer', 'Record an executable reproduction that fails for the diagnosed reason before editing implementation code.', { produces: ['failing_regression_check'] }),
-      task('implementation-readiness', 'principal-engineer', 'Challenge the requirement, design, contracts, and defect evidence where applicable. For complex/high-impact features require the accepted technical design context and cite its current version; Check applicable threat-model controls against planned implementation and verification. Record PASS, CONCERNS, or FAIL with owners for missing decisions.', { produces: ['readiness_report'], review: { supervisorRole: 'cto-caio', maxSelfReviews: 5 } }),
+      task('implementation-readiness', 'principal-engineer', 'Challenge the requirement, design, contracts, and defect evidence where applicable. For complex/high-impact features require the accepted technical design context and cite its current version; check applicable threat-model controls against planned implementation and verification. Record PASS, CONCERNS, or FAIL with owners for missing decisions.', { produces: ['readiness_report'], review: { supervisorRole: 'cto-caio', maxSelfReviews: 5 } }),
       decision('readiness-gate', 'cto-caio', 'implementation-readiness', ['proceed', 'rework', 'human'], { requiredInputs: ['readiness_report'], reworkTarget: 'classify-implementation', maxReworks: 3 }),
       task('implementation-plan', 'principal-engineer', 'Read active product decisions, design identity, readiness result and acceptance criteria; define independently verifiable tickets with blocking edges, owners, interfaces and checks.', { requiredInputs: ['versioned_requirement', 'final_design_identity', 'product_decision_refs', 'readiness_report'], produces: ['implementation_plan'], outputContract: 'work-plan', deliveryMilestone: true, review: { supervisorRole: 'cto-caio', maxSelfReviews: 5 } }),
       decision('implementation-shape', 'principal-engineer', 'implementation-shape', ['backend', 'frontend', 'fullstack', 'parallel'], { requiredInputs: ['implementation_plan', 'architecture_context'] }),
@@ -73,20 +73,20 @@ export const engineeringGraphs = [
     ]
   },
   {
-    id: 'verification', version: '0.1.6', start: 'freeze-candidate', inputContracts: ['acceptance-criteria', 'project-verification-optional'],
+    id: 'verification', version: '0.1.7', start: 'freeze-candidate', inputContracts: ['acceptance-criteria', 'project-verification-optional'],
     deliveryContract: { goalInput: 'versioned_requirement', acceptanceInput: 'acceptance_criteria', verificationPlanInput: 'verification_plan' },
-    compatibility: { requiredCapabilities: { 'shadow-review-execution': '>=1.0.0 <2.0.0' } },
+    compatibility: { requiredCapabilities: { 'shadow-review-execution': '>=1.0.0 <2.0.0', 'verification-report-lineage': '^1.0.0' } },
     description: 'Verify one fixed candidate with a required same-Agent Sub-Agent review before QA dispatch; rework requires a changed implementation candidate and a new verification run.',
     nodes: [
       task('freeze-candidate', 'product-owner', 'Pin the implementation candidate, requirement and decision versions for this verification run.', { requiredInputs: ['implementation_candidate', 'versioned_requirement', 'product_decision_refs'], produces: ['fixed_candidate_identity'] }),
       task('qa', 'qa-engineer', 'Test behavior and exploratory edge cases against the fixed candidate.', {
-        produces: ['qa_report'], shadow: { trigger: 'before-dispatch', reviewer: 'same-agent', required: true }
+        produces: ['qa_report'], outputContract: 'verification-report', shadow: { trigger: 'before-dispatch', reviewer: 'same-agent', required: true }
       }),
-      task('security', 'security-engineer', 'Inspect threat model and security controls against the fixed candidate.', { produces: ['security_report'] }),
-      task('regression', 'qa-engineer', 'Run the declared full regression suite for protected product behavior against the fixed candidate; attach the versioned result receipt.', { produces: ['regression_report'], deliveryCheck: { kind: 'full_regression', receiptKind: 'regression_report', sourceNodeId: 'freeze-candidate', sourceKind: 'fixed_candidate_identity' } }),
+      task('security', 'security-engineer', 'Inspect threat model and security controls against the fixed candidate.', { produces: ['security_report'], outputContract: 'verification-report' }),
+      task('regression', 'qa-engineer', 'Run the declared full regression suite for protected product behavior against the fixed candidate; attach the versioned result receipt.', { produces: ['regression_report'], outputContract: 'verification-report', deliveryCheck: { kind: 'full_regression', receiptKind: 'regression_report', sourceNodeId: 'freeze-candidate', sourceKind: 'fixed_candidate_identity' } }),
       join('verification-ready'),
-      task('acceptance-matrix', 'qa-engineer', 'Cover every input acceptance criterion exactly once, binding observed proof or an explicit unverified gap to the fixed implementation candidate.', { produces: ['acceptance_matrix'], outputContract: 'acceptance-matrix', deliveryMilestone: true }),
-      decision('acceptance-gate', 'cpo', 'verification-acceptance', ['accept', 'rework', 'human'], { requiredInputs: ['fixed_candidate_identity', 'qa_report', 'security_report', 'regression_report', 'acceptance_matrix'], candidateNodes: ['freeze-candidate', 'acceptance-matrix'], candidateKinds: ['fixed_candidate_identity', 'acceptance_matrix'], decisionContract: { type: 'acceptance-proof', sourceNode: 'acceptance-matrix' } }),
+      task('acceptance-matrix', 'qa-engineer', 'Cover every input acceptance criterion exactly once, binding observed proof or an explicit unverified gap to the fixed implementation candidate.', { produces: ['acceptance_matrix'], outputContract: 'acceptance-matrix', verificationReportSources: ['qa', 'security', 'regression'], deliveryMilestone: true }),
+      decision('acceptance-gate', 'cpo', 'verification-acceptance', ['accept', 'rework', 'human'], { requiredInputs: ['fixed_candidate_identity', 'qa_report', 'security_report', 'regression_report', 'acceptance_matrix'], candidateNodes: ['freeze-candidate', 'qa', 'security', 'regression', 'acceptance-matrix'], candidateKinds: ['fixed_candidate_identity', 'qa_report', 'security_report', 'regression_report', 'acceptance_matrix'], decisionContract: { type: 'acceptance-proof', sourceNode: 'acceptance-matrix' } }),
       end('verification-complete', 'acceptance_decision'), end('verification-rework', 'rework_required'), end('verification-human', 'human_decision_pending')
     ],
     edges: [

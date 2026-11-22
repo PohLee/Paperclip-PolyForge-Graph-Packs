@@ -8,3 +8,12 @@ Use when a source request names a solution before the user problem or need is es
 4. Obtain the CPO disposition and retain rejected options. An advance hands the accepted intent to requirements definition; it does not itself assert that a PRD, design, or implementation is approved. Complete when the next owner can cite the exact intent and decision versions.
 
 Scale the sample and method to the decision's uncertainty and impact. An unavailable research channel is recorded as a gap, never described as user evidence.
+
+## Reviewed delivery milestones
+
+- The Product Manager reviews `internal_evidence` for sourced findings or a concrete investigation result, such as a dated search of named sources that rules out a suspected prior decision. Record what was checked, what was observed, and what the result changes.
+- The Product Manager reviews `user_research_record` and `external_evidence` together. If access was limited, describe the channel tried, when, the observable result, what remains unknown, and the impact on the decision. A material investigation result can support the milestone while user validation remains open.
+- During synthesis, put the exact current Product Manager-accepted `internal_evidence` and `external_evidence` artifact IDs and versions in `output.discovery_brief.researchRefs`. Use one `{ kind, id, version }` object per report. Read the companion `user_research_record` alongside the external report and trace material conclusions and open assumptions to their sources.
+- The CPO reviews `evidence_ledger`, `discovery_options`, `discovery_brief`, and `versioned_intent` together. Open each cited report, compare its ID and version with the current accepted research, and check that the synthesis reflects the findings and gaps. Record `rework` if either required citation is missing, wrong, or stale. The human `discovery-gate` determines whether to advance, research more, or stop.
+
+Use `rework` for empty records, general activity summaries, unsupported claims, or evidence with only an ID or version change. Keep an unchanged record under its existing identity. For a substantive revision, keep the artifact ID, advance its version, and explain what changed and which sources support it. The supervisor makes that judgment. Core registers progress for fresh versioned references when the reviewed task completes. The framing plan, evidence join, and routing decision do not record milestones.

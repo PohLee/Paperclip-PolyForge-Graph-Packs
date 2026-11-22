@@ -27,7 +27,7 @@ export const decisionTypes = {
   'technical-approach': { owner:'cto-caio', evidence:['options','architecture_impact','risk_assessment'] },
   'implementation-readiness': { owner:'cto-caio', evidence:['readiness_report','versioned_requirement','product_decision_refs'] },
   'implementation-acceptance': { owner:'cto-caio', evidence:['candidate_versions','independent_review','test_reports'] },
-  'review-disposition': { owner:'principal-engineer', evidence:['artifact_version','review_findings','self_review_history'] },
+  'review-disposition': { owner:'principal-engineer', evidence:['artifact_version','review_findings','self_review_history'], allowedRoles:['cpo','cto-caio','principal-engineer','product-manager'] },
   'small-change-independent-review': { owner:'principal-engineer', evidence:['artifact_version','review_findings','self_review_history'], modes:['manual'], allowedKinds:['agent'] },
   'implementation-routing': { owner:'principal-engineer', evidence:['versioned_requirement','work_classification'] },
   'discovery-disposition': { owner:'cpo', evidence:['discovery_brief','user_research_record','evidence_ledger','discovery_options'] },
