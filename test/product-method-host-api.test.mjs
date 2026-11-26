@@ -7,6 +7,7 @@ import { pack, createAdlcHostApi } from '../packs/adlc/index.mjs';
 const coreArtifact=process.env.PINNED_CORE_ARTIFACT;
 const coreUrl=coreArtifact ? pathToFileURL(resolve(coreArtifact,'src/core/index.mjs')).href : new URL('../../Paperclip-PolyForge-Graph/src/core/index.mjs',import.meta.url).href;
 const { GraphEngine,runValidationDigest }=await import(coreUrl);
+const services = { getProjectConfig: async () => ({ automationMode: 'full-auto', allowFullAuto: true }) };
 const actor=({claimedActor})=>({id:claimedActor?.id??'host-owner',kind:claimedActor?.kind??'human',roles:claimedActor?.roles??['human-owner'],executionId:claimedActor?.executionId??'host-execution'});
 let methodRunNumber=0;
 const taskActor=node=>({id:node.role,kind:'agent',roles:[node.role],executionId:`execution-${node.id}`});
@@ -43,7 +44,7 @@ async function startMethodRun(engine,api,graphId,input) {
 test('trusted ADLC wrapper rejects an invalid product-method payload before an actual Core run changes',async()=>{
   const engine=new GraphEngine({availableCapabilities:{'company-control':'1.0.0','cross-pack-plans':'1.0.0','cross-pack-handoff':'1.0.0'}});
   await engine.registerPack(pack);
-  const api=createAdlcHostApi({engine,resolveActor:actor,runValidationDigest});
+  const api=createAdlcHostApi({engine,resolveActor:actor,runValidationDigest,services});
   const run=await api.startRun({packId:pack.id,packVersion:pack.version,graphId:'request-triage',mode:'manual',actor:{id:'owner',kind:'human',roles:['human-owner'],executionId:'owner-ui'},input:{source_request:{id:'issue-1',version:'1'}}});
   const invalid={id:'brief',version:'1',literalAsk:'Ship it'};
   await assert.rejects(api.submitNode({runId:run.id,nodeId:'assess-request',actor:{id:'po',kind:'agent',roles:['product-owner'],executionId:'po-1'},artifacts:[{id:'triage',version:'1',kind:'triage_report'},{id:'brief',version:'1',kind:'request_brief'}],payloads:{request_brief:invalid}}),/sourceRef is required/);
@@ -58,7 +59,7 @@ test('trusted ADLC wrapper exposes the declared investment-case contract without
 
 test('trusted ADLC wrapper rejects an invalid experiment route before Core changes, then completes its valid route',async()=>{
   const engine=new GraphEngine(); await engine.registerPack(pack);
-  const api=createAdlcHostApi({engine,resolveActor:actor,runValidationDigest});
+  const api=createAdlcHostApi({engine,resolveActor:actor,runValidationDigest,services});
   async function readyForGate(record) {
     const run=await startMethodRun(engine,api,'product-experiment',{accepted_intent:{id:'intent',version:'1'}});
     const ledger={id:'ledger',version:'1',claims:[]};
@@ -83,7 +84,7 @@ test('trusted ADLC wrapper rejects an invalid experiment route before Core chang
 
 test('trusted ADLC wrapper rejects a mismatched competitive-watch route before Core changes, then completes its valid route',async()=>{
   const engine=new GraphEngine(); await engine.registerPack(pack);
-  const api=createAdlcHostApi({engine,resolveActor:actor,runValidationDigest});
+  const api=createAdlcHostApi({engine,resolveActor:actor,runValidationDigest,services});
   const run=await startMethodRun(engine,api,'competitive-watch',{previous_snapshot:{id:'previous',version:'1'},watch_question:'What changed?'});
   const diff={id:'diff',version:'1',previousSnapshot:{id:'previous',version:'1'},currentSnapshot:{id:'current',version:'1'},changes:[],materialChange:false};
   for(;;) {
@@ -104,7 +105,7 @@ test('native human gate uses the ADLC route validator and accepts null execution
   const resolveNativeActor=({claimedActor})=>claimedActor?.kind==='human'
     ?{id:'owner',kind:'human',roles:['human-owner','cpo'],executionId:null}
     :actor({claimedActor});
-  const api=createAdlcHostApi({engine,resolveActor:resolveNativeActor,runValidationDigest});
+  const api=createAdlcHostApi({engine,resolveActor:resolveNativeActor,runValidationDigest,services});
   const technical={id:'technical',version:'1',hypothesis:'Users will benefit',targetUser:'Operators',riskyAssumption:'The feature is discoverable',probe:'Technical proof of concept',supportCriterion:'The probe works',refuteCriterion:'The probe fails',evidenceType:'technical-feasibility',decisionOwner:'cpo',state:'supported',executedAt:'2026-11-02T00:00:00Z',observationRef:'observation-1',observedResult:'The proof works',recommendedNext:'build'};
   const run=await startMethodRun(engine,api,'product-experiment',{accepted_intent:{id:'intent',version:'1'}});
   const ledger={id:'ledger',version:'1',claims:[]};
@@ -120,7 +121,7 @@ test('native human gate uses the ADLC route validator and accepts null execution
 
 test('ADLC self review atomically validates and stores revised product-method payload',async()=>{
   const engine=new GraphEngine(); await engine.registerPack(pack);
-  const api=createAdlcHostApi({engine,resolveActor:actor,runValidationDigest});
+  const api=createAdlcHostApi({engine,resolveActor:actor,runValidationDigest,services});
   const run=await startMethodRun(engine,api,'product-experiment',{accepted_intent:{id:'intent',version:'1'}});
   let node;
   while((node=(await engine.getReadyNodes(run.id))[0]).id!=='assess-probe') await finishTask({engine,api,run,node});
@@ -145,7 +146,7 @@ test('ADLC self review atomically validates and stores revised product-method pa
 
 test('ADLC recovery validation checks current payloads and route decisions without requiring absent outputs',async()=>{
   const engine=new GraphEngine(); await engine.registerPack(pack);
-  const api=createAdlcHostApi({engine,resolveActor:actor,runValidationDigest});
+  const api=createAdlcHostApi({engine,resolveActor:actor,runValidationDigest,services});
   const record={id:'recovery-experiment',version:'1',hypothesis:'Operators will use the shortcut',targetUser:'Operators',riskyAssumption:'The shortcut is discoverable',probe:'Observed usability session',supportCriterion:'Most participants complete the task',refuteCriterion:'Participants cannot find the shortcut',evidenceType:'direct-user',decisionOwner:'cpo',state:'supported',executedAt:'2026-11-02T00:00:00Z',observationRef:'observation-1',observedResult:'Participants completed the task',recommendedNext:'build'};
   const ledger={id:'recovery-ledger',version:'1',claims:[]};
   const run=await startMethodRun(engine,api,'product-experiment',{accepted_intent:{id:'intent',version:'1'}});

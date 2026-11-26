@@ -475,7 +475,7 @@ const pathRule = (id, terms, extra = {}) => ({
 });
 
 export const deterministicRiskRules = Object.freeze([
-  pathRule('migration', 'migrations?'),
+  pathRule('migration', 'migrations?', { neverAutoMerge: 'database-migration' }),
   pathRule('authentication', 'auth|authentication|authorization|oauth|sso'),
   pathRule('payments', 'payments?|billing'),
   pathRule('ci-config', 'ci|circleci|buildkite|jenkinsfile|azure-pipelines', {
@@ -483,26 +483,20 @@ export const deterministicRiskRules = Object.freeze([
   }),
   { id: 'github-workflows', floor: 'medium', pathPattern: '^\\.github/workflows/' },
   { id: 'major-dependency-bump', floor: 'medium', majorDependencyBump: true },
-  { id: 'destructive-production-migration', floor: 'high', neverAutoMerge: 'destructive-production-migration',
-    pathPattern: '(?:^|[/._-])(?:migrations?)(?:[/._-].*)?[/._-](?:drop|truncate|destructive|purge|delete)(?:$|[/._-])',
-    deletedMigration: true },
   pathRule('iam-credentials', 'iam|credentials?|secrets?|service-accounts?', { neverAutoMerge: 'iam-credentials' }),
   pathRule('infrastructure', 'infra|infrastructure|terraform|pulumi|kubernetes|k8s|helm', { neverAutoMerge: 'infrastructure' }),
   { id: 'terraform-file', floor: 'medium', pathPattern: '\\.tf(?:vars)?$', neverAutoMerge: 'infrastructure' }
 ].map(Object.freeze));
 
-export function assessDeterministicRisk({ changes, dependencyChanges, ciPaths = [], riskRules = [] }) {
+export function assessDeterministicRisk({ changes, dependencyChanges, ciPaths = [], riskRules = [], neverAutoMerge = {} }) {
   const normalize = path => path.replaceAll('\\', '/').replace(/^\.\//, '');
   const paths = changes.flatMap(({ path, previousPath }) => [path, previousPath].filter(Boolean).map(normalize));
   const ciPatterns = ciPaths.map(path => normalize(path).replace(/\/$/, '').toLowerCase());
   const major = version => /^\s*[~^=v]*([0-9]+)(?:\.|$)/.exec(version)?.[1];
   const bumped = dependencyChanges.some(({ from, to }) => {
     const before = major(from), after = major(to);
-    return before !== undefined && after !== undefined && Number(after) > Number(before);
+    return before === undefined || after === undefined || Number(after) > Number(before);
   });
-  const migration = new RegExp(deterministicRiskRules[0].pathPattern, 'i');
-  const deletedMigration = changes.some(({ path, status }) =>
-    /^(?:removed|deleted|D)$/i.test(status) && migration.test(normalize(path)));
   const levels = ['low', 'medium', 'high'];
   const rules = [], categories = new Set(), ids = new Set();
   let floor = 'low';
@@ -513,10 +507,10 @@ export function assessDeterministicRisk({ changes, dependencyChanges, ciPaths = 
     const matches = (pattern && paths.some(path => pattern.test(path))) ||
       (rule.ciPaths && paths.some(path => ciPatterns.some(prefix =>
         path.toLowerCase() === prefix || path.toLowerCase().startsWith(prefix + '/')))) ||
-      (rule.majorDependencyBump && bumped) || (rule.deletedMigration && deletedMigration);
+      (rule.majorDependencyBump && bumped);
     if (!matches) continue;
     rules.push(rule.id);
-    if (rule.neverAutoMerge) categories.add(rule.neverAutoMerge);
+    if (rule.neverAutoMerge && neverAutoMerge?.[rule.neverAutoMerge] !== false) categories.add(rule.neverAutoMerge);
     if (levels.indexOf(rule.floor) > levels.indexOf(floor)) floor = rule.floor;
   }
   return { floor, neverAutoMerge: [...categories], rules };

@@ -22,6 +22,18 @@ function records(run) {
   return run.graph.nodes.flatMap(node=>(run.nodeStates[node.id]?.attempts??[]).flatMap(attempt=>(attempt.artifacts??[]).map(item=>({item,attempt,node, payload:attempt.output?.creativeArtifacts?.[item.kind]}))));
 }
 const exactRecord=(run,ref)=>createArtifactLineage(run).exactRecord(ref);
+function automationMode(mode, project = {}) {
+  const normalize = value => value === 'full-auto' ? 'autonomous' : value;
+  const ceiling = normalize(project.automationMode ?? 'manual');
+  const requested = normalize(mode ?? (ceiling === 'autonomous' && project.allowFullAuto !== true ? 'manual' : ceiling));
+  const levels = ['manual', 'assisted', 'autonomous'];
+  if (!levels.includes(requested) || levels.indexOf(requested) > levels.indexOf(ceiling) ||
+      (requested === 'autonomous' && project.allowFullAuto !== true)) {
+    throw new Error('Requested automation mode exceeds the project ceiling or lacks full-auto opt-in');
+  }
+  return requested;
+}
+
 function getGraph(packId,graphId,version) {
   return packId==='creative-team'
     ? [...graphs,...productDesignGraphs,...brandGraphs,...compositionGraphs,...adlcHandoffGraphs]
@@ -213,6 +225,7 @@ export function createCreativeHostApi({engine,artifactRootForRun,hasImageProvide
       const manifest=latestPayload(run,'prepare-visual-manifest','visual_manifest');
       const audit=latestPayload(run,'design-audit','visual_audit');
       if(!manifest || !audit || !sameRef(audit.manifestRef,manifest) || audit.manifestDigest!==digest(stableJson(manifest))) throw new Error('G3 requires an audit of the exact visual manifest');
+      assertCreativeArtifact('visual_manifest',manifest);
       if(audit.behaviorChanged !== (outcome==='return-to-g2')) throw new Error('Behavior changes must return to G2');
     }
     if(nodeId==='naming-disposition'&&outcome==='shortlist') {
@@ -439,8 +452,8 @@ export function createCreativeHostApi({engine,artifactRootForRun,hasImageProvide
         const payload=enrichedPayloads[artifact.kind];
         await validateArtifact(run,artifact,payload,actor);
       }
-      if(run.graph.id==='g3-visual-contract'&&run.graph.version===automatedVisualVersion) {
-        if(nodeId==='prepare-visual-manifest'&&typeof payloads.visual_manifest.behaviorChanged!=='boolean') {
+      if(run.graph.id==='g3-visual-contract') {
+        if(run.graph.version===automatedVisualVersion&&nodeId==='prepare-visual-manifest'&&typeof payloads.visual_manifest.behaviorChanged!=='boolean') {
           throw new Error('Visual manifest must declare whether observable behavior changed');
         }
         if(nodeId==='design-audit') {
@@ -771,14 +784,10 @@ export function createCreativeHostApi({engine,artifactRootForRun,hasImageProvide
       if(!graph) throw new Error(`Unknown creative graph: ${args.graphId}`);
       const input={...(args.input??{})};
       await validateStartInput({...args,graph,input},{actor,enrich:true});
-      if(graph.id==='g3-visual-contract'&&graph.version===automatedVisualVersion) {
-        const project=await services.getProjectConfig?.(input.projectId)??{};
-        const requested=args.mode??project.automationMode;
-        const mode=requested==='assisted'?'assisted':
-          ['autonomous','full-auto'].includes(requested)&&project.allowFullAuto===true?'autonomous':'manual';
-        return engine.startRun({...args,input,actor,mode});
-      }
-      return engine.startRun({...args,input,actor});
+      const project=await services.getProjectConfig?.(input.projectId)??{};
+      const automated=graph.id==='g3-visual-contract'&&graph.version===automatedVisualVersion;
+      const mode=automationMode(args.mode??(automated?project.automationMode:'manual'),project);
+      return engine.startRun({...args,input,actor,mode});
     },
 
     async submitNode({runId,nodeId,actor,output={},artifacts=[],payloads={},...rest}) {
@@ -805,19 +814,28 @@ export function createCreativeHostApi({engine,artifactRootForRun,hasImageProvide
       actor=await trustedActor(actor,{operation:'decideNode',run,nodeId,outcome});
       const node=run.graph.nodes.find(n=>n.id===nodeId); if(!node||node.type!=='decision') throw new Error('Creative decision node not found');
       if(!(await engine.getReadyNodes(runId)).some(n=>n.id===nodeId)) throw new Error('Creative decision is not ready');
+      if(actor.kind==='agent') automationMode(run.mode,await services.getProjectConfig?.(run.input?.projectId)??{});
       if(nodeId==='g3'&&!(actor.kind==='human'&&actor.roles.includes('human-owner'))) {
         const manifest=latestPayload(run,'prepare-visual-manifest','visual_manifest');
         const audit=latestPayload(run,'design-audit','visual_audit');
-        const project=await services.getProjectConfig?.(run.input.projectId)??{};
-        const assisted=run.mode==='assisted'||(run.mode==='autonomous'&&project.allowFullAuto===true);
+        const auditState=run.nodeStates['design-audit'];
+        const currentAudit=auditState?.status==='completed'&&
+          auditState.attempts?.at(-1)?.output?.creativeArtifacts?.visual_audit===audit;
+        const assisted=['assisted','autonomous'].includes(run.mode);
         if(run.graph.version!==automatedVisualVersion||!assisted||actor.kind!=='agent'||
           !actor.roles.includes('design-director')||
-          (outcome!=='human'&&(outcome!=='approve'||!canAgentApproveVisual(manifest,audit)))) {
+          (outcome!=='approve'||!canAgentApproveVisual(manifest,audit)||!currentAudit)) {
           throw new Error('G3 requires an authenticated human owner for this manifest');
         }
       }
       if(nodeId==='adopt-brand-assets'&&(actor.kind!=='human'||!actor.roles.includes('human-owner'))) throw new Error('Formal brand asset adoption requires an authenticated human owner');
       const evidence=await requireDecisionEvidence(run,nodeId,outcome);
+      if(nodeId==='g3'&&actor.kind==='agent') {
+        const audit=latestPayload(run,'design-audit','visual_audit');
+        if(!evidence.some(item=>item.subjectRefs?.some(ref=>sameRef(ref,audit)))) {
+          throw new Error('Agent G3 approval requires evidence citing the current visual audit');
+        }
+      }
       const expectedRunDigest=snapshotDigest(run);
       return engine.decideNode({runId,nodeId,actor,outcome,...rest,evidence,expectedRunDigest});
     },

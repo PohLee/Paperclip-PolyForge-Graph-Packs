@@ -116,11 +116,11 @@
   },
   "adlc@0.3.16": {
     "packs/adlc/backlog.mjs": "620f33f5bf6a5f77bb180b06e4e8d763f3d0623b736c2c9626b8f589d308e4dc",
-    "packs/adlc/product-method-contracts.mjs": "7e4a74254e286c8524e38f254a73dd842acdbaa51560e05d9628cc93234d3a02",
+    "packs/adlc/product-method-contracts.mjs": "aca95a76bbc72d2f21053d96ecb06abea0fc9ca17c240a63212f4800fa9bf2ce",
     "packs/adlc/product-review.mjs": "6add371e7d69fe7a49c93d3953d944a4961564bd0daf19bfdbfb08715c06131c",
-    "packs/adlc/runtime/host-api.mjs": "ee9a3887f4c3c95373711386b0e2d1e28e11eb5e96e90c77ceb6f5ebda344d02",
+    "packs/adlc/runtime/host-api.mjs": "ebade5fcd907a0c371973447771e6bf92dee072402bf7ed750a69e52d6ea8054",
     "packs/adlc/runtime/small-change.mjs": "e9ec2b3240b0a6e58b1bf39c83b868a3c2f2b398fcb4142ad850457bb4a701b8",
-    "packs/adlc/runtime/technical-workflow.mjs": "6843ac56df0213eb3b19368ba836c352f7258e0607d8e99a406579dae5b490ca"
+    "packs/adlc/runtime/technical-workflow.mjs": "091bfb830724c089baecfc15248fe6b183d8d857da4d44ba25910c88b0e301eb"
   },
   "creative-team@0.3.5": {
     "packs/adlc-creative-team/adapters/brand-tools/context.mjs": "81a525e700e399ab7c22e69c94b89bb1bbac18ae211525e1a676d15259863bce",
@@ -131,6 +131,6 @@
     "packs/adlc-creative-team/adapters/interview/index.mjs": "068aef77e86ae871a880e1ad12f8080434160754f7e61b565f5995c1a61875e3",
     "packs/adlc-creative-team/contracts/validate.mjs": "f9b338ac2325a6fc70d3ce529f43284f963799704450ec99e698bc1a59163f24",
     "packs/adlc-creative-team/runtime/artifact-lineage.mjs": "2eb667b1c5e1076cfc7b984acc5c10af0827ea6cf58fa19aebd88cef09821ee9",
-    "packs/adlc-creative-team/runtime/host-api.mjs": "fbe7630e8526a75f1920979a72b21bc0066c28fcc213cbd15117db8f33668a98"
+    "packs/adlc-creative-team/runtime/host-api.mjs": "6920d4230837821437f2a49d1ee2900466404c7e4c549b1503b2efb31db622e4"
   }
 }

@@ -204,7 +204,7 @@ export function createAdlcHostApi({engine,resolveActor,runValidationDigest,servi
     if (retrospective(run)) {
       const attribution = payloads.retro_attribution;
       const frozen = payloads.retro_evidence;
-      if (frozen && retrospectiveSources.some(source => stableJson(frozen[source]) !== stableJson(run.input[source]))) {
+      if (frozen && retrospectiveSources.some(source => stableJson(frozen[source]) !== stableJson(run.input.retro_evidence[source]))) {
         throw new Error('Retro evidence must preserve every frozen input');
       }
       if (attribution) {
@@ -420,11 +420,9 @@ export function createAdlcHostApi({engine,resolveActor,runValidationDigest,servi
         (args.graphVersion === undefined || item.version === args.graphVersion));
       if (!graph) throw new Error('Graph not found in pinned Pack');
       const target = { graph };
-      if (automatedMerge(target)) {
-        validateTechnicalInputs(args.graphId, args.input);
-        request.mode = automationMode(args.mode, await projectConfig(args));
-      }
-      if (technicalVersions[graph.id] === graph.version) {
+      const project = await projectConfig(args);
+      request.mode = automationMode(args.mode ?? (automatedMerge(target) ? project.automationMode : 'manual'), project);
+      if (automatedMerge(target) || architectureDesign(target) || technicalVersions[graph.id] === graph.version) {
         validateTechnicalInputs(args.graphId, args.input);
         if (args.graphId === 'implementation') {
           const receipt = args.input.contract_merge_receipt;
@@ -440,12 +438,9 @@ export function createAdlcHostApi({engine,resolveActor,runValidationDigest,servi
         if (!actor.roles.includes('principal-engineer') && !(actor.kind === 'human' && actor.roles.includes('human-owner'))) {
           throw new Error('Improvement and retro require the PE or owner');
         }
-        if (retrospective(target) && retrospectiveSources.some(source => !Array.isArray(args.input?.[source]))) {
-          throw new Error('Retro requires all six historical evidence sources');
-        }
+        if (retrospective(target)) technicalValidators.retro_evidence(args.input?.retro_evidence);
       }
       if (architectureDesign(target)) {
-        validateTechnicalInputs(args.graphId, args.input);
         const authorized = technicalValidators.architecture_authorization(args.input.architecture_authorization);
         const source = await engine.getRun(authorized.runId);
         const current = source && latestPayload(source, 'prioritize-tech-debt', 'architecture_authorization');
@@ -498,6 +493,7 @@ export function createAdlcHostApi({engine,resolveActor,runValidationDigest,servi
       const run=await engine.getRun(runId);
       if(!run||run.packId!=='adlc') throw new Error('ADLC run not found');
       actor=await trustedActor(actor,{operation:'decideNode',run,nodeId,outcome});
+      if (actor.kind === 'agent') automationMode(run.mode, await projectConfig(run));
       validateDecisionRoute(run,nodeId,outcome);
       await validateTechnicalRoute(run,nodeId,outcome,actor,rest.evidence);
       const expectedRunDigest=snapshotDigest(run);

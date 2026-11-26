@@ -1,3 +1,4 @@
+import { retrospectiveSources } from '../target-technical-graphs.mjs';
 import {
   assessDeterministicRisk, judgeVerificationManifest, validateCompletionLedger, validateReturnRequest,
   validateReviewFindings, validateVerificationManifest
@@ -112,7 +113,11 @@ export const technicalValidators = {
     'Architecture authorization requires CTO priority, capacity, invariant IDs and regression standards');
     return payload;
   },
-  retro_evidence: payload => payload,
+  retro_evidence: payload => {
+    assert(retrospectiveSources.every(source => Array.isArray(payload?.[source])),
+      'Retro requires all six historical evidence sources');
+    return payload;
+  },
   retro_attribution: payload => {
     assert(nonempty(payload?.modelProfileId) && nonemptyList(payload.evidenceRefs) && nonempty(payload.attribution),
       'Attribution requires a model profile, evidence references and causes');
@@ -244,7 +249,8 @@ export function assessW4ImplementationRisk(modelRisk, snapshot, project = {}) {
   const { floor, neverAutoMerge } = assessDeterministicRisk({
     ...snapshot,
     ciPaths: snapshot.ciPaths ?? project.ciPaths,
-    riskRules: project.riskRules
+    riskRules: project.riskRules,
+    neverAutoMerge: project.neverAutoMerge
   });
   return {
     riskLevel: riskLevels[Math.max(riskLevels.indexOf(modelRisk), riskLevels.indexOf(floor))],
@@ -253,10 +259,15 @@ export function assessW4ImplementationRisk(modelRisk, snapshot, project = {}) {
 }
 
 export function automationMode(mode, project = {}) {
-  const requested = mode ?? project.automationMode ?? 'manual';
-  if (requested === 'assisted') return 'assisted';
-  if (['autonomous', 'full-auto'].includes(requested) && project.allowFullAuto === true) return 'autonomous';
-  return 'manual';
+  const normalize = value => value === 'full-auto' ? 'autonomous' : value;
+  const ceiling = normalize(project.automationMode ?? 'manual');
+  const requested = normalize(mode ?? (ceiling === 'autonomous' && project.allowFullAuto !== true ? 'manual' : ceiling));
+  const levels = ['manual', 'assisted', 'autonomous'];
+  if (!levels.includes(requested) || levels.indexOf(requested) > levels.indexOf(ceiling) ||
+      (requested === 'autonomous' && project.allowFullAuto !== true)) {
+    throw new Error('Requested automation mode exceeds the project ceiling or lacks full-auto opt-in');
+  }
+  return requested;
 }
 
 export function canAgentApproveMerge(actor, mode, context) {

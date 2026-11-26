@@ -201,9 +201,9 @@ export const retrospectiveSources = ['run_logs', 'decision_records', 'review_fin
 const retrospective = {
   id: 'retro-correct', version: '0.1.0', start: 'pin-retro-evidence',
   description: 'G-T5b manual retrospective, independent attribution and correction PR.',
-  requiredRunInputs: retrospectiveSources,
+  requiredRunInputs: ['retro_evidence'],
   nodes: [
-    task('pin-retro-evidence', 'principal-engineer', 'Freeze the run logs, Decision Records, review findings, reverts, bugs and human-intervention ledger.', ['retro_evidence'], retrospectiveSources),
+    task('pin-retro-evidence', 'principal-engineer', 'Freeze the run logs, Decision Records, review findings, reverts, bugs and human-intervention ledger.', ['retro_evidence'], ['retro_evidence']),
     task('attribute-a', 'principal-engineer', 'Independently attribute causes in a fresh model session. Cite frozen historical evidence and copy the authenticated model profile ID.', ['retro_attribution'], ['retro_evidence'], { freshContextRequired: true }),
     task('attribute-b', 'principal-engineer', 'Independently attribute causes in a fresh session with a different configured model. Read only frozen evidence. Cite historical evidence and copy the authenticated model profile ID.', ['retro_attribution'], ['retro_evidence'], { freshContextRequired: true, independentOf: ['attribute-a'] }),
     task('write-retro-report', 'principal-engineer', 'Synthesize both attributions. Classify corrections and include the real historical error each proposed check would catch. Route Graph, role and model routing suggestions to the owner only.', ['retro_report'], ['retro_attribution']),

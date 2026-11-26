@@ -1,9 +1,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { resolve } from 'node:path';
+import { pathToFileURL } from 'node:url';
+import { canonicalDigest } from '../packs/adlc/product-method-contracts.mjs';
 import { pack, adlcProjectConfigSchema, assessDeterministicRisk, metricDefinitions } from '../packs/adlc/index.mjs';
 import { pack as creativePack } from '../packs/adlc-creative-team/index.mjs';
 import { createAdlcHostApi } from '../packs/adlc/runtime/host-api.mjs';
-import { canAgentApproveVisual } from '../packs/adlc-creative-team/runtime/host-api.mjs';
+import { canAgentApproveVisual, createCreativeHostApi, creativeRequiredServicesByGraph } from '../packs/adlc-creative-team/runtime/host-api.mjs';
 import { automationMode, canAgentApproveMerge, technicalValidators } from '../packs/adlc/runtime/technical-workflow.mjs';
 
 const agent = { kind: 'agent', id: 'cto', executionId: 'session', roles: ['cto-caio'] };
@@ -24,8 +27,8 @@ test('WP4.1 risk floors cover changed and renamed paths, dependencies and projec
       { path: 'src/iam/credentials.yml', status: 'modified' }],
     dependencyChanges: [{ name: 'library', from: '^1.2.3', to: '^2.0.0' }]
   });
-  assert.equal(risk.floor, 'high');
-  assert.deepEqual(risk.neverAutoMerge, ['destructive-production-migration', 'iam-credentials', 'infrastructure']);
+  assert.equal(risk.floor, 'medium');
+  assert.deepEqual(risk.neverAutoMerge, ['database-migration', 'iam-credentials', 'infrastructure']);
   assert.ok(risk.rules.includes('major-dependency-bump'));
   assert.equal(assess(['tools/check.yml'], { ciPaths: ['tools'] }).floor, 'medium');
   assert.deepEqual(assess(['deploy/sensitive.yml'], {
@@ -75,7 +78,7 @@ test('WP4.2 G-T1 verifies current CTO authorization against its original project
     listDecisions: async () => [{ id: 'decision', status: 'decided', outcome: 'accept', actor: { ...agent, roles: ['cto'] } }] };
   const api = createAdlcHostApi({ engine, resolveActor: ({ claimedActor }) => claimedActor, runValidationDigest: () => 'digest' });
   const args = { packId: 'adlc', graphId: 'technical-design', graphVersion: '0.1.2', actor: owner,
-    input: { projectId: 'project', contract_pins: [{ contractId: 'C1', section: 'technical', commit: 'a'.repeat(40) }],
+    input: { projectId: 'project', contract_pins: [{ contractId: 'C1', section: 'product', commit: 'a'.repeat(40) }],
       architecture_authorization: { ...authorization, runId: source.id, decisionId: 'decision' } } };
   assert.equal((await api.startRun(args)).graphVersion, '0.1.2');
   await assert.rejects(api.startRun({ ...args, input: { ...args.input, projectId: 'other' } }), /same-project CTO/);
@@ -84,7 +87,7 @@ test('WP4.2 G-T1 verifies current CTO authorization against its original project
 
 test('WP4.2 retro routes governance to an owner and requires historical failure evidence', () => {
   const retro = graph('retro-correct', '0.1.0');
-  assert.equal(retro.requiredRunInputs.length, 6);
+  assert.deepEqual(retro.requiredRunInputs, ['retro_evidence']);
   assert.deepEqual(retro.nodes.find(node => node.id === 'attribute-b').independentOf, ['attribute-a']);
   assert.ok(retro.edges.some(edge => edge.from === 'retro-route' && edge.to === 'retro-governance' && edge.when === 'owner'));
   const rule = pack.decisionRules.find(rule => rule.type === 'retro-governance-approval' && rule.mode === 'manual');
@@ -99,8 +102,8 @@ test('WP4.3 full-auto requires explicit opt-in and baseline metrics specify sour
   assert.equal(adlcProjectConfigSchema.properties.allowFullAuto.default, false);
   assert.equal(automationMode(undefined), 'manual');
   assert.equal(automationMode(undefined, { automationMode: 'assisted' }), 'assisted');
-  assert.equal(automationMode('full-auto'), 'manual');
-  assert.equal(automationMode('full-auto', { allowFullAuto: true }), 'autonomous');
+  assert.throws(() => automationMode('full-auto'), /ceiling/);
+  assert.equal(automationMode('full-auto', { automationMode: 'full-auto', allowFullAuto: true }), 'autonomous');
   assert.deepEqual(Object.keys(metricDefinitions), ['gateWaitTime', 'reworkRate', 'firstCIPassRate', 'autoMergeRevertRate']);
   for (const metric of Object.values(metricDefinitions)) {
     assert.ok(metric.formula);
@@ -130,7 +133,7 @@ test('WP4.1 trusted G5 binds the current PR and verification before an assisted 
   const api = createAdlcHostApi({
     engine: { getRun: async () => run, decideNode: async args => args },
     resolveActor: ({ claimedActor }) => claimedActor, runValidationDigest: () => 'digest',
-    services: { inspectImplementationPull: async () => ({
+    services: { getProjectConfig: async () => ({ automationMode: 'assisted' }), inspectImplementationPull: async () => ({
       headSha, upToDate: true, checksPassed: true, currentPins: contract_pins, prPins: contract_pins,
       changes: [{ path: 'src/index.mjs', status: 'modified' }], dependencyChanges: [], authorAgentId: 'author'
     }) }
@@ -144,6 +147,100 @@ test('WP4.1 trusted G5 binds the current PR and verification before an assisted 
   await assert.rejects(api.decideNode({ ...decision, evidence: [] }), /bind the PR head/);
   await assert.rejects(api.decideNode({ ...decision, actor: { ...agent, id: 'author' } }), /human owner/);
   run.mode = 'autonomous';
-  await assert.rejects(api.decideNode(decision), /human owner/);
+  await assert.rejects(api.decideNode(decision), /ceiling/);
   assert.equal((await api.decideNode({ ...decision, actor: owner })).outcome, 'accept');
+});
+
+test('migration changes and unknown dependency majors are assessed conservatively', () => {
+  for (const status of ['added', 'modified', 'deleted', 'renamed']) {
+    const path = 'db/migrations/0001.sql';
+    const changes = [status === 'renamed' ? { path: 'archive/0001.sql', previousPath: path, status } : { path, status }];
+    assert.deepEqual(assess([], { changes }).neverAutoMerge, ['database-migration']);
+    assert.deepEqual(assess([], { changes, neverAutoMerge: { 'database-migration': false } }).neverAutoMerge, []);
+  }
+  for (const to of ['>=1', 'x', '*', 'latest', 'npm:other@1', 'https://example.com/package', 'git+ssh://example.com/package']) {
+    assert.equal(assess([], { dependencyChanges: [{ from: '^1.0.0', to }] }).floor, 'medium');
+  }
+});
+
+test('retro accepts an evidence bundle with six empty arrays and rejects missing sources', async () => {
+  const coreArtifact = process.env.PINNED_CORE_ARTIFACT;
+  const coreUrl = coreArtifact ? pathToFileURL(resolve(coreArtifact, 'src/core/index.mjs')).href :
+    new URL('../../Paperclip-PolyForge-Graph/src/core/index.mjs', import.meta.url).href;
+  const { GraphEngine, runValidationDigest } = await import(coreUrl);
+  const engine = new GraphEngine({ availableCapabilities: {
+    'company-control': '1.0.0', 'cross-pack-plans': '1.0.0', 'cross-pack-handoff': '1.0.0'
+  } });
+  await engine.registerPack(pack);
+  const api = createAdlcHostApi({ engine, resolveActor: ({ claimedActor }) => claimedActor, runValidationDigest });
+  const retro_evidence = { run_logs: [], decision_records: [], review_findings: [], reverts: [], bugs: [], human_intervention_ledger: [] };
+  const args = { packId: 'adlc', packVersion: pack.version, graphId: 'retro-correct', actor: owner, input: { retro_evidence } };
+  const run = await api.startRun(args);
+  assert.deepEqual(run.input.retro_evidence, retro_evidence);
+  assert.ok((await engine.getReadyNodes(run.id)).some(node => node.id === 'pin-retro-evidence'));
+  await assert.rejects(api.startRun({ ...args, input: { retro_evidence: { ...retro_evidence, bugs: undefined } } }), /six historical/);
+});
+
+test('both Pack hosts reject requests above the project ceiling', async () => {
+  const options = { engine: { startRun: async args => args },
+    resolveActor: ({ claimedActor }) => claimedActor, runValidationDigest: () => 'digest',
+    services: { getProjectConfig: async () => ({ automationMode: 'assisted', allowFullAuto: true }) } };
+  for (const [api, packId, graphId] of [
+    [createAdlcHostApi(options), 'adlc', 'request-triage'],
+    [createCreativeHostApi(options), 'creative-team', 'creative-intake']
+  ]) {
+    const args = { packId, graphId, actor: owner, input: {} };
+    await assert.rejects(api.startRun({ ...args, mode: 'full-auto' }), /ceiling/);
+    assert.equal((await api.startRun({ ...args, mode: 'assisted' })).mode, 'assisted');
+  }
+});
+
+test('G3 decision types preserve owner approval and register automated graph services', () => {
+  for (const [version, type] of [['0.1.0', 'g3-visual-approval'], ['0.1.1', 'g3-visual-auto-approval']]) {
+    const g3 = graph('g3-visual-contract', version, creativePack);
+    assert.equal(g3.nodes.find(node => node.id === 'g3').decisionType, type);
+    const rules = creativePack.decisionRules.filter(rule => rule.type === type);
+    assert.equal(rules.length, 3);
+    assert.ok(rules.every(rule => rule.allowedRoles.includes('human-owner')));
+    assert.deepEqual(rules.find(rule => rule.mode === 'assisted').allowedKinds,
+      version === '0.1.0' ? ['human'] : ['human', 'agent']);
+    assert.ok(creativeRequiredServicesByGraph[g3.id].includes('resolveDecisionEvidence'));
+  }
+});
+
+test('assisted G3 requires current clean audit evidence and an active project ceiling', async () => {
+  const ref = { id: 'baseline', version: '1' };
+  const digest = 'a'.repeat(64);
+  const manifest = { id: 'visual', version: '1', systemScope: 'in-system', behaviorChanged: false,
+    productContractRef: ref, interactionRef: ref, designBaselineRef: ref, tokens: [], components: [],
+    assets: [{ ...ref, digest }], deliverables: [{ key: 'design.json', digest }] };
+  const audit = { id: 'audit', version: '1', manifestRef: { id: manifest.id, version: manifest.version },
+    behaviorChanged: false, findings: [], manifestDigest: canonicalDigest(manifest) };
+  const completed = (kind, payload) => ({ status: 'completed', attempts: [{
+    artifacts: [{ id: payload.id, version: payload.version, kind }], output: { creativeArtifacts: { [kind]: payload } }
+  }] });
+  const run = { id: 'run', packId: creativePack.id, pack: creativePack,
+    graph: graph('g3-visual-contract', '0.1.1', creativePack), mode: 'assisted', input: {},
+    nodeStates: { 'prepare-visual-manifest': completed('visual_manifest', manifest), 'design-audit': completed('visual_audit', audit) } };
+  let ceiling = 'assisted';
+  let citeAudit = true;
+  const api = createCreativeHostApi({
+    engine: { getRun: async () => run, getReadyNodes: async () => [{ id: 'g3' }],
+      listDecisions: async () => [], decideNode: async args => args },
+    resolveActor: ({ claimedActor }) => claimedActor, runValidationDigest: () => 'digest',
+    services: { getProjectConfig: async () => ({ automationMode: ceiling }),
+      resolveDecisionEvidence: async () => [
+        { kind: 'visual_manifest', payload: manifest, subjectRefs: [{ artifactId: manifest.id, version: manifest.version }] },
+        { kind: 'visual_audit', payload: audit, subjectRefs: [
+          { artifactId: citeAudit ? audit.id : manifest.id, version: audit.version }
+        ] }
+      ] }
+  });
+  const args = { runId: run.id, nodeId: 'g3', outcome: 'approve', actor: { ...agent, roles: ['design-director'] } };
+  assert.equal((await api.decideNode(args)).outcome, 'approve');
+  citeAudit = false;
+  await assert.rejects(api.decideNode(args), /citing the current visual audit/);
+  ceiling = 'manual';
+  await assert.rejects(api.decideNode(args), /ceiling/);
+  assert.equal((await api.decideNode({ ...args, actor: owner })).outcome, 'approve');
 });
