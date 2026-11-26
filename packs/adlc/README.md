@@ -2,7 +2,7 @@
 
 Versioned Agentic Development Life Cycle domain pack for the separate [PolyForge Graph core](../../../Paperclip-PolyForge-Graph). Import `pack` from `index.mjs`, register it with `GraphEngine.registerPack(pack)`, and bind its role IDs to real Paperclip agents or authenticated human operations in the host. The pack contains no agent UUIDs or installed-tool claims.
 
-The current source is `adlc@0.3.13` and targets Core `>=0.8.5 <0.9.0` with `workflow-composition@^1.0.0`. UI and interaction design workflows belong to the Creative Team Pack. Every artifact-producing task requires an attempt-bound work Decision Record. Implementation and verification pin `versioned_requirement` and `acceptance_criteria` as their delivery contract; verification also pins a versioned `verification_plan`. See [evidence contracts and input examples](docs/EVIDENCE_CONTRACTS.md), [Product Manager Skills adaptation](docs/PRODUCT_MANAGER_SKILLS_ADAPTATION.md), [method/agent mapping](docs/FACTORY_BLUEPRINT_ADAPTATION.md), [MCode adaptation](docs/MCODE_STACK_ADAPTATION.md), [Matt/pstack adaptation](docs/MATT_PSTACK_ADAPTATION.md), and [Elephant Goldfish research](docs/ELEPHANT_GOLDFISH_RESEARCH.md).
+The current source is `adlc@0.3.14` and targets Core `>=0.8.5 <0.9.0` with `workflow-composition@^1.0.0`. UI and interaction design workflows belong to the Creative Team Pack. Every artifact-producing task requires an attempt-bound work Decision Record. Implementation and verification pin `versioned_requirement` and `acceptance_criteria` as their delivery contract; verification also pins a versioned `verification_plan`. See [evidence contracts and input examples](docs/EVIDENCE_CONTRACTS.md), [Product Manager Skills adaptation](docs/PRODUCT_MANAGER_SKILLS_ADAPTATION.md), [method/agent mapping](docs/FACTORY_BLUEPRINT_ADAPTATION.md), [MCode adaptation](docs/MCODE_STACK_ADAPTATION.md), [Matt/pstack adaptation](docs/MATT_PSTACK_ADAPTATION.md), and [Elephant Goldfish research](docs/ELEPHANT_GOLDFISH_RESEARCH.md).
 
 Version 0.3.12 changes no Graph route or review. It lists every Graph in a company dashboard view, documents targeted node retry, and corrects the delivery clock and Graph inventory statements in the [operating policies](OPERATING_POLICIES.md). Excluding human waits from the delivery clock is Core behavior and needs a Core build with that fix. `small-change@0.2.1` now declares `pilot_scope` as an admission-only input, which Core drops when it routes to the standard flow.
 
@@ -130,3 +130,9 @@ Edit `roles/catalog.mjs` or `scripts/build-roles.mjs`, then run `node packs/adlc
 Validate with `node --test`. The tests use the sibling core source and require both repositories side by side.
 
 Pack-owned code is licensed under LGPL-2.1-only. Referenced third-party methods retain their own licenses; this pack does not copy or relicense them.
+
+## Target product workflow
+
+Pin request-triage@0.2.2 and product-discovery@0.2.3 for G-P1, external-intel-rerank@0.1.0 for G-P2, and requirements-baseline@0.1.2 for G-P3. Earlier versions remain available. The host delivers routine triggers, reminders and answer events. Configure the GitHub MCP Projects and Issues capabilities and one backlog writer for the [GitHub Projects backlog skill](skills/backlog-github-projects.md).
+
+G2 approves the exact manifest as the existing human requirements-acceptance decision. The publication request carries that decision to the contract merge host. The [target workflow skill](skills/target-product-workflow.md) defines scope selection, Grill, the arena and EGM. Fixed seat binding and request_confirmation remain pending live tests. The deployment provides independent reviewer executions and verifies vendor provenance for the declared seats.

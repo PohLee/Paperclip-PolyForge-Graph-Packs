@@ -4,7 +4,7 @@ import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { roleCatalog, roleSkills } from './roles/catalog.mjs';
 import { skillCatalog } from './skills/catalog.mjs';
-import { graphs, productDesignGraphs } from './graphs/catalog.mjs';
+import { graphs, productDesignGraphs, adlcHandoffGraphs } from './graphs/catalog.mjs';
 import { brandGraphs } from './graphs/brand-catalog.mjs';
 import { compositionGraphs } from './graphs/composition-catalog.mjs';
 import { validateCreativeArtifact, assertCreativeArtifact } from './contracts/validate.mjs';
@@ -18,7 +18,7 @@ const readText = path => readFileSync(path, 'utf8').replace(/\r\n/g, '\n');
 const root = dirname(fileURLToPath(import.meta.url));
 const digest = value => createHash('sha256').update(value).digest('hex');
 const roleDocs = ['soul','role','goal','instruction','decision_model'];
-const allGraphs=[...graphs,...productDesignGraphs,...brandGraphs,...compositionGraphs];
+const allGraphs=[...graphs,...productDesignGraphs,...brandGraphs,...compositionGraphs,...adlcHandoffGraphs];
 
 function readRole(spec) {
   const documents = Object.fromEntries(roleDocs.map(name => [name, readText(resolve(root,'roles',spec.id,`${name}.md`))]));
@@ -48,6 +48,11 @@ const decisionRules = Object.values(roles).flatMap(role => role.decisionModel.ru
     continueWhen:policy.continueWhen,escalateWhen:policy.escalateWhen,
     source:`roles/${role.id}/decision_model.md`,sourceDigest:role.documentDigests.decision_model
   }))));
+// W2 uses the owner gate for every visual approval. Conditional automation is W4.
+for (const mode of ['manual', 'assisted', 'autonomous']) {
+  decisionRules.push({ type: 'g3-visual-approval', mode, allowedRoles: ['design-director', 'human-owner'],
+    allowedKinds: ['human'], requiresHuman: true, requiredEvidence: ['visual_manifest', 'visual_audit'] });
+}
 const graphDecisionNodes = allGraphs.flatMap(item => item.nodes.filter(node => node.type === 'decision').map(node => ({...node,graphId:item.id})));
 for (const node of graphDecisionNodes) for (const mode of ['manual','assisted','autonomous']) {
   const rule=decisionRules.find(rule => rule.type === node.decisionType && rule.mode === mode);
@@ -100,13 +105,13 @@ export function resolveOrganization(activePacks=[]) {
 }
 
 export const pack = Object.freeze({
-  id:'creative-team',version:'0.3.3',schemaVersion:1,
+  id:'creative-team',version:'0.3.4',schemaVersion:1,
   compatibility:{coreRange:'>=0.8.9 <0.9.0',contracts:{graph:1,decision:1,evidence:1},requiredCapabilities:{'workflow-composition':'^1.0.0'}},
-  graphStartRoles:{'brand-foundation-contract':['human-owner'],'brand-foundation-composed':['human-owner']},
+  graphStartRoles:{'pre-g2-interaction':['product-designer','interaction-designer','human-owner'],'g3-visual-contract':['product-designer','design-director','human-owner'],'brand-foundation-contract':['human-owner'],'brand-foundation-composed':['human-owner']},
   organization,graphs:allGraphs,roles,skills,decisionRules,policyDocuments,policyDocumentDigests,methodReferences,brandMethods,runtimeRequirements,
   policies:{decisionTraceRequired:false,artifactValidation:'host-callable-pack-validator',review:{independentExecutionRequired:true},
     conceptSprint:{minCount:3,maxCount:5,completionRequiresRealImages:true,oneGallery:true}},
-  release:{digest:'sha256:7ce4dd7905dae654868c29744808393770e1d53b5f2d3f7af33f61c5f300c2dd',builtAt:'2026-11-18T00:00:00.000Z',status:'candidate'},
+  release:{digest:'sha256:150770cf4905110fb43eb8c2dad2f53aaedf6c080edb4078b5cd64454efc2618',builtAt:'2026-11-18T00:00:00.000Z',status:'candidate'},
 });
 
 export function loadPack() { return pack; }

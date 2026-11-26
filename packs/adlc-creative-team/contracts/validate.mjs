@@ -6,6 +6,9 @@ const object = value => value !== null && typeof value === 'object' && !Array.is
 const list = value => Array.isArray(value) && value.length > 0;
 const ref = value => object(value) && text(value.id ?? value.artifactId) && text(value.version);
 const required = {
+  interaction_design:['id','version','intentRef','states','scenarioRefs'],
+  visual_manifest:['id','version','productContractRef','interactionRef','designBaselineRef','assets','tokens','components','systemScope'],
+  visual_audit:['id','version','manifestRef','findings'],
   context_inventory:['summary','sources'], clarification_record:['questions','knownAnswers'], creative_brief:['objective','audience'],
   product_design_research:['id','version','briefRef','sources','needs','constraints','unknowns'],
   wireframe_direction:['id','version','researchRef','thesis','artifactRef'],
@@ -102,6 +105,17 @@ export function validateCreativeArtifact(kind, payload) {
   const keys = required[kind];
   if (!keys) return { valid:false,errors:[`unknown creative artifact kind: ${kind}`] };
   const errors=[];
+  if (kind==='interaction_design' && (!Array.isArray(payload.suppliedDesigns) ||
+      payload.suppliedDesigns.some(item => !ref(item?.designRef) || !['reference','must-follow'].includes(item.use)))) {
+    errors.push('suppliedDesigns must classify each versioned design as reference or must-follow');
+  }
+  if (kind==='visual_manifest' && (!['in-system','out-of-system'].includes(payload.systemScope) ||
+      !Array.isArray(payload.assets) || payload.assets.some(asset => !ref(asset) || !/^[a-f0-9]{64}$/.test(asset.digest)))) {
+    errors.push('Visual manifest needs system scope and versioned SHA-256 asset references');
+  }
+  if (kind==='visual_audit' && typeof payload.behaviorChanged!=='boolean') {
+    errors.push('Visual audit must state whether behavior changed');
+  }
   if(kind==='be_contract'&&!/^[a-f0-9]{64}$/.test(payload.digest??'')) errors.push('BE contract digest must be SHA-256');
   if(kind==='concept_selection'&&payload.reason!==undefined&&typeof payload.reason!=='string') errors.push('reason must be a string when supplied');
   if(kind==='creative_brief' && payload.surfaceMode!==undefined && payload.surfaceMode!==null && !['persuade','operate','read','experience'].includes(payload.surfaceMode)) errors.push('surfaceMode is invalid');

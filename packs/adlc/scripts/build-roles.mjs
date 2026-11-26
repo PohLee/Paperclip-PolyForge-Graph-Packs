@@ -5,7 +5,7 @@ import { roleCatalog, roleResponsibilities, decisionTypes } from '../roles/catal
 
 const root = resolve(fileURLToPath(new URL('..', import.meta.url)));
 const modes = ['manual', 'assisted', 'autonomous'];
-const alwaysHuman = new Set(['product-scope-change', 'product-decision-replacement', 'discovery-disposition', 'experiment-disposition', 'requirements-acceptance', 'release-process-start', 'release-process-outcome']);
+const alwaysHuman = new Set(['product-scope-change', 'product-decision-replacement', 'discovery-disposition', 'experiment-disposition', 'requirements-acceptance', 'backlog-human-approval', 'release-process-start', 'release-process-outcome']);
 const assistedHuman = new Set(['architecture-acceptance', 'code-delivery-disposition', 'verification-acceptance', 'implementation-acceptance']);
 const supervisorRule = decisionTypes['review-disposition'];
 const supervisorEvidence = supervisorRule.evidence.map(kind => `\`${kind}\``).join(', ');

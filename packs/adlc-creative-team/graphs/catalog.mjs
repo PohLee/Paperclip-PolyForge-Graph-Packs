@@ -5,6 +5,30 @@ const end = (id, output) => ({ id, type: 'end', output });
 const edge = (from, to, when) => when === undefined ? { from, to } : { from, to, when };
 const graph = (id, start, nodes, edges, extra = {}) => ({ id, version: '0.1.0', start, nodes, edges, ...extra });
 
+export const adlcHandoffGraphs = [
+  graph('pre-g2-interaction', 'design-interaction', [
+    task('design-interaction', 'interaction-designer', 'Design observable flows, empty/error/loading and permission states, confirmation and undo using draft product intent. Mark each supplied design reference or must-follow. Surface conflicts to the PM. Provide stable scenario links and open product questions.', {
+      requiredInputs: ['draft_product_intent'], produces: ['interaction_design']
+    }),
+    end('interaction-ready', 'interaction_ready_for_g2')
+  ], [edge('design-interaction', 'interaction-ready')]),
+  graph('g3-visual-contract', 'prepare-visual-manifest', [
+    task('prepare-visual-manifest', 'product-designer', 'Pin the approved G2 interaction and product contract and the design-system version. Describe token, component and asset revisions with digests. Compare observable behavior to the approved BDD and classify new components/token categories as out-of-system.', {
+      requiredInputs: ['approved_product_contract', 'design_baseline'], produces: ['visual_manifest']
+    }),
+    task('design-audit', 'design-qa-accessibility', 'Independently audit the exact manifest for behavior changes, system boundary and P0/P1 findings. Record unverified evidence. Behavior changes require a PM return to G2 even if the owner approves the visual direction.', {
+      requiredInputs: ['visual_manifest'], independentOf: ['prepare-visual-manifest'], produces: ['visual_audit']
+    }),
+    decision('g3', 'design-director', 'g3-visual-approval', ['approve', 'return-to-g2', 'hold'], {
+      requiredInputs: ['visual_audit', 'visual_manifest'], candidateNodes: ['prepare-visual-manifest'], candidateKinds: ['visual_manifest']
+    }),
+    end('visual-approved', 'visual_contract_approved'),
+    end('behavior-changed', 'return_to_g2'),
+    end('visual-held', 'visual_contract_held')
+  ], [edge('prepare-visual-manifest', 'design-audit'), edge('design-audit', 'g3'),
+    edge('g3', 'visual-approved', 'approve'), edge('g3', 'behavior-changed', 'return-to-g2'), edge('g3', 'visual-held', 'hold')])
+];
+
 export const graphs = [
   graph('creative-intake', 'read-context', [
     task('read-context','design-ops-producer','Inventory the request and available product, brand, design, research, and technical context.',{produces:['context_inventory']}),

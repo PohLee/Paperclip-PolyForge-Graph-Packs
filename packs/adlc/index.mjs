@@ -3,6 +3,7 @@ import { fileURLToPath } from 'node:url';
 import { resolve } from 'node:path';
 import { createHash } from 'node:crypto';
 import { engineeringGraphs } from './engineering-graphs.mjs';
+import { targetWorkflowGraphs, productSeats } from './target-workflow-graphs.mjs';
 import { lifecycleGraphs } from './lifecycle-graphs.mjs';
 import { architectureDeliveryGraphs } from './architecture-delivery-graphs.mjs';
 import { designAssuranceGraphs } from './design-assurance-graphs.mjs';
@@ -36,6 +37,8 @@ for (const role of ['product-owner', 'product-manager']) roleSkills[role].push('
 for (const role of ['cpo', 'internal-product-analyst', 'external-product-analyst', 'product-manager', 'product-owner']) roleSkills[role].push('autonomous-investigation');
 for (const role of ['cpo', 'external-product-analyst', 'product-manager']) roleSkills[role].push('epic-hypothesis-probe', 'competitive-intel-watch');
 for (const role of ['cpo', 'product-manager']) roleSkills[role].push('feature-investment-advisor');
+for (const role of ['product-owner', 'cpo', 'product-manager']) roleSkills[role].push('backlog-github-projects', 'target-product-workflow');
+roleSkills['internal-product-analyst'].push('target-product-workflow');
 for (const skillsForRole of Object.values(roleSkills)) skillsForRole.push('temporary-agent-snapshot');
 const skillIds = [...new Set(Object.values(roleSkills).flat())];
 if (skillIds.length !== Object.keys(skillCatalog).length || skillIds.some(id => !skillCatalog[id])) {
@@ -63,8 +66,8 @@ function loadRole(spec) {
 }
 
 const roles = Object.fromEntries(roleCatalog.map(spec => [spec.id, loadRole(spec)]));
-const packVersion = '0.3.13';
-const graphs = [lifecycleGraphs[0], lifecycleGraphs[1], ...engineeringGraphs, ...lifecycleGraphs.slice(2), ...architectureDeliveryGraphs, ...designAssuranceGraphs, ...createWorkflowCompositionGraphs(packVersion)];
+const packVersion = '0.3.14';
+const graphs = [lifecycleGraphs[0], lifecycleGraphs[1], ...engineeringGraphs, ...lifecycleGraphs.slice(2), ...architectureDeliveryGraphs, ...designAssuranceGraphs, ...createWorkflowCompositionGraphs(packVersion), ...targetWorkflowGraphs];
 const operatingPolicies = readText(resolve(root, 'OPERATING_POLICIES.md'));
 const evidenceContracts = readText(resolve(root, 'docs/EVIDENCE_CONTRACTS.md'));
 const decisionRules = Object.values(roles).flatMap(role => role.decisionModel.rules.flatMap(rule =>
@@ -94,7 +97,7 @@ export const pack = {
     ],
     views: [
       { id: 'delivery', label: 'Delivery work', kind: 'run-list', graphIds: ['request-triage', 'product-discovery', 'product-experiment', 'requirements-baseline', 'technical-design', 'implementation', 'small-change', 'verification', 'design-drift', 'system-architecture', 'code-delivery', 'system-architecture-workflow', 'architecture-review-composed', 'code-delivery-workflow'] },
-      { id: 'product-learning', label: 'Product learning', kind: 'run-list', graphIds: ['product-experiment', 'competitive-watch'] },
+      { id: 'product-learning', label: 'Product learning', kind: 'run-list', graphIds: ['product-experiment', 'competitive-watch', 'external-intel-rerank'] },
       { id: 'release', label: 'Release and observation', kind: 'run-list', graphIds: ['release-process', 'release-observation', 'production-monitoring'] },
       { id: 'decisions', label: 'Product decisions and history', kind: 'decision-history' }
     ]
@@ -109,7 +112,7 @@ export const pack = {
     { graphId: 'product-experiment', nodeId: 'experiment-gate', validator: 'validateExperimentRoute' },
     { graphId: 'competitive-watch', nodeId: 'watch-route', validator: 'validateCompetitiveRoute' }
   ],
-  graphs, roles, skills, decisionRules,
+  graphs, roles, skills, decisionRules, productSeats,
   graphStartRoles: {
     'request-triage': ['product-owner', 'cpo', 'human-owner'],
     'system-architecture': ['principal-engineer', 'cto-caio', 'human-owner'],
@@ -119,6 +122,7 @@ export const pack = {
     'product-discovery': ['product-owner', 'cpo', 'human-owner'],
     'product-experiment': ['product-manager', 'cpo', 'human-owner'],
     'requirements-baseline': ['product-owner', 'cpo', 'human-owner'],
+    'external-intel-rerank': ['external-product-analyst', 'product-manager', 'cpo', 'human-owner'],
     'competitive-watch': ['external-product-analyst', 'product-manager', 'cpo', 'human-owner'],
     'small-change': ['human-owner'],
     implementation: ['product-owner', 'principal-engineer', 'cto-caio', 'human-owner'],
@@ -218,3 +222,4 @@ export {
   contractPathFence, checkContractPathFence, adlcProjectConfigSchema, validateSeatDeclaration,
   resolveSeatOrder, checkSeatConstraints
 } from './product-method-contracts.mjs';
+export { effectivePriority, dedupeKey, routeIssue, grillSla, validateIntelTrigger, validateLegalSignal } from './backlog.mjs';

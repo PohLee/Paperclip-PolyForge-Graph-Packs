@@ -16,7 +16,7 @@
 | --- | --- | --- | --- |
 | W1 | P0 Pack 侧 | 契约校验器、契约目录规范与模板、配置与席位声明格式、文档、测试 | **可以，现在执行** |
 | W0 | P0 人工 / 实测 | GitHub 组织与 App、MCP 挂载、运行时实测 | 需 owner |
-| W2 | P1 | 产品链路 Graph、backlog skill、Creative 交接、最小契约合并动作、固定席位 | 等 W0 实测结果 |
+| W2 | P1 | 产品链路 Graph、backlog skill、Creative 交接、最小契约合并动作、固定席位 | Pack delivered. Core live work pending. |
 | W3 | P2 | 技术链路 Graph、契约失效检查、动态席位与 fallback | 等 W2 |
 | W4 | P3–P4 | 确定性风险规则、assisted / full-auto、G-T5 支线 | 等 W3 基线指标 |
 
@@ -88,7 +88,9 @@ W0 的结果写回方案文档“待实测项”，作为 W2 设计输入。
 
 ---
 
-## W2 · P1 产品链路（等 W0）
+## W2 - P1
+
+WP2.1 through WP2.5 are included in ADLC 0.3.14 and Creative Team 0.3.4. The host supplies routine events, GitHub Projects access and a serialized writer. G2 uses the existing Core human gate and its requirements-acceptance Decision Record. WP2.6 contract merge is Core work. WP2.7 request_confirmation and WP2.8 fixed seat binding remain pending W0 live tests. The Pack workflow uses neither integration.
 
 | WP | 仓库 | 内容 |
 | --- | --- | --- |

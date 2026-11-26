@@ -198,6 +198,12 @@ export function createCreativeHostApi({engine,artifactRootForRun,hasImageProvide
     if(!node||node.type!=='decision') throw new Error('Decision evidence requested for a non-decision node');
     const prior=decisions??await engine.listDecisions({runId:run.id});
     if(!Array.isArray(prior)) throw new Error('Decision snapshot must be an array');
+    if(nodeId==='g3' && ['approve','return-to-g2'].includes(outcome)) {
+      const manifest=latestPayload(run,'prepare-visual-manifest','visual_manifest');
+      const audit=latestPayload(run,'design-audit','visual_audit');
+      if(!manifest || !audit || !sameRef(audit.manifestRef,manifest)) throw new Error('G3 requires an audit of the exact visual manifest');
+      if(audit.behaviorChanged !== (outcome==='return-to-g2')) throw new Error('Behavior changes must return to G2');
+    }
     if(nodeId==='naming-disposition'&&outcome==='shortlist') {
       const candidates=latestPayload(run,'develop-name-candidates','brand_name_candidates');
       const screening=latestPayload(run,'screen-name-conflicts','brand_name_screening');
@@ -770,6 +776,7 @@ export function createCreativeHostApi({engine,artifactRootForRun,hasImageProvide
       actor=await trustedActor(actor,{operation:'decideNode',run,nodeId,outcome});
       const node=run.graph.nodes.find(n=>n.id===nodeId); if(!node||node.type!=='decision') throw new Error('Creative decision node not found');
       if(!(await engine.getReadyNodes(runId)).some(n=>n.id===nodeId)) throw new Error('Creative decision is not ready');
+      if(nodeId==='g3'&&(actor.kind!=='human'||!actor.roles.includes('human-owner'))) throw new Error('G3 requires an authenticated human owner');
       if(nodeId==='adopt-brand-assets'&&(actor.kind!=='human'||!actor.roles.includes('human-owner'))) throw new Error('Formal brand asset adoption requires an authenticated human owner');
       const evidence=await requireDecisionEvidence(run,nodeId,outcome);
       const expectedRunDigest=snapshotDigest(run);

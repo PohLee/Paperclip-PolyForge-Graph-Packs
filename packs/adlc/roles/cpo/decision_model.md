@@ -94,6 +94,90 @@ Decision authority for this role. The JSON block is loaded by the pack at runtim
       }
     },
     {
+      "type": "backlog-human-approval",
+      "requiredEvidence": [
+        "admission_plan"
+      ],
+      "modes": {
+        "manual": {
+          "allowedRoles": [
+            "human-owner"
+          ],
+          "allowedKinds": [
+            "human"
+          ],
+          "requiresHuman": true,
+          "continueWhen": "A durable Decision Record has been written and all required evidence points to the artifact version examined.",
+          "escalateWhen": "Required evidence is missing, P0/P1 risk is unresolved without permitted acceptance, or actor authority is insufficient."
+        },
+        "assisted": {
+          "allowedRoles": [
+            "human-owner"
+          ],
+          "allowedKinds": [
+            "human"
+          ],
+          "requiresHuman": true,
+          "continueWhen": "A durable Decision Record has been written and all required evidence points to the artifact version examined.",
+          "escalateWhen": "Required evidence is missing, P0/P1 risk is unresolved without permitted acceptance, or actor authority is insufficient."
+        },
+        "autonomous": {
+          "allowedRoles": [
+            "human-owner"
+          ],
+          "allowedKinds": [
+            "human"
+          ],
+          "requiresHuman": true,
+          "continueWhen": "A durable Decision Record has been written and all required evidence points to the artifact version examined.",
+          "escalateWhen": "Required evidence is missing, P0/P1 risk is unresolved without permitted acceptance, or actor authority is insufficient."
+        }
+      }
+    },
+    {
+      "type": "backlog-routing",
+      "requiredEvidence": [
+        "routing_evidence"
+      ],
+      "modes": {
+        "manual": {
+          "allowedRoles": [
+            "human-owner"
+          ],
+          "allowedKinds": [
+            "human"
+          ],
+          "requiresHuman": true,
+          "continueWhen": "A durable Decision Record has been written and all required evidence points to the artifact version examined.",
+          "escalateWhen": "Required evidence is missing, P0/P1 risk is unresolved without permitted acceptance, or actor authority is insufficient."
+        },
+        "assisted": {
+          "allowedRoles": [
+            "cpo"
+          ],
+          "allowedKinds": [
+            "agent",
+            "human"
+          ],
+          "requiresHuman": false,
+          "continueWhen": "A durable Decision Record has been written and all required evidence points to the artifact version examined.",
+          "escalateWhen": "Required evidence is missing, P0/P1 risk is unresolved without permitted acceptance, or actor authority is insufficient."
+        },
+        "autonomous": {
+          "allowedRoles": [
+            "cpo"
+          ],
+          "allowedKinds": [
+            "agent",
+            "human"
+          ],
+          "requiresHuman": false,
+          "continueWhen": "A durable Decision Record has been written and all required evidence points to the artifact version examined.",
+          "escalateWhen": "Required evidence is missing, P0/P1 risk is unresolved without permitted acceptance, or actor authority is insufficient."
+        }
+      }
+    },
+    {
       "type": "requirements-acceptance",
       "requiredEvidence": [
         "requirements_draft",
