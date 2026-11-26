@@ -111,8 +111,8 @@ export function validateCreativeArtifact(kind, payload) {
   }
   if (kind==='visual_manifest' && (!['in-system','out-of-system'].includes(payload.systemScope) ||
       !Array.isArray(payload.deliverables) || !payload.deliverables.length ||
-      payload.deliverables.some(row => !text(row?.key) || !/^[a-f0-9]{64}$/.test(row?.digest ?? '')) ||
-      !Array.isArray(payload.assets) || payload.assets.some(asset => !ref(asset) || !/^[a-f0-9]{64}$/.test(asset.digest)))) {
+      payload.deliverables.some(row => !text(row?.key) || (typeof row.digest !== 'string' || !/^[a-f0-9]{64}$/.test(row.digest))) ||
+      !Array.isArray(payload.assets) || payload.assets.some(asset => !ref(asset) || typeof asset.digest !== 'string' || !/^[a-f0-9]{64}$/.test(asset.digest)))) {
     errors.push('Visual manifest needs system scope and versioned SHA-256 asset references');
   }
   if (kind==='visual_audit' && typeof payload.behaviorChanged!=='boolean') {

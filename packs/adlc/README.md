@@ -152,3 +152,6 @@ Pin `verification@0.1.9` for conditional G5 approval. The default mode is `manua
 Start `architecture-improvement@0.1.0` manually to produce tech-debt Items. The CTO ranks candidates with roughly 20% capacity and authorizes the selected Item with affected invariant IDs and regression standards. Pass the current authorization and its run and decision IDs to `technical-design@0.1.2`.
 
 Start `retro-correct@0.1.0` manually with run logs, Decision Records, review findings, reverts, bugs and the intervention ledger. The host resolves two distinct model identities for the independent attribution passes and inspects the exact correction PR head. Ordinary corrections follow the architecture, types, lint, tests, then docs and agent rules order. Each new check cites a historical error and failure evidence. PRs enter G-T3. Reports containing changes to Graphs, roles or model routing are referred to the human owner.
+An owner-accepted verification exception ends the verification run with
+`verification_exception_accepted`. The bot still requires verified evidence to
+merge a PR. The owner merges an unverified PR outside the bot.
