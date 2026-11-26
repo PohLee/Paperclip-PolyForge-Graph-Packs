@@ -22,7 +22,7 @@ function records(run) {
   return run.graph.nodes.flatMap(node=>(run.nodeStates[node.id]?.attempts??[]).flatMap(attempt=>(attempt.artifacts??[]).map(item=>({item,attempt,node, payload:attempt.output?.creativeArtifacts?.[item.kind]}))));
 }
 const exactRecord=(run,ref)=>createArtifactLineage(run).exactRecord(ref);
-function getGraph(packId,graphId) { return packId==='creative-team'?[...graphs,...productDesignGraphs,...brandGraphs,...compositionGraphs].find(g=>g.id===graphId):undefined; }
+function getGraph(packId,graphId) { return packId==='creative-team'?allGraphs.find(g=>g.id===graphId):undefined; }
 function requestedCount(run) { return run.input.creative_brief?.requestedCount??run.input.requestedCount; }
 function asRefs(candidates) { return candidates.map(c=>({id:c.id,version:c.version})); }
 
