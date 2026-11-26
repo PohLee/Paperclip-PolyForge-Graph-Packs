@@ -1,5 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { resolve } from 'node:path';
+import { pathToFileURL } from 'node:url';
 import { pack } from '../packs/adlc/index.mjs';
 import { createAdlcHostApi } from '../packs/adlc/runtime/host-api.mjs';
 import {
@@ -148,10 +150,51 @@ test('versionless starts validate the first Graph while explicit versions stay p
   await assert.rejects(api.startRun({ ...args, graphId: legacy.id, graphVersion: 'unknown' }), /Graph not found/);
 });
 
-test('an accepted verification exception ends with a distinct owner exception output', () => {
-  const verification = graph('verification');
-  const route = verification.edges.find(edge => edge.from === 'verification-exception' && edge.when === 'accept');
-  assert.deepEqual(verification.nodes.find(candidate => candidate.id === route.to), {
-    id: 'verification-exception-accepted', type: 'end', output: 'verification_exception_accepted'
-  });
+
+test('an accepted verification exception ends with a distinct owner exception output', async () => {
+  const coreArtifact = process.env.PINNED_CORE_ARTIFACT;
+  const coreUrl = coreArtifact ? pathToFileURL(resolve(coreArtifact, 'src/core/index.mjs')).href :
+    new URL('../../Paperclip-PolyForge-Graph/src/core/index.mjs', import.meta.url).href;
+  const { GraphEngine, runValidationDigest } = await import(coreUrl);
+  const engine = new GraphEngine({ availableCapabilities: {
+    'company-control': '1.0.0', 'cross-pack-plans': '1.0.0', 'cross-pack-handoff': '1.0.0'
+  } });
+  await engine.registerPack(pack);
+  const api = createAdlcHostApi({ engine, runValidationDigest, resolveActor: ({ claimedActor }) => claimedActor });
+  const owner = { id: 'owner', kind: 'human', executionId: null, roles: ['human-owner', 'cpo'] };
+  const start = { packId: pack.id, packVersion: pack.version, actor: owner };
+  const projectId = 'project';
+  const publication = await api.startRun({ ...start, graphId: 'system-architecture',
+    input: { projectId, system_id: 'system', architecture_brief: 'Architecture baseline' } });
+  const pr_head = { id: 'pr:example/project#1', version: headSha, repository: 'example/project', pullNumber: 1, headSha };
+  for (const [index, pin] of pins.entries()) {
+    await engine.recordContractMerge(publication.id, { ...pin, mergeCommitSha: pin.commit,
+      repository: pr_head.repository, pullNumber: index + 2, supersedes: null });
+  }
+  const verification_scope = { id: 'scope', version: '1', expectedScenarios: ['BDD-1'], dimensions: [] };
+  const run = await api.startRun({ ...start, graphId: 'verification', graphVersion: technicalVersions.verification,
+    input: { projectId, pr_head, contract_pins: pins, verification_scope } });
+  const manifest = { ...verification_scope, id: 'manifest', checkoutSha: headSha, results: [] };
+  const artifact = { kind: 'verification_manifest', id: manifest.id, version: manifest.version };
+
+  // Seed the work preceding the exception gate. The Host and Core perform the actual decision and transition.
+  const state = await engine.store.read();
+  const nodes = state.runs[run.id].nodeStates;
+  for (const [id, outcome] of Object.entries({
+    modernize: null, 'modernize-route': 'MODERNIZE', 'review-head': null, 'review-route': 'pass',
+    'verify-head': null, 'acceptance-gate': 'exception'
+  })) Object.assign(nodes[id], { status: 'completed', outcome });
+  nodes['verify-head'].artifacts = [artifact];
+  nodes['verify-head'].attempts = [{ artifacts: [artifact], output: { adlcProductMethods: { verification_manifest: manifest } } }];
+  await engine.store.write(state, state.revision);
+
+  const decision = await api.decideNode({ runId: run.id, nodeId: 'verification-exception', actor: owner, outcome: 'accept',
+    reason: 'Accept missing verification', evidence: [{ kind: 'acceptance_exception', reason: 'Missing evidence',
+      risk: 'Acceptance scenario unverified', subjectRefs: [{ artifactId: manifest.id, version: manifest.version }] }] });
+  assert.equal(decision.decision.actor.id, owner.id);
+  const [terminal] = await engine.getReadyNodes(run.id);
+  assert.equal(terminal.id, 'verification-exception-accepted');
+  assert.equal(terminal.output, 'verification_exception_accepted');
+  await api.submitNode({ runId: run.id, nodeId: terminal.id, actor: owner });
+  assert.equal((await engine.getRun(run.id)).status, 'completed');
 });
