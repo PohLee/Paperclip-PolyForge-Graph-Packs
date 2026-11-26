@@ -191,12 +191,12 @@ The G2 manifest names its ID and version, pins each deliverable revision and dig
     {
       "key": "prd",
       "revisionId": "r1",
-      "digest": "sha256:example"
+      "digest": "0000000000000000000000000000000000000000000000000000000000000000"
     },
     {
       "key": "acceptance.feature",
       "revisionId": "r1",
-      "digest": "sha256:example"
+      "digest": "0000000000000000000000000000000000000000000000000000000000000000"
     }
   ],
   "egmReportRef": "artifact:egm/r1",

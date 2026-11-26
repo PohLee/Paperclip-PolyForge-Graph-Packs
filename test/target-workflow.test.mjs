@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs';
 import * as adlc from '../packs/adlc/index.mjs';
 
 test('approval requires both deliverables and a Host-recorded approver', () => {
-  const deliverables = ['prd', 'acceptance.feature'].map(key => ({ key, revisionId: 'r1', digest: 'digest' }));
+  const deliverables = ['prd', 'acceptance.feature'].map(key => ({ key, revisionId: 'r1', digest: 'a'.repeat(64) }));
   const manifest = { id: 'G2', version: 'v1', deliverables, egmReportRef: 'egm:1',
     unresolvedEscalations: [], assumptions: [], supersedes: null };
   assert.equal(adlc.validateApprovalManifest(manifest), manifest);
@@ -14,9 +14,9 @@ test('approval requires both deliverables and a Host-recorded approver', () => {
 
 
 test('contract lock confines unique file paths to their section', () => {
-  const file = { path: 'product/prd.md', digest: 'digest', section: 'product' };
+  const file = { path: 'product/prd.md', digest: 'a'.repeat(64), section: 'product' };
   const lock = { contractId: 'C1', epic: 'orders', backlogItemRef: 'item:1',
-    approvalManifest: { id: 'G2', revisionId: 'v1', digest: 'digest' }, supersedes: null, files: [file] };
+    approvalManifest: { id: 'G2', revisionId: 'v1', digest: 'a'.repeat(64) }, supersedes: null, files: [file] };
   assert.equal(adlc.validateContractLock(lock), lock);
   for (const path of ['product/../technical/spec.md', 'product/..\\spec.md', 'design/spec.md']) {
     assert.throws(() => adlc.validateContractLock({ ...lock, files: [{ ...file, path }] }), /path/);

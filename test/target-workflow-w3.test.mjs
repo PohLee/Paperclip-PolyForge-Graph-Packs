@@ -9,7 +9,7 @@ import {
 
 const headSha = 'a'.repeat(40);
 const commit = 'b'.repeat(40);
-const pins = [{ contractId: 'C1', section: 'technical', commit }];
+const pins = ['technical', 'product'].map(section => ({ contractId: 'C1', section, commit }));
 const graph = id => pack.graphs.find(g => g.id === id && g.version === technicalVersions[id]);
 const node = (id, name) => graph(id).nodes.find(n => n.id === name);
 
@@ -123,4 +123,27 @@ test('WP3.2 host allows the receipt only after Core records the matching technic
   await assert.rejects(api.startRun(args), /recorded technical contract merge event/);
   audit.push({ kind: 'contract.merged', projectId: 'P1', ...contract_merge_receipt });
   assert.equal((await api.startRun(args)).input.contract_merge_receipt, contract_merge_receipt);
+});
+
+test('target Graphs require their contract pin sections', () => {
+  const [technical, product] = pins;
+  assert.throws(() => validateTechnicalInputs('technical-design', { contract_pins: [technical] }), /product contract pin/);
+  for (const id of ['implementation', 'verification', 'code-delivery']) {
+    assert.throws(() => validateTechnicalInputs(id, { contract_pins: [product] }), /technical contract pin/);
+    assert.throws(() => validateTechnicalInputs(id, { contract_pins: [technical] }), /product contract pin/);
+  }
+  assert.doesNotThrow(() => validateTechnicalInputs('bug-fast-lane', { contract_pins: [technical] }));
+  assert.throws(() => validateTechnicalInputs('bug-fast-lane', { contract_pins: [] }), /contract_pins/);
+});
+
+test('versionless starts validate the first Graph while explicit versions stay pinned', async () => {
+  const api = createAdlcHostApi({ engine: { startRun: async request => request },
+    resolveActor: ({ claimedActor }) => claimedActor, runValidationDigest: () => 'digest' });
+  const args = { packId: 'adlc', actor: { kind: 'agent', id: 'pe', executionId: 'execution', roles: ['principal-engineer'] } };
+  await assert.rejects(api.startRun({ ...args, graphId: 'bug-fast-lane' }), /contract_pins/);
+  const legacy = pack.graphs.find(item => item.id === 'implementation');
+  const request = await api.startRun({ ...args, graphId: 'implementation' });
+  assert.equal(request.graphVersion, undefined);
+  await assert.rejects(api.startRun({ ...args, graphId: legacy.id, graphVersion: technicalVersions[legacy.id] }), /contract_pins/);
+  await assert.rejects(api.startRun({ ...args, graphId: legacy.id, graphVersion: 'unknown' }), /Graph not found/);
 });

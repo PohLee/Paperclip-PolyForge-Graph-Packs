@@ -32,8 +32,18 @@ export function samePins(pins, expected) {
   return keys.size === pins.length && pins.every(pin => keys.has(pinKey(pin)));
 }
 
+const requiredPinSections = {
+  'technical-design': ['product'],
+  implementation: ['product', 'technical'],
+  verification: ['product', 'technical'],
+  'code-delivery': ['product', 'technical']
+};
+
 export function validateTechnicalInputs(graphId, input) {
   const pins = validateContractPins(input?.contract_pins);
+  for (const section of requiredPinSections[graphId] ?? []) {
+    assert(pins.some(pin => pin.section === section), `${graphId} requires a ${section} contract pin`);
+  }
   if (graphId === 'implementation') {
     const receipt = input.contract_merge_receipt;
     assert(receipt?.section === 'technical' && Object.hasOwn(receipt, 'supersedes') &&

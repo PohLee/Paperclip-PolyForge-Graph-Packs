@@ -1,3 +1,4 @@
+import { pack } from '../index.mjs';
 import {
   validateRequestBrief, validateEvidenceLedger, validateExperimentRecord, validateExperimentRoute,
   validateRequirementsHandoff, validateCompetitiveDiff, validateCompetitiveRoute, validateInvestmentCase,
@@ -415,11 +416,15 @@ export function createAdlcHostApi({engine,resolveActor,runValidationDigest,servi
       if(args.packId!=='adlc') throw new Error('ADLC packId is required');
       const actor=await trustedActor(args.actor,{operation:'startRun',graphId:args.graphId});
       const { admission: _callerAdmission, ...request } = args;
-      if (automatedMerge({ graph: { id: args.graphId, version: args.graphVersion } })) {
+      const graph = pack.graphs.find(item => item.id === args.graphId &&
+        (args.graphVersion === undefined || item.version === args.graphVersion));
+      if (!graph) throw new Error('Graph not found in pinned Pack');
+      const target = { graph };
+      if (automatedMerge(target)) {
         validateTechnicalInputs(args.graphId, args.input);
         request.mode = automationMode(args.mode, await projectConfig(args));
       }
-      if (args.graphVersion && technicalVersions[args.graphId] === args.graphVersion) {
+      if (technicalVersions[graph.id] === graph.version) {
         validateTechnicalInputs(args.graphId, args.input);
         if (args.graphId === 'implementation') {
           const receipt = args.input.contract_merge_receipt;
@@ -430,7 +435,6 @@ export function createAdlcHostApi({engine,resolveActor,runValidationDigest,servi
           if (!committed) throw new Error('Implementation requires a recorded technical contract merge event');
         }
       }
-      const target = { graph: { id: args.graphId, version: args.graphVersion ?? '0.1.0' } };
       if (improvement(target) || retrospective(target)) {
         if (args.mode && args.mode !== 'manual') throw new Error('Improvement and retro require a manual start');
         if (!actor.roles.includes('principal-engineer') && !(actor.kind === 'human' && actor.roles.includes('human-owner'))) {

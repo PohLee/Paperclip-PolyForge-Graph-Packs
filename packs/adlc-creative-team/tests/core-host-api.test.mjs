@@ -109,7 +109,7 @@ test('each graph has a valid terminal artifact contract fixture',()=>{
   const ref=(id,kind='artifact')=>({id,version:'1',kind});
   const fixtures={
     'pre-g2-interaction':['interaction_design',{id:'interaction',version:'1',intentRef:ref('intent'),states:['loading'],scenarioRefs:[ref('scenario')],suppliedDesigns:[]}],
-    'g3-visual-contract':['visual_manifest',{id:'visual',version:'1',productContractRef:ref('product'),interactionRef:ref('interaction'),designBaselineRef:ref('baseline'),assets:[{...ref('asset'),digest:'a'.repeat(64)}],tokens:[],components:[],systemScope:'in-system'}],
+    'g3-visual-contract':['visual_manifest',{id:'visual',version:'1',productContractRef:ref('product'),interactionRef:ref('interaction'),designBaselineRef:ref('baseline'),assets:[{...ref('asset'),digest:'a'.repeat(64)}],tokens:[],components:[],deliverables:[{key:'design.json',digest:'a'.repeat(64)}],systemScope:'in-system'}],
     'creative-intake':['creative_brief',{id:'brief',version:'1',objective:'Clarify the task',audience:'Operators'}],
     'brand-foundation':['brand_baseline',{id:'brand',version:'1',strategyRef:ref('strategy','brand_strategy'),identityRef:ref('identity','brand_identity_system'),voiceRef:ref('voice','brand_voice_system'),decisionRef:ref('decision','decision')}],
     'concept-sprint':['concept_gallery',{id:'gallery',version:'1',path:'index.html',digest:'a'.repeat(64),setRef:ref('set','concept_set'),candidateRefs:[ref('c1','concept_candidate'),ref('c2','concept_candidate'),ref('c3','concept_candidate')]}],
