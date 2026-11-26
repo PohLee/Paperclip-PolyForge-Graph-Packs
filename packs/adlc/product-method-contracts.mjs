@@ -463,7 +463,6 @@ export const adlcProjectConfigSchema = {
         fallback: { type: 'array', items: objectSchema(profileSettings, ['harness', 'model']) }
       }, [])
     },
-    automationMode: { enum: ['manual', 'assisted', 'full-auto'], default: 'manual' },
     neverAutoMerge: { type: 'object', additionalProperties: { type: 'boolean', default: true }, default: {} }
   }, [])
 };
@@ -492,10 +491,12 @@ export function assessDeterministicRisk({ changes, dependencyChanges, ciPaths = 
   const normalize = path => path.replaceAll('\\', '/').replace(/^\.\//, '');
   const paths = changes.flatMap(({ path, previousPath }) => [path, previousPath].filter(Boolean).map(normalize));
   const ciPatterns = ciPaths.map(path => normalize(path).replace(/\/$/, '').toLowerCase());
-  const major = version => /^\s*[~^=v]*([0-9]+)(?:\.|$)/.exec(version)?.[1];
+  const major = version => typeof version === 'string'
+    ? /^[~^=v]?([0-9]+)(?:\.[0-9]+){0,2}(?:-[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?(?![\s\S])/.exec(version)?.[1]
+    : undefined;
   const bumped = dependencyChanges.some(({ from, to }) => {
     const before = major(from), after = major(to);
-    return before === undefined || after === undefined || Number(after) > Number(before);
+    return before === undefined || after === undefined || BigInt(after) > BigInt(before);
   });
   const levels = ['low', 'medium', 'high'];
   const rules = [], categories = new Set(), ids = new Set();

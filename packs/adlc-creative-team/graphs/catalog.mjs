@@ -34,7 +34,7 @@ adlcHandoffGraphs.push({
   ...adlcHandoffGraphs[1],
   version: automatedVisualVersion,
   nodes: adlcHandoffGraphs[1].nodes.map(node => node.id === 'g3'
-    ? { ...node, decisionType: 'g3-visual-auto-approval', purpose: 'The design director can approve an exact clean in-system audit with unchanged behavior in assisted or enabled full-auto mode. Send other decisions to the owner.' }
+    ? { ...node, decisionType: 'g3-visual-auto-approval', outcomes: [...node.outcomes, 'human'], purpose: 'The design director can approve an exact clean in-system audit with unchanged behavior in assisted or enabled full-auto mode. Send other decisions to the owner.' }
     : node.id === 'prepare-visual-manifest'
       ? { ...node, purpose: node.purpose + ' Set behaviorChanged explicitly based on that comparison.' }
       : node)

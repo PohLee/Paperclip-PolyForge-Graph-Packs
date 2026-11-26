@@ -116,9 +116,9 @@
   },
   "adlc@0.3.16": {
     "packs/adlc/backlog.mjs": "620f33f5bf6a5f77bb180b06e4e8d763f3d0623b736c2c9626b8f589d308e4dc",
-    "packs/adlc/product-method-contracts.mjs": "aca95a76bbc72d2f21053d96ecb06abea0fc9ca17c240a63212f4800fa9bf2ce",
+    "packs/adlc/product-method-contracts.mjs": "08cbdb86a2afb25e89b275a0e0628ffeccc0fa57f949a507e97fdf4d4550caa3",
     "packs/adlc/product-review.mjs": "6add371e7d69fe7a49c93d3953d944a4961564bd0daf19bfdbfb08715c06131c",
-    "packs/adlc/runtime/host-api.mjs": "ebade5fcd907a0c371973447771e6bf92dee072402bf7ed750a69e52d6ea8054",
+    "packs/adlc/runtime/host-api.mjs": "0f9f07c9ef69c911a7be9b40e88f6f5fc05a306c0b3f0dbd983851f7c8ca10e5",
     "packs/adlc/runtime/small-change.mjs": "e9ec2b3240b0a6e58b1bf39c83b868a3c2f2b398fcb4142ad850457bb4a701b8",
     "packs/adlc/runtime/technical-workflow.mjs": "091bfb830724c089baecfc15248fe6b183d8d857da4d44ba25910c88b0e301eb"
   },
@@ -129,8 +129,8 @@
     "packs/adlc-creative-team/adapters/concept-gallery/index.mjs": "c8aec5405937dd4c1c5395e9452c8bfdfafb6905eb0b0ef24c0b8080684f02d8",
     "packs/adlc-creative-team/adapters/image-provider/index.mjs": "da70d95a41e4c25dba1458f050fca469deba20fa803624bc9f4bf24b30b9a7f2",
     "packs/adlc-creative-team/adapters/interview/index.mjs": "068aef77e86ae871a880e1ad12f8080434160754f7e61b565f5995c1a61875e3",
-    "packs/adlc-creative-team/contracts/validate.mjs": "f9b338ac2325a6fc70d3ce529f43284f963799704450ec99e698bc1a59163f24",
+    "packs/adlc-creative-team/contracts/validate.mjs": "b4c4890a1db2aba468bcb379bf0959d319f71f7cdb46823ee668763296c7e7c2",
     "packs/adlc-creative-team/runtime/artifact-lineage.mjs": "2eb667b1c5e1076cfc7b984acc5c10af0827ea6cf58fa19aebd88cef09821ee9",
-    "packs/adlc-creative-team/runtime/host-api.mjs": "6920d4230837821437f2a49d1ee2900466404c7e4c549b1503b2efb31db622e4"
+    "packs/adlc-creative-team/runtime/host-api.mjs": "0b5f29676c0d3942afb4e3c226e0c88b99cb85bf2413e14ff73b35a953b4494a"
   }
 }

@@ -76,7 +76,12 @@ export function createAdlcHostApi({engine,resolveActor,runValidationDigest,servi
   const retrospective = run => run.graph.id === 'retro-correct' && run.graph.version === '0.1.0';
   const technicalRun = run => automatedMerge(run) || architectureDesign(run) || improvement(run) || retrospective(run) ||
     technicalVersions[run.graph.id] === run.graph.version;
-  const projectConfig = async run => await services?.getProjectConfig?.(run.input?.projectId) ?? {};
+  const projectConfig = async ({ input }) => {
+    if (typeof input?.projectId !== 'string' || !input.projectId.trim()) {
+      throw new Error('verification@0.1.9 requires projectId');
+    }
+    return await services?.getProjectConfig?.(input.projectId) ?? {};
+  };
   async function mergeContext(run, modelRisk, snapshot, project) {
     if (!automatedMerge(run)) return assessImplementationRisk(modelRisk, snapshot);
     return {
@@ -420,8 +425,7 @@ export function createAdlcHostApi({engine,resolveActor,runValidationDigest,servi
         (args.graphVersion === undefined || item.version === args.graphVersion));
       if (!graph) throw new Error('Graph not found in pinned Pack');
       const target = { graph };
-      const project = await projectConfig(args);
-      request.mode = automationMode(args.mode ?? (automatedMerge(target) ? project.automationMode : 'manual'), project);
+      if (automatedMerge(target)) request.mode = automationMode(args.mode, await projectConfig(args));
       if (automatedMerge(target) || architectureDesign(target) || technicalVersions[graph.id] === graph.version) {
         validateTechnicalInputs(args.graphId, args.input);
         if (args.graphId === 'implementation') {
@@ -493,7 +497,7 @@ export function createAdlcHostApi({engine,resolveActor,runValidationDigest,servi
       const run=await engine.getRun(runId);
       if(!run||run.packId!=='adlc') throw new Error('ADLC run not found');
       actor=await trustedActor(actor,{operation:'decideNode',run,nodeId,outcome});
-      if (actor.kind === 'agent') automationMode(run.mode, await projectConfig(run));
+      if (automatedMerge(run) && nodeId === 'g5' && actor.kind === 'agent') automationMode(run.mode, await projectConfig(run));
       validateDecisionRoute(run,nodeId,outcome);
       await validateTechnicalRoute(run,nodeId,outcome,actor,rest.evidence);
       const expectedRunDigest=snapshotDigest(run);

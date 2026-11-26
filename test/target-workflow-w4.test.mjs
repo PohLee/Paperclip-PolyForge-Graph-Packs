@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { canonicalDigest } from '../packs/adlc/product-method-contracts.mjs';
@@ -8,6 +9,13 @@ import { pack as creativePack } from '../packs/adlc-creative-team/index.mjs';
 import { createAdlcHostApi } from '../packs/adlc/runtime/host-api.mjs';
 import { canAgentApproveVisual, createCreativeHostApi, creativeRequiredServicesByGraph } from '../packs/adlc-creative-team/runtime/host-api.mjs';
 import { automationMode, canAgentApproveMerge, technicalValidators } from '../packs/adlc/runtime/technical-workflow.mjs';
+
+async function loadCore() {
+  const coreArtifact = process.env.PINNED_CORE_ARTIFACT;
+  const coreUrl = coreArtifact ? pathToFileURL(resolve(coreArtifact, 'src/core/index.mjs')).href :
+    new URL('../../Paperclip-PolyForge-Graph/src/core/index.mjs', import.meta.url).href;
+  return import(coreUrl);
+}
 
 const agent = { kind: 'agent', id: 'cto', executionId: 'session', roles: ['cto-caio'] };
 const owner = { kind: 'human', id: 'owner', executionId: null, roles: ['human-owner'] };
@@ -98,6 +106,15 @@ test('WP4.2 retro routes governance to an owner and requires historical failure 
   assert.throws(() => technicalValidators.correction_pr({ ...pr, checks: [{ correctionId: 'fix' }] }), /historical failure/);
 });
 
+test('ADLC project schema declares the automation mode once', async () => {
+  const source = await readFile(new URL('../packs/adlc/product-method-contracts.mjs', import.meta.url), 'utf8');
+  const schema = source.split('export const adlcProjectConfigSchema = ')[1].split('const pathBoundary')[0];
+  assert.equal([...schema.matchAll(/^    automationMode:/gm)].length, 1);
+  assert.deepEqual(adlcProjectConfigSchema.properties.automationMode, {
+    enum: ['manual', 'assisted', 'full-auto'], default: 'manual'
+  });
+});
+
 test('WP4.3 full-auto requires explicit opt-in and baseline metrics specify sources and formulas', () => {
   assert.equal(adlcProjectConfigSchema.properties.allowFullAuto.default, false);
   assert.equal(automationMode(undefined), 'manual');
@@ -158,16 +175,20 @@ test('migration changes and unknown dependency majors are assessed conservativel
     assert.deepEqual(assess([], { changes }).neverAutoMerge, ['database-migration']);
     assert.deepEqual(assess([], { changes, neverAutoMerge: { 'database-migration': false } }).neverAutoMerge, []);
   }
-  for (const to of ['>=1', 'x', '*', 'latest', 'npm:other@1', 'https://example.com/package', 'git+ssh://example.com/package']) {
-    assert.equal(assess([], { dependencyChanges: [{ from: '^1.0.0', to }] }).floor, 'medium');
+  for (const to of ['>=1', '1.2 || 2', '1.2 - 2', '1.2 2', ' 1.2', '1.2 x', '1.x', '1.*', '1.2\n', '^^1.2', '1.2.3.4', ['1.2'], 'x', '*', 'latest', 'npm:other@1', 'https://example.com/package', 'git+ssh://example.com/package']) {
+    assert.deepEqual(assess([], { dependencyChanges: [{ from: '^1.0.0', to }] }).rules, ['major-dependency-bump']);
+    assert.deepEqual(assess([], { dependencyChanges: [{ from: to, to: '1.0.0' }] }).rules, ['major-dependency-bump']);
+  }
+});
+
+test('simple same-major versions and prereleases do not raise dependency risk', () => {
+  for (const to of ['1', '=1.2', 'v1-beta', '~1.2.3-rc.1']) {
+    assert.deepEqual(assess([], { dependencyChanges: [{ from: '^1.0.0', to }] }).rules, []);
   }
 });
 
 test('retro accepts an evidence bundle with six empty arrays and rejects missing sources', async () => {
-  const coreArtifact = process.env.PINNED_CORE_ARTIFACT;
-  const coreUrl = coreArtifact ? pathToFileURL(resolve(coreArtifact, 'src/core/index.mjs')).href :
-    new URL('../../Paperclip-PolyForge-Graph/src/core/index.mjs', import.meta.url).href;
-  const { GraphEngine, runValidationDigest } = await import(coreUrl);
+  const { GraphEngine, runValidationDigest } = await loadCore();
   const engine = new GraphEngine({ availableCapabilities: {
     'company-control': '1.0.0', 'cross-pack-plans': '1.0.0', 'cross-pack-handoff': '1.0.0'
   } });
@@ -181,17 +202,36 @@ test('retro accepts an evidence bundle with six empty arrays and rejects missing
   await assert.rejects(api.startRun({ ...args, input: { retro_evidence: { ...retro_evidence, bugs: undefined } } }), /six historical/);
 });
 
-test('both Pack hosts reject requests above the project ceiling', async () => {
-  const options = { engine: { startRun: async args => args },
-    resolveActor: ({ claimedActor }) => claimedActor, runValidationDigest: () => 'digest',
-    services: { getProjectConfig: async () => ({ automationMode: 'assisted', allowFullAuto: true }) } };
-  for (const [api, packId, graphId] of [
-    [createAdlcHostApi(options), 'adlc', 'request-triage'],
-    [createCreativeHostApi(options), 'creative-team', 'creative-intake']
+test('the project ceiling applies only to automated verification and G3 starts', async () => {
+  const { GraphEngine, runValidationDigest } = await loadCore();
+  const engine = new GraphEngine({ availableCapabilities: {
+    'company-control': '1.0.0', 'cross-pack-plans': '1.0.0', 'cross-pack-handoff': '1.0.0'
+  } });
+  await engine.registerPack(pack);
+  await engine.registerPack(creativePack);
+  const options = { engine, resolveActor: ({ claimedActor }) => claimedActor, runValidationDigest,
+    services: { getProjectConfig: async projectId => {
+      assert.equal(projectId, 'project');
+      return { automationMode: 'assisted', allowFullAuto: true };
+    } } };
+  const ref = { id: 'baseline', version: '1' };
+  const headSha = 'a'.repeat(40);
+  const contract_pins = ['product', 'technical'].map(section => ({ section, contractId: 'C1', commit: headSha }));
+  for (const [api, source, graphId, version, legacyVersion, input] of [
+    [createAdlcHostApi(options), pack, 'verification', '0.1.9', '0.1.8', {
+      contract_pins, pr_head: { id: 'pr:example/project#1', version: headSha, repository: 'example/project', pullNumber: 1, headSha },
+      verification_scope: { id: 'scope', version: '1', expectedScenarios: ['BDD-1'], dimensions: [] }
+    }],
+    [createCreativeHostApi(options), creativePack, 'g3-visual-contract', '0.1.1', '0.1.0', {
+      approved_product_contract: ref, design_baseline: ref
+    }]
   ]) {
-    const args = { packId, graphId, actor: owner, input: {} };
-    await assert.rejects(api.startRun({ ...args, mode: 'full-auto' }), /ceiling/);
-    assert.equal((await api.startRun({ ...args, mode: 'assisted' })).mode, 'assisted');
+    const args = { packId: source.id, packVersion: source.version, graphId, graphVersion: version, actor: owner };
+    await assert.rejects(api.startRun({ ...args, input }), /requires projectId/);
+    const scoped = { ...args, input: { ...input, projectId: 'project' } };
+    await assert.rejects(api.startRun({ ...scoped, mode: 'full-auto' }), /ceiling/);
+    assert.equal((await api.startRun(scoped)).mode, 'assisted');
+    assert.equal((await api.startRun({ ...args, graphVersion: legacyVersion, input, mode: 'autonomous' })).mode, 'autonomous');
   }
 });
 
@@ -220,7 +260,7 @@ test('assisted G3 requires current clean audit evidence and an active project ce
     artifacts: [{ id: payload.id, version: payload.version, kind }], output: { creativeArtifacts: { [kind]: payload } }
   }] });
   const run = { id: 'run', packId: creativePack.id, pack: creativePack,
-    graph: graph('g3-visual-contract', '0.1.1', creativePack), mode: 'assisted', input: {},
+    graph: graph('g3-visual-contract', '0.1.1', creativePack), mode: 'assisted', input: { projectId: 'project' },
     nodeStates: { 'prepare-visual-manifest': completed('visual_manifest', manifest), 'design-audit': completed('visual_audit', audit) } };
   let ceiling = 'assisted';
   let citeAudit = true;
@@ -243,4 +283,136 @@ test('assisted G3 requires current clean audit evidence and an active project ce
   ceiling = 'manual';
   await assert.rejects(api.decideNode(args), /ceiling/);
   assert.equal((await api.decideNode({ ...args, actor: owner })).outcome, 'approve');
+});
+
+const e1 = { skip: 'TODO(E1): enable when Core grants owner-only actors direct authority on human-required gates' };
+
+async function completePrelude(engine, run, nodes) {
+  // Seed eligible work so the test exercises the real decision and terminal transitions.
+  const state = await engine.store.read();
+  for (const [nodeId, { outcome, artifacts = [], output = {} }] of Object.entries(nodes)) {
+    Object.assign(state.runs[run.id].nodeStates[nodeId], {
+      status: 'completed', outcome, artifacts, attempts: [{ artifacts, output }]
+    });
+  }
+  await engine.store.write(state, state.revision);
+}
+
+function completedArtifact(namespace, kind, payload) {
+  return {
+    artifacts: [{ kind, id: payload.id, version: payload.version }],
+    output: { [namespace]: { [kind]: payload } }
+  };
+}
+
+async function readyG3(project, systemScope = 'out-of-system') {
+  const { GraphEngine, runValidationDigest } = await loadCore();
+  const engine = new GraphEngine();
+  await engine.registerPack(creativePack);
+  const ref = { id: 'baseline', version: '1' };
+  const manifest = { id: 'visual', version: '1', systemScope, behaviorChanged: false,
+    productContractRef: ref, interactionRef: ref, designBaselineRef: ref, tokens: [], components: [], assets: [{ ...ref, digest: 'a'.repeat(64) }],
+    deliverables: [{ key: 'design.json', digest: 'a'.repeat(64) }] };
+  const audit = { id: 'audit', version: '1', manifestRef: manifest, manifestDigest: canonicalDigest(manifest),
+    behaviorChanged: false, findings: [] };
+  const manifestSubject = { artifactId: manifest.id, version: manifest.version };
+  const api = createCreativeHostApi({ engine, runValidationDigest, resolveActor: ({ claimedActor }) => claimedActor,
+    services: { getProjectConfig: async () => project,
+      resolveDecisionEvidence: async () => [
+        { kind: 'visual_manifest', payload: manifest, subjectRefs: [manifestSubject] },
+        { kind: 'visual_audit', payload: audit, subjectRefs: [manifestSubject, { artifactId: audit.id, version: audit.version }] }
+      ] } });
+  const run = await api.startRun({ packId: creativePack.id, packVersion: creativePack.version, graphId: 'g3-visual-contract',
+    graphVersion: '0.1.1', actor: owner, input: { projectId: 'project', approved_product_contract: ref, design_baseline: ref } });
+  await completePrelude(engine, run, {
+    'prepare-visual-manifest': completedArtifact('creativeArtifacts', 'visual_manifest', manifest),
+    'design-audit': completedArtifact('creativeArtifacts', 'visual_audit', audit)
+  });
+  return { api, engine, runId: run.id, nodeId: 'g3' };
+}
+
+test('real assisted G3 approval checks the current project ceiling', async () => {
+  const project = { automationMode: 'assisted' };
+  const { api, runId, nodeId } = await readyG3(project, 'in-system');
+  const decision = { runId, nodeId, actor: { ...agent, roles: ['design-director'] },
+    outcome: 'approve', reason: 'Clean in-system audit' };
+  project.automationMode = 'manual';
+  await assert.rejects(api.decideNode(decision), /ceiling/);
+  project.automationMode = 'assisted';
+  assert.equal((await api.decideNode(decision)).decision.outcome, 'approve');
+});
+
+test('G3 0.1.1 accepts a direct manual decision from an owner-only actor', e1, async () => {
+  const { api, runId, nodeId } = await readyG3({ automationMode: 'manual' });
+  const result = await api.decideNode({ runId, nodeId, actor: owner, outcome: 'approve', reason: 'Accept visual scope' });
+  assert.equal(result.decision.outcome, 'approve');
+});
+
+test('G3 director escalates an ineligible manifest and the owner resolves the gate', async () => {
+  const { api, engine, runId, nodeId } = await readyG3({ automationMode: 'manual' });
+  const director = { ...agent, roles: ['design-director'] };
+  await assert.rejects(api.decideNode({ runId, nodeId, actor: director, outcome: 'approve', reason: 'Approve' }), /human owner/);
+  const escalated = await api.decideNode({ runId, nodeId, actor: director, outcome: 'human', reason: 'Review design scope' });
+  assert.equal(escalated.run.pendingHuman.nodeId, nodeId);
+  const resolved = await api.resolveHumanGate({ runId, nodeId, actor: owner, outcome: 'approve', reason: 'Accept visual scope',
+    expectedDecisionId: escalated.decision.id });
+  assert.equal(resolved.decision.supersedes, escalated.decision.id);
+  assert.equal((await engine.getRun(runId)).nodeStates.g3.outcome, 'approve');
+});
+
+async function readyVerification(graphVersion, exception) {
+  const { GraphEngine, runValidationDigest } = await loadCore();
+  const engine = new GraphEngine({ availableCapabilities: {
+    'company-control': '1.0.0', 'cross-pack-plans': '1.0.0', 'cross-pack-handoff': '1.0.0'
+  } });
+  await engine.registerPack(pack);
+  const api = createAdlcHostApi({ engine, runValidationDigest, resolveActor: ({ claimedActor }) => claimedActor });
+  const headSha = 'a'.repeat(40);
+  const pr_head = { id: 'pr:example/project#1', version: headSha, repository: 'example/project', pullNumber: 1, headSha };
+  const contract_pins = ['product', 'technical'].map(section => ({ section, contractId: 'C1', commit: headSha }));
+  const verification_scope = { id: 'scope', version: '1', expectedScenarios: ['BDD-1'], dimensions: [] };
+  const start = { packId: pack.id, packVersion: pack.version, actor: owner };
+  const publication = await api.startRun({ ...start, graphId: 'retro-correct', input: { projectId: 'project',
+    retro_evidence: { run_logs: [], decision_records: [], review_findings: [], reverts: [], bugs: [], human_intervention_ledger: [] } } });
+  for (const [index, pin] of contract_pins.entries()) {
+    await engine.recordContractMerge(publication.id, { ...pin, mergeCommitSha: pin.commit,
+      repository: pr_head.repository, pullNumber: index + 2, supersedes: null });
+  }
+  const run = await api.startRun({ ...start, graphId: 'verification', graphVersion, mode: 'manual',
+    input: { projectId: 'project', pr_head, contract_pins, verification_scope } });
+  const manifest = { ...verification_scope, id: 'manifest', checkoutSha: headSha,
+    results: exception ? [] : [{ scenarioId: 'BDD-1', dimensions: {}, result: 'pass', evidenceRefs: ['ci'] }] };
+  const artifact = (kind, payload) => completedArtifact('adlcProductMethods', kind, payload);
+  await completePrelude(engine, run, {
+    modernize: {},
+    'modernize-route': { outcome: 'MODERNIZE' },
+    'review-head': {},
+    'review-route': { outcome: 'pass' },
+    'verify-head': artifact('verification_manifest', manifest),
+    'acceptance-gate': { outcome: exception ? 'exception' : 'accept' },
+    ...(exception ? {} : { 'prepare-g5': { artifacts: [...artifact('merge_pr_head', pr_head).artifacts,
+      { kind: 'merge_context', id: 'context', version: '1' }] } })
+  });
+  return { api, engine, runId: run.id, manifest, pr_head };
+}
+
+test('manual G5 accepts a hold from an owner-only actor', e1, async () => {
+  const { api, runId, manifest, pr_head } = await readyVerification('0.1.9', false);
+  const result = await api.decideNode({ runId, nodeId: 'g5', actor: owner, outcome: 'hold', reason: 'Await owner review',
+    evidence: [{ kind: 'merge_evidence', subjectRefs: [manifest, pr_head].map(({ id, version }) => ({ artifactId: id, version })) }] });
+  assert.equal(result.decision.outcome, 'hold');
+});
+
+test('verification-exception records the owner acceptance and reaches its terminal output', e1, async () => {
+  const { api, engine, runId, manifest } = await readyVerification('0.1.8', true);
+  const result = await api.decideNode({ runId, nodeId: 'verification-exception', actor: owner, outcome: 'accept',
+    reason: 'Accept missing verification', evidence: [{ kind: 'acceptance_exception', reason: 'Missing evidence',
+      risk: 'Acceptance scenario unverified', subjectRefs: [{ artifactId: manifest.id, version: manifest.version }] }] });
+  assert.equal(result.decision.actor.id, owner.id);
+  const [terminal] = await engine.getReadyNodes(runId);
+  assert.equal(terminal.id, 'verification-exception-accepted');
+  await api.submitNode({ runId, nodeId: terminal.id, actor: owner });
+  const run = await engine.getRun(runId);
+  assert.equal(run.nodeStates['verification-exception-accepted'].status, 'completed');
+  assert.equal(run.graph.nodes.find(node => node.id === 'verification-exception-accepted').output, 'verification_exception_accepted');
 });

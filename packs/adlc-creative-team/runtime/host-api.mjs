@@ -22,6 +22,8 @@ function records(run) {
   return run.graph.nodes.flatMap(node=>(run.nodeStates[node.id]?.attempts??[]).flatMap(attempt=>(attempt.artifacts??[]).map(item=>({item,attempt,node, payload:attempt.output?.creativeArtifacts?.[item.kind]}))));
 }
 const exactRecord=(run,ref)=>createArtifactLineage(run).exactRecord(ref);
+const automatedVisual = graph => graph.id === 'g3-visual-contract' && graph.version === automatedVisualVersion;
+
 function automationMode(mode, project = {}) {
   const normalize = value => value === 'full-auto' ? 'autonomous' : value;
   const ceiling = normalize(project.automationMode ?? 'manual');
@@ -216,6 +218,13 @@ export function createCreativeHostApi({engine,artifactRootForRun,hasImageProvide
     }
     return {path:realCandidate,root:realRoot};
   }
+  async function visualProject(input) {
+    if (typeof input?.projectId !== 'string' || !input.projectId.trim()) {
+      throw new Error('g3-visual-contract@0.1.1 requires projectId');
+    }
+    return await services.getProjectConfig?.(input.projectId) ?? {};
+  }
+
   async function requireDecisionEvidence(run,nodeId,outcome,decisions) {
     const node=run.graph.nodes.find(item=>item.id===nodeId);
     if(!node||node.type!=='decision') throw new Error('Decision evidence requested for a non-decision node');
@@ -784,9 +793,7 @@ export function createCreativeHostApi({engine,artifactRootForRun,hasImageProvide
       if(!graph) throw new Error(`Unknown creative graph: ${args.graphId}`);
       const input={...(args.input??{})};
       await validateStartInput({...args,graph,input},{actor,enrich:true});
-      const project=await services.getProjectConfig?.(input.projectId)??{};
-      const automated=graph.id==='g3-visual-contract'&&graph.version===automatedVisualVersion;
-      const mode=automationMode(args.mode??(automated?project.automationMode:'manual'),project);
+      const mode=automatedVisual(graph)?automationMode(args.mode,await visualProject(input)):args.mode;
       return engine.startRun({...args,input,actor,mode});
     },
 
@@ -814,7 +821,12 @@ export function createCreativeHostApi({engine,artifactRootForRun,hasImageProvide
       actor=await trustedActor(actor,{operation:'decideNode',run,nodeId,outcome});
       const node=run.graph.nodes.find(n=>n.id===nodeId); if(!node||node.type!=='decision') throw new Error('Creative decision node not found');
       if(!(await engine.getReadyNodes(runId)).some(n=>n.id===nodeId)) throw new Error('Creative decision is not ready');
-      if(actor.kind==='agent') automationMode(run.mode,await services.getProjectConfig?.(run.input?.projectId)??{});
+      if(nodeId==='g3'&&automatedVisual(run.graph)&&actor.kind==='agent') {
+        if(outcome==='human'&&actor.roles.includes('design-director')) {
+          return engine.decideNode({runId,nodeId,actor,outcome,...rest,evidence:[],expectedRunDigest:snapshotDigest(run)});
+        }
+        automationMode(run.mode,await visualProject(run.input));
+      }
       if(nodeId==='g3'&&!(actor.kind==='human'&&actor.roles.includes('human-owner'))) {
         const manifest=latestPayload(run,'prepare-visual-manifest','visual_manifest');
         const audit=latestPayload(run,'design-audit','visual_audit');
