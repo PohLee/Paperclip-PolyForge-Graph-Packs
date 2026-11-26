@@ -63,7 +63,7 @@ function loadRole(spec) {
 }
 
 const roles = Object.fromEntries(roleCatalog.map(spec => [spec.id, loadRole(spec)]));
-const packVersion = '0.3.11';
+const packVersion = '0.3.12';
 const graphs = [lifecycleGraphs[0], lifecycleGraphs[1], ...engineeringGraphs, ...lifecycleGraphs.slice(2), ...architectureDeliveryGraphs, ...designAssuranceGraphs, ...createWorkflowCompositionGraphs(packVersion)];
 const operatingPolicies = readText(resolve(root, 'OPERATING_POLICIES.md'));
 const evidenceContracts = readText(resolve(root, 'docs/EVIDENCE_CONTRACTS.md'));
@@ -93,7 +93,7 @@ export const pack = {
       { id: 'unresolved-reviews', label: 'Unresolved severe reviews', source: 'reviews.severeOpen' }
     ],
     views: [
-      { id: 'delivery', label: 'Delivery work', kind: 'run-list', graphIds: ['product-discovery', 'product-experiment', 'requirements-baseline', 'implementation', 'verification', 'system-architecture-workflow', 'architecture-review-composed', 'code-delivery-workflow'] },
+      { id: 'delivery', label: 'Delivery work', kind: 'run-list', graphIds: ['request-triage', 'product-discovery', 'product-experiment', 'requirements-baseline', 'technical-design', 'implementation', 'small-change', 'verification', 'design-drift', 'system-architecture', 'code-delivery', 'system-architecture-workflow', 'architecture-review-composed', 'code-delivery-workflow'] },
       { id: 'product-learning', label: 'Product learning', kind: 'run-list', graphIds: ['product-experiment', 'competitive-watch'] },
       { id: 'release', label: 'Release and observation', kind: 'run-list', graphIds: ['release-process', 'release-observation', 'production-monitoring'] },
       { id: 'decisions', label: 'Product decisions and history', kind: 'decision-history' }
@@ -207,7 +207,7 @@ export const pack = {
 };
 
 // The release digest identifies the deterministic pack payload, excluding its own digest.
-pack.release = { digest: `sha256:${digest(JSON.stringify(pack))}`, builtAt: '2026-11-22T00:00:00.000Z', status: 'candidate' };
+pack.release = { digest: `sha256:${digest(JSON.stringify(pack))}`, builtAt: '2026-11-26T00:00:00.000Z', status: 'candidate' };
 
 export default pack;
 export {

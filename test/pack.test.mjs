@@ -24,6 +24,11 @@ test('published pack registers with the core validator and has the lifecycle inv
   assert.equal(new Set(pack.graphs.map(graph => `${graph.id}@${graph.version}`)).size, 18);
 });
 
+test('every Graph appears in a company dashboard run view', () => {
+  const listed = new Set(pack.dashboard.views.flatMap(view => view.graphIds ?? []));
+  assert.deepEqual([...listed].sort(), pack.graphs.map(graph => graph.id).sort());
+});
+
 test('every task role and supervisor maps to a documented blueprint', () => {
   const ids = new Set(roleCatalog.map(role => role.id));
   for (const graph of pack.graphs) for (const node of graph.nodes) {
@@ -65,7 +70,7 @@ test('ADLC department heads report to the company CEO without changing review es
     'principal-engineer': 'cto-caio', 'lead-engineer': 'principal-engineer',
     'qa-engineer': 'cto-caio', 'security-engineer': 'cto-caio'
   };
-  assert.equal(pack.version, '0.3.11');
+  assert.equal(pack.version, '0.3.12');
   assert.deepEqual(Object.fromEntries(Object.values(pack.roles).map(role => [role.id, role.reportsToRole])), reportsTo);
   assert.deepEqual(Object.fromEntries(Object.values(pack.roles).map(role => [role.id, role.supervisorRole])), reviewEscalation);
   assert.equal(Object.values(pack.roles).filter(role => role.reportsToRole === 'ceo').length, 2);

@@ -22,6 +22,7 @@ export const installedReleasePaths = Object.freeze([
   ['adlc', '0.3.9'],
   ['adlc', '0.3.10'],
   ['adlc', '0.3.11'],
+  ['adlc', '0.3.12'],
   ['marketing', '0.0.1'],
   ['marketing', '0.0.3'],
   ['marketing', '0.0.4'],
