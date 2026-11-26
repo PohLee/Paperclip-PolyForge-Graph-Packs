@@ -80,7 +80,7 @@ export function createAdlcHostApi({engine,resolveActor,runValidationDigest,servi
       if(plan.writesPlanned && requiresHuman && outcome!=='human-review') throw new Error('G1 human approval is required');
       if(plan.writesPlanned === (outcome==='skip')) throw new Error('Backlog route must match the planned writes');
     }
-    if(nodeId==='requirements-gate' && run.graph.version==='0.1.2' && outcome==='accept') {
+    if(nodeId==='requirements-gate' && run.graph.id==='requirements-baseline' && run.graph.version==='0.1.2' && outcome==='accept') {
       const manifest=validateApprovalManifest(latestPayload(run,'prepare-g2','approval_manifest'));
       const review=latestPayload(run,'challenge-requirements','egm_report');
       if(!review || manifest.egmReportRef!==review.id) throw new Error('G2 must reference the current EGM report');
