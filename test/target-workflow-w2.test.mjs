@@ -4,7 +4,9 @@ import adlc, { dedupeKey, effectivePriority, grillSla, routeIssue, validateIntel
 import { validateGrillRecord } from '../packs/adlc/backlog.mjs';
 import { egmConverged } from '../packs/adlc/product-review.mjs';
 import { createAdlcHostApi } from '../packs/adlc/runtime/host-api.mjs';
-import creative from '../packs/adlc-creative-team/index.mjs';
+import { canonicalDigest } from '../packs/adlc/product-method-contracts.mjs';
+import { productSeats } from '../packs/adlc/target-workflow-graphs.mjs';
+import creative, { creativeRequiredServicesByGraph } from '../packs/adlc-creative-team/index.mjs';
 import { validateCreativeArtifact } from '../packs/adlc-creative-team/contracts/validate.mjs';
 
 const find = (pack, id, version) => pack.graphs.find(graph => graph.id === id && graph.version === version);
@@ -111,4 +113,33 @@ test('WP2.5 pre-G2 starts from intent and visual behavior changes have a G2 retu
   const visual = find(creative, 'g3-visual-contract', '0.1.0');
   assert.ok(visual.edges.some(edge => edge.from === 'g3' && edge.when === 'return-to-g2'));
   assert.ok(creative.decisionRules.filter(rule => rule.type === 'g3-visual-approval').every(rule => rule.requiresHuman));
+});
+
+test('seat nodes declare the exact dispatch constraints', () => {
+  const graph = find(adlc, 'requirements-baseline', '0.1.2');
+  for (const [id, seat] of Object.entries({
+    'candidate-a': 'candidate-a', 'candidate-b': 'candidate-b', judge: 'judge',
+    'challenge-requirements': 'goldfish'
+  })) {
+    assert.deepEqual(graph.nodes.find(node => node.id === id).seat,
+      productSeats.find(declaration => declaration.name === seat));
+  }
+});
+
+test('both Creative handoffs require trusted decision evidence', () => {
+  assert.ok(Object.hasOwn(creativeRequiredServicesByGraph, 'pre-g2-interaction'));
+  assert.ok(creativeRequiredServicesByGraph['g3-visual-contract'].includes('resolveDecisionEvidence'));
+});
+
+test('visual publication requires bare SHA-256 deliverables', () => {
+  const ref = { id: 'ref', version: '1' };
+  const manifest = { ...ref, productContractRef: ref, interactionRef: ref, designBaselineRef: ref,
+    assets: [{ ...ref, digest: 'a'.repeat(64) }], tokens: [], components: [], systemScope: 'in-system' };
+  const deliverable = { key: 'design.json', digest: 'a'.repeat(64) };
+  for (const deliverables of [undefined, [], [{ ...deliverable, digest: 'sha256:' + deliverable.digest }]]) {
+    assert.equal(validateCreativeArtifact('visual_manifest', { ...manifest, deliverables }).valid, false);
+  }
+  assert.equal(validateCreativeArtifact('visual_manifest', { ...manifest, deliverables: [deliverable] }).valid, true);
+  assert.equal(canonicalDigest({ z: [{ b: 2, a: 1 }], a: 3 }),
+    canonicalDigest({ a: 3, z: [{ a: 1, b: 2 }] }));
 });

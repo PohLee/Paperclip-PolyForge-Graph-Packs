@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 import { readFile, realpath, readdir } from 'node:fs/promises';
 import path from 'node:path';
-import { graphs, productDesignGraphs } from '../graphs/catalog.mjs';
+import { graphs, productDesignGraphs, adlcHandoffGraphs } from '../graphs/catalog.mjs';
 import { brandGraphs } from '../graphs/brand-catalog.mjs';
 import { compositionGraphs } from '../graphs/composition-catalog.mjs';
 import { inspectLogoSvg } from '../adapters/brand-tools/svg.mjs';
@@ -26,9 +26,10 @@ function getGraph(packId,graphId) { return packId==='creative-team'?[...graphs,.
 function requestedCount(run) { return run.input.creative_brief?.requestedCount??run.input.requestedCount; }
 function asRefs(candidates) { return candidates.map(c=>({id:c.id,version:c.version})); }
 
-const graphIds=[...graphs,...productDesignGraphs,...brandGraphs,...compositionGraphs].map(item=>item.id);
-const decisionGraphIds=new Set([...graphs,...productDesignGraphs,...brandGraphs,...compositionGraphs].filter(item=>item.nodes.some(node=>node.type==='decision')).map(item=>item.id));
-const serviceRequirements=Object.fromEntries(graphIds.map(id=>[id,new Set()]));
+const allGraphs=[...graphs,...productDesignGraphs,...brandGraphs,...compositionGraphs,...adlcHandoffGraphs];
+const graphIds=new Set(allGraphs.map(item=>item.id));
+const decisionGraphIds=new Set(allGraphs.filter(item=>item.nodes.some(node=>node.type==='decision')).map(item=>item.id));
+const serviceRequirements=Object.fromEntries([...graphIds].map(id=>[id,new Set()]));
 const requireServices=(ids,...names)=>{ for(const id of ids) for(const name of names) serviceRequirements[id]?.add(name); };
 requireServices([...decisionGraphIds],'resolveDecisionEvidence');
 requireServices(['concept-sprint'],'artifactRootForRun','hasImageProvider','decodeImage');
@@ -201,7 +202,7 @@ export function createCreativeHostApi({engine,artifactRootForRun,hasImageProvide
     if(nodeId==='g3' && ['approve','return-to-g2'].includes(outcome)) {
       const manifest=latestPayload(run,'prepare-visual-manifest','visual_manifest');
       const audit=latestPayload(run,'design-audit','visual_audit');
-      if(!manifest || !audit || !sameRef(audit.manifestRef,manifest)) throw new Error('G3 requires an audit of the exact visual manifest');
+      if(!manifest || !audit || !sameRef(audit.manifestRef,manifest) || audit.manifestDigest!==digest(stableJson(manifest))) throw new Error('G3 requires an audit of the exact visual manifest');
       if(audit.behaviorChanged !== (outcome==='return-to-g2')) throw new Error('Behavior changes must return to G2');
     }
     if(nodeId==='naming-disposition'&&outcome==='shortlist') {

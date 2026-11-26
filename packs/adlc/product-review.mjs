@@ -1,4 +1,9 @@
+import { validateSha256Digest } from './product-method-contracts.mjs';
+
 export function validateEgmReport(report) {
+  if (Array.isArray(report?.deliverables)) {
+    for (const row of report.deliverables) validateSha256Digest(row?.digest);
+  }
   if (!['small', 'large'].includes(report.scope) || !Array.isArray(report.rounds) || !report.rounds.length) {
     throw new Error('EGM report needs scope and at least one round');
   }
