@@ -144,3 +144,7 @@ Pin `technical-design@0.1.1` for G-T1, `implementation@0.1.8` for G-T2, `verific
 G-T3 verification takes `pr_head` with `repository`, `pullNumber` and `headSha`, and `verification_scope` with approved `expectedScenarios` and execution `dimensions`. The host calls the project verification entry for that SHA. The human exception records the owner's disposition of unverified gaps and returns for verification. G5 requires a human owner and a passing manifest. Start a fresh verification run whenever the head changes.
 
 Use the ADLC host API for the W3 Graph versions. Its `inspectImplementationPull` service supplies the fresh `headSha`, `upToDate`, `checksPassed`, `currentPins`, `prPins`, `changedFiles`, `majorDependencyBump` and `neverAutoMerge` from trusted project and PR sources. The host resolves the immutable manifest revision in each publication request, invokes the corresponding Core merge action and passes the G5 request to code delivery to prove the observed merge. The W3 seat declarations describe vendor constraints for implementation EGM and advisory council. The host resolves seats and fallback profiles.
+
+An owner-accepted verification exception ends the verification run with
+`verification_exception_accepted`. The bot still requires verified evidence to
+merge a PR. The owner merges an unverified PR outside the bot.

@@ -108,7 +108,7 @@ const verify = graph(verification, '0.1.8', 'modernize', ['pr_head', 'verificati
   task('verify-head', 'qa-engineer', 'Execute the project verification entry for the exact head. Cover approved BDD and defect acceptance IDs across configured dimensions. Record actual checkout SHA, environment, result and evidence. Attach before/after evidence for frontend changes. Record not-run when entry is unavailable.', ['verification_manifest'], ['pr_head', 'verification_scope']),
   gate('acceptance-gate', 'cpo', ['accept', 'rework', 'exception'], 'verify-head', 'verification_manifest', 'pr-verification-acceptance'),
   gate('verification-exception', 'cpo', ['accept', 'hold'], 'verify-head', 'verification_manifest', 'pr-verification-exception'),
-  end('verification-held'),
+  end('verification-exception-accepted'), end('verification-held'),
   task('prepare-g5', 'principal-engineer', 'Report caller impact, migration and coexistence, reversibility and blast radius. Record the model risk assessment. Bind the PR head, contract_pins and verification manifest. Submit modelRisk as low, medium or high. Check checks, current main and current contract pins.', ['merge_context', 'merge_pr_head'], ['verification_manifest', 'pr_head']),
   { ...gate('g5', 'cto-caio', ['accept', 'hold'], 'prepare-g5', 'merge_context', 'implementation-merge-approval'),
     candidateNodes: ['prepare-g5', 'verify-head'], candidateKinds: ['merge_pr_head', 'verification_manifest'] },
@@ -120,7 +120,7 @@ const verify = graph(verification, '0.1.8', 'modernize', ['pr_head', 'verificati
   ['review-head', 'review-route'], ['review-route', 'verify-head', 'pass'], ['review-route', 'review-escalation', 'escalate'],
   ['verify-head', 'acceptance-gate'], ['acceptance-gate', 'prepare-g5', 'accept'],
   ['acceptance-gate', 'pr-rework', 'rework'], ['acceptance-gate', 'verification-exception', 'exception'],
-  ['verification-exception', 'pr-rework', 'accept'], ['verification-exception', 'verification-held', 'hold'],
+  ['verification-exception', 'verification-exception-accepted', 'accept'], ['verification-exception', 'verification-held', 'hold'],
   ['prepare-g5', 'g5'], ['g5', 'request-merge', 'accept'], ['g5', 'verification-held', 'hold'],
   ['request-merge', 'implementation-merge-requested']
 ], 'G-T3 evidence-based PR assurance, QA, and G5 merge authority.');

@@ -146,3 +146,11 @@ test('versionless starts validate the first Graph while explicit versions stay p
   await assert.rejects(api.startRun({ ...args, graphId: legacy.id, graphVersion: technicalVersions[legacy.id] }), /contract_pins/);
   await assert.rejects(api.startRun({ ...args, graphId: legacy.id, graphVersion: 'unknown' }), /Graph not found/);
 });
+
+test('an accepted verification exception ends with a distinct owner exception output', () => {
+  const verification = graph('verification');
+  const route = verification.edges.find(edge => edge.from === 'verification-exception' && edge.when === 'accept');
+  assert.deepEqual(verification.nodes.find(candidate => candidate.id === route.to), {
+    id: 'verification-exception-accepted', type: 'end', output: 'verification_exception_accepted'
+  });
+});
