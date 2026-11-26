@@ -136,10 +136,13 @@ test('visual publication requires bare SHA-256 deliverables', () => {
   const manifest = { ...ref, productContractRef: ref, interactionRef: ref, designBaselineRef: ref,
     assets: [{ ...ref, digest: 'a'.repeat(64) }], tokens: [], components: [], systemScope: 'in-system' };
   const deliverable = { key: 'design.json', digest: 'a'.repeat(64) };
-  for (const deliverables of [undefined, [], [{ ...deliverable, digest: 'sha256:' + deliverable.digest }]]) {
+  for (const deliverables of [undefined, [], [{ ...deliverable, digest: 'sha256:' + deliverable.digest }], [{ ...deliverable, digest: [deliverable.digest] }]]) {
     assert.equal(validateCreativeArtifact('visual_manifest', { ...manifest, deliverables }).valid, false);
   }
   assert.equal(validateCreativeArtifact('visual_manifest', { ...manifest, deliverables: [deliverable] }).valid, true);
+  assert.equal(validateCreativeArtifact('visual_manifest', {
+    ...manifest, deliverables: [deliverable], assets: [{ ...ref, digest: [deliverable.digest] }],
+  }).valid, false);
   assert.equal(canonicalDigest({ z: [{ b: 2, a: 1 }], a: 3 }),
     canonicalDigest({ a: 3, z: [{ a: 1, b: 2 }] }));
 });
