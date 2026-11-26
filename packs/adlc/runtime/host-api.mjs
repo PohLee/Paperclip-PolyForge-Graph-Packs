@@ -1,3 +1,4 @@
+import { pack } from '../index.mjs';
 import {
   validateRequestBrief, validateEvidenceLedger, validateExperimentRecord, validateExperimentRoute,
   validateRequirementsHandoff, validateCompetitiveDiff, validateCompetitiveRoute, validateInvestmentCase,
@@ -312,7 +313,10 @@ export function createAdlcHostApi({engine,resolveActor,runValidationDigest,servi
       if(args.packId!=='adlc') throw new Error('ADLC packId is required');
       const actor=await trustedActor(args.actor,{operation:'startRun',graphId:args.graphId});
       const { admission: _callerAdmission, ...request } = args;
-      if (args.graphVersion && technicalVersions[args.graphId] === args.graphVersion) {
+      const graph = pack.graphs.find(item => item.id === args.graphId &&
+        (args.graphVersion === undefined || item.version === args.graphVersion));
+      if (!graph) throw new Error('Graph not found in pinned Pack');
+      if (technicalRun({ graph })) {
         validateTechnicalInputs(args.graphId, args.input);
         if (args.graphId === 'implementation') {
           const receipt = args.input.contract_merge_receipt;

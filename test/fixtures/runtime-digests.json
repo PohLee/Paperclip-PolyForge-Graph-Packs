@@ -110,8 +110,8 @@
     "packs/adlc/backlog.mjs": "620f33f5bf6a5f77bb180b06e4e8d763f3d0623b736c2c9626b8f589d308e4dc",
     "packs/adlc/product-method-contracts.mjs": "1b723638d1f493f77204d662bd762f50dd955760df88603d12691a177bb8fa4e",
     "packs/adlc/product-review.mjs": "6add371e7d69fe7a49c93d3953d944a4961564bd0daf19bfdbfb08715c06131c",
-    "packs/adlc/runtime/host-api.mjs": "516c2982a81f5f7df5f65db8a32aac6193a49d103043ce35f535cf09f6e142b6",
+    "packs/adlc/runtime/host-api.mjs": "5fe0f9aa4b272d3bdf12f5913c3f52518deb5dfe88d9b866af838268751d5ad5",
     "packs/adlc/runtime/small-change.mjs": "e9ec2b3240b0a6e58b1bf39c83b868a3c2f2b398fcb4142ad850457bb4a701b8",
-    "packs/adlc/runtime/technical-workflow.mjs": "87eb976c21b1a1a65aff70920718359848e9c532dc28f82a51ffdfa5b9cfe2fb"
+    "packs/adlc/runtime/technical-workflow.mjs": "dbca132a2878d17850529481635ae5694768a61c909d2547cc23ccc602d21f72"
   }
 }
