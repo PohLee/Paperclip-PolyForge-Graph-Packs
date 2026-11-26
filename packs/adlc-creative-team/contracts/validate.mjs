@@ -110,6 +110,8 @@ export function validateCreativeArtifact(kind, payload) {
     errors.push('suppliedDesigns must classify each versioned design as reference or must-follow');
   }
   if (kind==='visual_manifest' && (!['in-system','out-of-system'].includes(payload.systemScope) ||
+      !Array.isArray(payload.deliverables) || !payload.deliverables.length ||
+      payload.deliverables.some(row => !text(row?.key) || !/^[a-f0-9]{64}$/.test(row?.digest ?? '')) ||
       !Array.isArray(payload.assets) || payload.assets.some(asset => !ref(asset) || !/^[a-f0-9]{64}$/.test(asset.digest)))) {
     errors.push('Visual manifest needs system scope and versioned SHA-256 asset references');
   }

@@ -1,3 +1,19 @@
+import { createHash } from 'node:crypto';
+
+export function canonicalDigest(value) {
+  const json = JSON.stringify(value, (_key, item) =>
+    item && typeof item === 'object' && !Array.isArray(item)
+      ? Object.fromEntries(Object.keys(item).sort().map(key => [key, item[key]]))
+      : item);
+  return createHash('sha256').update(json).digest('hex');
+}
+
+export function validateSha256Digest(value) {
+  if (typeof value !== 'string' || !/^[a-f0-9]{64}$/.test(value)) {
+    throw new Error('Expected a lowercase SHA-256 digest');
+  }
+}
+
 // Pack-owned product-method checks. The host calls these before submitting the
 // corresponding artifacts; Core still owns Graph, decision, and artifact identity.
 const required = (value, label) => {
@@ -160,6 +176,7 @@ export function validateApprovalManifest(manifest) {
   rows(manifest.assumptions, 'assumptions');
   const keys = rows(manifest.deliverables, 'deliverables').map(row => {
     fields(row, ['key', 'revisionId', 'digest']);
+    validateSha256Digest(row.digest);
     return row.key;
   });
   unique(keys, 'deliverable keys');
@@ -179,9 +196,11 @@ function repositoryPath(path) {
 export function validateContractLock(lock) {
   fields(lock, ['contractId', 'epic', 'backlogItemRef']);
   fields(lock.approvalManifest, ['id', 'revisionId', 'digest']);
+  validateSha256Digest(lock.approvalManifest.digest);
   validateSupersedes(lock.supersedes);
   const paths = rows(lock.files, 'files').map(file => {
     fields(file, ['path', 'digest']);
+    validateSha256Digest(file.digest);
     choice(file.section, contractSections, 'section');
     if (!repositoryPath(file.path) || !file.path.startsWith(file.section + '/')) {
       throw new Error('Invalid section path: ' + file.path);
