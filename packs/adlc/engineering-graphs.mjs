@@ -15,7 +15,7 @@ const smallChangePilot = {
   id: 'small-change', version: '0.2.1', start: 'verify-scope',
   description: 'Isolated pilot with trusted scope admission, committed diff verification and standard-flow fallback.',
   compatibility: { requiredCapabilities: { 'adlc-small-change-pilot': '^1.0.0' } },
-  hostAdmission: { standardGraphId: 'implementation', reviewedNodeId: 'change-and-check' },
+  hostAdmission: { standardGraphId: 'implementation', reviewedNodeId: 'change-and-check', admissionOnlyInputs: ['pilot_scope'] },
   requiredRunInputs: ['final_design_identity', 'architecture_context'],
   deliveryContract: { goalInput: 'versioned_requirement', acceptanceInput: 'acceptance_criteria' },
   nodes: [
