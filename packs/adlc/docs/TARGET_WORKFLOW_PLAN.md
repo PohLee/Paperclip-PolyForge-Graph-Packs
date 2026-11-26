@@ -17,7 +17,7 @@
 | W1 | P0 Pack 侧 | 契约校验器、契约目录规范与模板、配置与席位声明格式、文档、测试 | **可以，现在执行** |
 | W0 | P0 人工 / 实测 | GitHub 组织与 App、MCP 挂载、运行时实测 | 需 owner |
 | W2 | P1 | 产品链路 Graph、backlog skill、Creative 交接、最小契约合并动作、固定席位 | Pack delivered. Core live work pending. |
-| W3 | P2 | 技术链路 Graph、契约失效检查、动态席位与 fallback | 等 W2 |
+| W3 | P2 | 技术链路 Graph、契约失效检查、动态席位与 fallback | Pack delivered in ADLC 0.3.15. Core live integration pending. |
 | W4 | P3–P4 | 确定性风险规则、assisted / full-auto、G-T5 支线 | 等 W3 基线指标 |
 
 ---
@@ -103,7 +103,7 @@ WP2.1 through WP2.5 are included in ADLC 0.3.14 and Creative Team 0.3.4. The hos
 | WP2.7 | Core | `request_confirmation` 与 Core 人工 gate 对接（按 WP0.6 结果） |
 | WP2.8 | Core | 固定席位绑定（arena / EGM 用），按 WP0.4 结果实现 |
 
-## W3 · P2 技术链路（等 W2）
+## W3 · P2 技术链路
 
 | WP | 仓库 | 内容 |
 | --- | --- | --- |
@@ -113,6 +113,8 @@ WP2.1 through WP2.5 are included in ADLC 0.3.14 and Creative Team 0.3.4. The hos
 | WP3.4 | Packs | G-T4：bug 快线（triage 状态机、红测、无 BDD ID 时的 defect 验收 ID） |
 | WP3.5 | Core | 契约失效检查：新版产品契约合入时暂停受影响工单、阻止旧 PR 合并；owner 紧急冻结 |
 | WP3.6 | Core | 动态席位解析与 fallback（仅基础设施错误切换、每次重查厂商约束、等待截止时间） |
+
+WP3.1 through WP3.4 ship in ADLC 0.3.15 under explicit Graph version pins. Core delivers the technical merge event, resolves the immutable G4 and G5 manifests, and executes the authorized merges. The host supplies current PR evidence and the project verification entry. WP3.5 and WP3.6 are Core work.
 
 ## W4 · P3–P4（等 W3 基线指标）
 
