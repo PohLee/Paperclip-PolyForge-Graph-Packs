@@ -17,7 +17,8 @@ test('W3 versions declare contract pins and preserve legacy pins', () => {
   for (const id of Object.keys(technicalVersions)) {
     assert.ok(graph(id).requiredRunInputs.includes('contract_pins'));
     assert.ok(graph(id).nodes.filter(n => n.type === 'task').every(n => n.requiredInputs.includes('contract_pins')));
-    if (id !== 'bug-fast-lane') assert.equal(pack.graphs.filter(g => g.id === id).length, 2);
+    if (id !== 'bug-fast-lane') assert.equal(pack.graphs.filter(g => g.id === id).length,
+      ['technical-design', 'verification'].includes(id) ? 3 : 2);
   }
 });
 

@@ -131,7 +131,7 @@ test('each graph has a valid terminal artifact contract fixture',()=>{
     'brand-rollout-plan':['brand_rollout_review',{id:'rollout-review',version:'1',rolloutRef:ref('rollout','brand_rollout_plan'),measurementRef:ref('measure','brand_measurement_plan'),disposition:'accepted',findings:[],reviewerExecutionId:'review-exec'}],
     'brand-foundation-contract':['brand_foundation_package',{id:'foundation',version:'1',strategyRef:ref('strategy','brand_strategy'),identityRef:ref('identity','brand_identity_system'),voiceRef:ref('voice','brand_voice_system'),evidenceRefs:[ref('evidence','brand_evidence_ledger')],reviewRef:ref('review','brand_foundation_review'),acceptanceDecisionRef:ref('decision','decision')}],
   };
-  assert.deepEqual(Object.keys(fixtures).sort(),pack.graphs.filter(graph=>graph.id!=='brand-foundation-composed').map(graph=>graph.id).sort());
+  assert.deepEqual(Object.keys(fixtures).sort(),[...new Set(pack.graphs.filter(graph=>graph.id!=='brand-foundation-composed').map(graph=>graph.id))].sort());
   for(const [graphId,[kind,payload]] of Object.entries(fixtures)) {
     const result=validateCreativeArtifact(kind,payload);
     assert.equal(result.valid,true,`${graphId}: ${result.errors.join('; ')}`);

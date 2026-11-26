@@ -29,6 +29,17 @@ export const adlcHandoffGraphs = [
     edge('g3', 'visual-approved', 'approve'), edge('g3', 'behavior-changed', 'return-to-g2'), edge('g3', 'visual-held', 'hold')])
 ];
 
+export const automatedVisualVersion = '0.1.1';
+adlcHandoffGraphs.push({
+  ...adlcHandoffGraphs[1],
+  version: automatedVisualVersion,
+  nodes: adlcHandoffGraphs[1].nodes.map(node => node.id === 'g3'
+    ? { ...node, purpose: 'The design director can approve an exact clean in-system audit with unchanged behavior in assisted or enabled full-auto mode. Send other decisions to the owner.' }
+    : node.id === 'prepare-visual-manifest'
+      ? { ...node, purpose: node.purpose + ' Set behaviorChanged explicitly based on that comparison.' }
+      : node)
+});
+
 export const graphs = [
   graph('creative-intake', 'read-context', [
     task('read-context','design-ops-producer','Inventory the request and available product, brand, design, research, and technical context.',{produces:['context_inventory']}),

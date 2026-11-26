@@ -1,5 +1,5 @@
 import {
-  judgeVerificationManifest, validateCompletionLedger, validateReturnRequest,
+  assessDeterministicRisk, judgeVerificationManifest, validateCompletionLedger, validateReturnRequest,
   validateReviewFindings, validateVerificationManifest
 } from '../product-method-contracts.mjs';
 
@@ -82,7 +82,48 @@ const outcomeRecord = outcomes => payload => {
   return payload;
 };
 
+export const correctLadder = Object.freeze(['architecture', 'types', 'lint', 'tests', 'docs-and-agent-rules']);
+export const governanceScopes = Object.freeze(['graph', 'role', 'model-routing']);
+const nonemptyList = values => Array.isArray(values) && values.length > 0 && values.every(nonempty);
+
 export const technicalValidators = {
+  tech_debt_items: payload => {
+    assert(Array.isArray(payload?.items) && payload.items.every(item =>
+      item?.type === 'tech-debt' && nonempty(item.id) && nonempty(item.title) && nonempty(item.sourceEventId)) &&
+      new Set(payload.items.map(item => item.sourceEventId)).size === payload.items.length,
+    'Expected deduplicated tech-debt backlog Items');
+    return payload;
+  },
+  architecture_authorization: payload => {
+    assert(nonempty(payload?.itemId) && nonemptyList(payload.invariantIds) &&
+      payload.invariantIds.every(id => /^INV-/.test(id)) && nonemptyList(payload.regressionStandards) &&
+      Number.isSafeInteger(payload.priority) && payload.priority > 0 &&
+      Number.isFinite(payload.capacityShare) && payload.capacityShare > 0 && payload.capacityShare <= 1,
+    'Architecture authorization requires CTO priority, capacity, invariant IDs and regression standards');
+    return payload;
+  },
+  retro_evidence: payload => payload,
+  retro_attribution: payload => {
+    assert(nonempty(payload?.modelProfileId) && nonemptyList(payload.evidenceRefs) && nonempty(payload.attribution),
+      'Attribution requires a model profile, evidence references and causes');
+    return payload;
+  },
+  retro_report: payload => {
+    assert(nonempty(payload?.summary) && Array.isArray(payload.corrections) &&
+      payload.corrections.every(item => nonempty(item?.id) &&
+        ['ordinary', ...governanceScopes].includes(item.scope) && correctLadder.includes(item.ladder) &&
+        nonempty(item.proposal)) &&
+      new Set(payload.corrections.map(item => item.id)).size === payload.corrections.length,
+    'Retro report requires uniquely identified, scoped corrections');
+    return payload;
+  },
+  correction_pr: payload => {
+    assert(nonempty(payload?.repository) && Number.isSafeInteger(payload.pullNumber) && payload.pullNumber > 0 &&
+      sha(payload.headSha) && Array.isArray(payload.checks) && payload.checks.every(check =>
+        nonempty(check?.correctionId) && nonempty(check.historicalErrorRef) && nonempty(check.failureEvidenceRef)),
+    'Correction PR requires an exact head and historical failure proof for each new check');
+    return payload;
+  },
   prd_technical_review: outcomeRecord(['ready', 'clarify']),
   spike_conclusion: outcomeRecord(['pass', 'pe', 'product']),
   bug_triage: payload => {
@@ -108,7 +149,7 @@ export const technicalValidators = {
     assert(Array.isArray(payload.specs) && payload.specs.length > 0, 'Technical specs required');
     payload.specs.forEach((spec, index) => {
       assert(spec.id === 'SPEC-' + String(index + 1).padStart(2, '0') &&
-        Array.isArray(spec.bddScenarioIds) && spec.bddScenarioIds.length && spec.bddScenarioIds.every(nonempty) &&
+        nonemptyList(spec.bddScenarioIds) &&
         Array.isArray(spec.invariantIds) && spec.invariantIds.every(id => /^INV-/.test(id)) &&
         typeof spec.spikeNeeded === 'boolean' &&
         ['interfaceStandards', 'dataCompatibility', 'testSeams', 'tddStrategy', 'pauseConditions', 'rollback']
@@ -186,4 +227,36 @@ export function assertCurrentPull(run, snapshot) {
   assert(snapshot.upToDate === true && snapshot.checksPassed === true, 'PR must be current against main and checks must pass');
   assert(samePins(snapshot.currentPins, run.input.contract_pins) && samePins(snapshot.prPins, run.input.contract_pins),
     'PR contract pins must match current contracts');
+}
+
+export function assessW4ImplementationRisk(modelRisk, snapshot, project = {}) {
+  assert(riskLevels.includes(modelRisk), 'Invalid model risk assessment');
+  const { floor, neverAutoMerge } = assessDeterministicRisk({
+    ...snapshot,
+    ciPaths: snapshot.ciPaths ?? project.ciPaths,
+    riskRules: project.riskRules
+  });
+  return {
+    riskLevel: riskLevels[Math.max(riskLevels.indexOf(modelRisk), riskLevels.indexOf(floor))],
+    neverAutoMerge
+  };
+}
+
+export function automationMode(mode, project = {}) {
+  const requested = mode ?? project.automationMode ?? 'manual';
+  if (requested === 'assisted') return 'assisted';
+  if (['autonomous', 'full-auto'].includes(requested) && project.allowFullAuto === true) return 'autonomous';
+  return 'manual';
+}
+
+export function canAgentApproveMerge(actor, mode, context) {
+  return actor.kind === 'agent' && actor.roles.includes('cto-caio') &&
+    nonempty(context.authorAgentId) && actor.id !== context.authorAgentId &&
+    context.evidenceComplete === true && context.neverAutoMerge.length === 0 &&
+    (mode === 'autonomous' || (mode === 'assisted' && context.riskLevel === 'low'));
+}
+
+export function mergeEvidenceComplete(manifest, reviews, headSha) {
+  return Boolean(manifest?.checkoutSha === headSha && reviews?.headSha === headSha &&
+    judgeVerificationManifest(manifest).status === 'pass' && reviewPasses(reviews));
 }

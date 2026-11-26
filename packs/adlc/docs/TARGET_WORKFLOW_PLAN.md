@@ -18,7 +18,7 @@
 | W0 | P0 人工 / 实测 | GitHub 组织与 App、MCP 挂载、运行时实测 | 需 owner |
 | W2 | P1 | 产品链路 Graph、backlog skill、Creative 交接、最小契约合并动作、固定席位 | Pack delivered. Core live work pending. |
 | W3 | P2 | 技术链路 Graph、契约失效检查、动态席位与 fallback | Pack delivered in ADLC 0.3.15. Core live integration pending. |
-| W4 | P3–P4 | 确定性风险规则、assisted / full-auto、G-T5 支线 | 等 W3 基线指标 |
+| W4 | P3–P4 | 确定性风险规则、assisted / full-auto、G-T5 支线 | Pack 已实现。开放前需建立基线指标 |
 
 ---
 
@@ -116,7 +116,7 @@ WP2.1 through WP2.5 are included in ADLC 0.3.14 and Creative Team 0.3.4. The hos
 
 WP3.1 through WP3.4 ship in ADLC 0.3.15 under explicit Graph version pins. Core delivers the technical merge event, resolves the immutable G4 and G5 manifests, and executes the authorized merges. The host supplies current PR evidence and the project verification entry. WP3.5 and WP3.6 are Core work.
 
-## W4 · P3–P4（等 W3 基线指标）
+## W4 · P3–P4
 
 | WP | 内容 |
 | --- | --- |
@@ -125,3 +125,5 @@ WP3.1 through WP3.4 ship in ADLC 0.3.15 under explicit Graph version pins. Core 
 | WP4.3 | 评估一段时间后开放 full-auto |
 
 每个波次开始前先给一项指标建立基线（gate 等待时间、rework 率、首次 CI 通过率、自动合并后的 revert 率），一次只加一个自动触发器。
+
+WP4.1 ships with ADLC 0.3.16 and Creative Team 0.3.5. Pin verification 0.1.9 for mode-aware G5 and g3-visual-contract 0.1.1 for mode-aware G3. WP4.2 adds the manually started architecture-improvement and retro-correct graphs and a CTO-authorized technical-design 0.1.2 entry. WP4.3 exports the metric definitions and project settings. The rollout still requires a measured baseline and explicit project opt-in for full-auto.

@@ -152,14 +152,90 @@ const bug = graph({ id: 'bug-fast-lane' }, '0.1.0', 'triage-bug', ['issue'], [
   ['defect-red-check', 'fix-defect'], ['fix-defect', 'integrate-candidate'], ...implementationTail
 ], 'G-T4 issue triage, red-first bug fix and PR handoff to G-T3.');
 
-export const targetTechnicalGraphs = [technicalDesign, build, verify, observe, bug];
+export const automatedVerificationVersion = '0.1.9';
+const automatedVerify = {
+  ...verify, version: automatedVerificationVersion,
+  nodes: verify.nodes.map(node => ({
+    ...node,
+    ...(node.id === 'prepare-g5' && { purpose: node.purpose +
+      ' The trusted host derives the deterministic risk floor, PR author identity and evidence completeness.' }),
+    ...(node.id === 'g5' && { purpose: 'Approve only with exact head and manifest evidence. Route to the owner when the run mode, risk, author independence or evidence prevents agent approval.' }),
+    ...(node.id === 'request-merge' && { purpose: node.purpose +
+      ' Include authorAgentId and evidenceComplete from the prepared merge context.' })
+  }))
+};
+
+const improvement = {
+  id: 'architecture-improvement', version: '0.1.0', start: 'select-candidates',
+  description: 'G-T5a manual architecture improvement and CTO backlog prioritization.',
+  requiredRunInputs: ['architecture_context'],
+  nodes: [
+    task('select-candidates', 'principal-engineer', 'Run improve-codebase-architecture. Select actionable candidates and emit backlog-github-projects Items with type tech-debt and stable sourceEventId values.', ['tech_debt_items'], ['architecture_context']),
+    task('prioritize-tech-debt', 'cto', 'Rank the selected Items through the backlog skill. Plan around 20% of delivery capacity. Cite affected invariant IDs and regression standards for the authorized item.', ['architecture_authorization'], ['tech_debt_items']),
+    gate('authorize-tech-debt', 'cto', ['accept', 'hold'], 'prioritize-tech-debt', 'architecture_authorization', 'architecture-improvement-authorization'),
+    end('architecture-work-authorized', 'architecture_authorization'), end('architecture-work-held')
+  ],
+  edges: [
+    { from: 'select-candidates', to: 'prioritize-tech-debt' },
+    { from: 'prioritize-tech-debt', to: 'authorize-tech-debt' },
+    { from: 'authorize-tech-debt', to: 'architecture-work-authorized', when: 'accept' },
+    { from: 'authorize-tech-debt', to: 'architecture-work-held', when: 'hold' }
+  ]
+};
+
+export const architectureDesignVersion = '0.1.2';
+const architectureDesign = {
+  ...technicalDesign, version: architectureDesignVersion, start: 'draft-technical-design',
+  description: 'G-T1 technical design entered through CTO architecture improvement authorization.',
+  requiredRunInputs: ['contract_pins', 'architecture_authorization'],
+  nodes: technicalDesign.nodes.filter(node => !['review-prd', 'prd-route', 'clarification-request'].includes(node.id) &&
+    !node.id.startsWith('clarification')).map(node => node.id === 'draft-technical-design'
+      ? { ...node, requiredInputs: [...node.requiredInputs, 'architecture_authorization'],
+        purpose: 'Draft SPEC-01..N using the CTO-authorized invariant IDs and regression standards as acceptance IDs. Describe interfaces, data compatibility, test seams, TDD, pause conditions, rollback and spike need.' }
+      : node),
+  edges: technicalDesign.edges.filter(edge => !['review-prd', 'prd-route', 'clarification-request'].includes(edge.from) &&
+    !edge.from.startsWith('clarification'))
+};
+
+export const retrospectiveSources = ['run_logs', 'decision_records', 'review_findings', 'reverts', 'bugs', 'human_intervention_ledger'];
+const retrospective = {
+  id: 'retro-correct', version: '0.1.0', start: 'pin-retro-evidence',
+  description: 'G-T5b manual retrospective, independent attribution and correction PR.',
+  requiredRunInputs: retrospectiveSources,
+  nodes: [
+    task('pin-retro-evidence', 'principal-engineer', 'Freeze the run logs, Decision Records, review findings, reverts, bugs and human-intervention ledger.', ['retro_evidence'], retrospectiveSources),
+    task('attribute-a', 'principal-engineer', 'Independently attribute causes in a fresh model session. Cite frozen historical evidence and copy the authenticated model profile ID.', ['retro_attribution'], ['retro_evidence'], { freshContextRequired: true }),
+    task('attribute-b', 'principal-engineer', 'Independently attribute causes in a fresh session with a different configured model. Read only frozen evidence. Cite historical evidence and copy the authenticated model profile ID.', ['retro_attribution'], ['retro_evidence'], { freshContextRequired: true, independentOf: ['attribute-a'] }),
+    task('write-retro-report', 'principal-engineer', 'Synthesize both attributions. Classify corrections and include the real historical error each proposed check would catch. Route Graph, role and model routing suggestions to the owner only.', ['retro_report'], ['retro_attribution']),
+    gate('retro-route', 'principal-engineer', ['correct', 'owner', 'close'], 'write-retro-report', 'retro_report'),
+    gate('retro-governance', 'cto-caio', ['acknowledge', 'acknowledge-and-correct', 'decline'], 'write-retro-report', 'retro_report', 'retro-governance-approval'),
+    task('open-correction-pr', 'principal-engineer', 'Apply ordinary fixes at the highest effective step: architecture > types > lint > tests > docs and agent rules. Run a historical error against every new check. Open a normal PR for G-T3. Keep Graph, role and model routing proposals out of the agent change set.', ['correction_pr'], ['retro_report']),
+    end('correction-pr-opened', 'correction_pr'), end('retro-closed'), end('governance-referred'), end('governance-declined')
+  ],
+  edges: [
+    ['pin-retro-evidence', 'attribute-a'], ['attribute-a', 'attribute-b'], ['attribute-b', 'write-retro-report'],
+    ['write-retro-report', 'retro-route'], ['retro-route', 'open-correction-pr', 'correct'],
+    ['retro-route', 'retro-governance', 'owner'], ['retro-route', 'retro-closed', 'close'],
+    ['retro-governance', 'governance-referred', 'acknowledge'],
+    ['retro-governance', 'open-correction-pr', 'acknowledge-and-correct'], ['retro-governance', 'governance-declined', 'decline'],
+    ['open-correction-pr', 'correction-pr-opened']
+  ].map(([from, to, when]) => ({ from, to, ...(when && { when }) }))
+};
+
+export const targetTechnicalGraphs = [technicalDesign, build, verify, observe, bug, automatedVerify,
+  improvement, architectureDesign, retrospective];
 export const technicalDecisionRules = Object.entries({
   'technical-routing': [['principal-engineer', 'product-owner', 'cpo'], 'routing_evidence'],
+  'architecture-improvement-authorization': [['cto'], 'architecture_authorization'],
+  'retro-governance-approval': [['human-owner'], 'retro_report'],
   'technical-contract-approval': [['cto'], 'technical_approval_manifest'],
   'pr-verification-acceptance': [['cpo'], 'verification_manifest'],
   'pr-verification-exception': [['human-owner'], 'acceptance_exception'],
   'implementation-merge-approval': [['human-owner'], 'merge_evidence']
-}).flatMap(([type, [allowedRoles, evidence]]) => ['manual', 'assisted', 'autonomous'].map(mode => ({
-  type, mode, allowedRoles, allowedKinds: [allowedRoles.includes('human-owner') ? 'human' : 'agent'],
-  requiredEvidence: [evidence], requiresHuman: allowedRoles.includes('human-owner')
-})));
+}).flatMap(([type, [allowedRoles, evidence]]) => ['manual', 'assisted', 'autonomous'].map(mode => {
+  const agentMerge = type === 'implementation-merge-approval' && mode !== 'manual';
+  const human = allowedRoles.includes('human-owner');
+  return { type, mode, allowedRoles: agentMerge ? [...allowedRoles, 'cto-caio'] : allowedRoles,
+    allowedKinds: agentMerge ? ['human', 'agent'] : [human ? 'human' : 'agent'],
+    requiredEvidence: [evidence], requiresHuman: human && !agentMerge };
+}));

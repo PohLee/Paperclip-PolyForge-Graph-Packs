@@ -413,6 +413,11 @@ const profileSettings = {
 export const adlcProjectConfigSchema = {
   $schema: 'https://json-schema.org/draft/2020-12/schema',
   ...objectSchema({
+    automationMode: { enum: ['manual', 'assisted', 'full-auto'], default: 'manual' },
+    allowFullAuto: { type: 'boolean', default: false },
+    ciPaths: { type: 'array', items: nonemptyString },
+    riskRules: { type: 'array', items: objectSchema({ id: nonemptyString, pathPattern: nonemptyString,
+      floor: { enum: ['low', 'medium', 'high'] }, neverAutoMerge: nonemptyString }, ['id', 'pathPattern', 'floor']) },
     contractsRoot: { ...nonemptyString, default: 'docs/contracts' },
     backlog: objectSchema({
       provider: { const: 'github-projects' },
@@ -443,3 +448,68 @@ export const adlcProjectConfigSchema = {
     neverAutoMerge: { type: 'object', additionalProperties: { type: 'boolean', default: true }, default: {} }
   }, [])
 };
+
+const pathBoundary = '(?:^|[/._-])';
+const pathEnd = '(?:$|[/._-])';
+const pathRule = (id, terms, extra = {}) => ({
+  id, floor: 'medium', pathPattern: pathBoundary + '(?:' + terms + ')' + pathEnd, ...extra
+});
+
+export const deterministicRiskRules = Object.freeze([
+  pathRule('migration', 'migrations?'),
+  pathRule('authentication', 'auth|authentication|authorization|oauth|sso'),
+  pathRule('payments', 'payments?|billing'),
+  pathRule('ci-config', 'ci|circleci|buildkite|jenkinsfile|azure-pipelines', {
+    ciPaths: true
+  }),
+  { id: 'github-workflows', floor: 'medium', pathPattern: '^\\.github/workflows/' },
+  { id: 'major-dependency-bump', floor: 'medium', majorDependencyBump: true },
+  { id: 'destructive-production-migration', floor: 'high', neverAutoMerge: 'destructive-production-migration',
+    pathPattern: '(?:^|[/._-])(?:migrations?)(?:[/._-].*)?[/._-](?:drop|truncate|destructive|purge|delete)(?:$|[/._-])',
+    deletedMigration: true },
+  pathRule('iam-credentials', 'iam|credentials?|secrets?|service-accounts?', { neverAutoMerge: 'iam-credentials' }),
+  pathRule('infrastructure', 'infra|infrastructure|terraform|pulumi|kubernetes|k8s|helm', { neverAutoMerge: 'infrastructure' }),
+  { id: 'terraform-file', floor: 'medium', pathPattern: '\\.tf(?:vars)?$', neverAutoMerge: 'infrastructure' }
+].map(Object.freeze));
+
+export function assessDeterministicRisk({ changes, dependencyChanges, ciPaths = [], riskRules = [] }) {
+  const normalize = path => path.replaceAll('\\', '/').replace(/^\.\//, '');
+  const paths = changes.flatMap(({ path, previousPath }) => [path, previousPath].filter(Boolean).map(normalize));
+  const ciPatterns = ciPaths.map(path => normalize(path).replace(/\/$/, '').toLowerCase());
+  const major = version => /^\s*[~^=v]*([0-9]+)(?:\.|$)/.exec(version)?.[1];
+  const bumped = dependencyChanges.some(({ from, to }) => {
+    const before = major(from), after = major(to);
+    return before !== undefined && after !== undefined && Number(after) > Number(before);
+  });
+  const migration = new RegExp(deterministicRiskRules[0].pathPattern, 'i');
+  const deletedMigration = changes.some(({ path, status }) =>
+    /^(?:removed|deleted|D)$/i.test(status) && migration.test(normalize(path)));
+  const levels = ['low', 'medium', 'high'];
+  const rules = [], categories = new Set(), ids = new Set();
+  let floor = 'low';
+  for (const rule of [...deterministicRiskRules, ...riskRules]) {
+    if (!rule.id || ids.has(rule.id) || !levels.includes(rule.floor)) throw new Error('Invalid or duplicate deterministic risk rule');
+    ids.add(rule.id);
+    const pattern = rule.pathPattern && new RegExp(rule.pathPattern, 'i');
+    const matches = (pattern && paths.some(path => pattern.test(path))) ||
+      (rule.ciPaths && paths.some(path => ciPatterns.some(prefix =>
+        path.toLowerCase() === prefix || path.toLowerCase().startsWith(prefix + '/')))) ||
+      (rule.majorDependencyBump && bumped) || (rule.deletedMigration && deletedMigration);
+    if (!matches) continue;
+    rules.push(rule.id);
+    if (rule.neverAutoMerge) categories.add(rule.neverAutoMerge);
+    if (levels.indexOf(rule.floor) > levels.indexOf(floor)) floor = rule.floor;
+  }
+  return { floor, neverAutoMerge: [...categories], rules };
+}
+
+export const metricDefinitions = Object.freeze({
+  gateWaitTime: { formula: 'Mean elapsed time from gate ready to decision, matched by gate attempt',
+    sourceEvents: ['gate.ready', 'decision.recorded'] },
+  reworkRate: { formula: 'Rework events / (rework events + node completions) in the window',
+    sourceEvents: ['rework.started', 'work.rework_requested', 'node.completed'] },
+  firstCIPassRate: { formula: 'PRs whose first recorded CI attempt passed / PRs with a first CI result in the window',
+    sourceEvents: ['implementation.ci_result'] },
+  autoMergeRevertRate: { formula: 'Auto-merges in the window reverted before its end / auto-merges in the window',
+    sourceEvents: ['implementation.merged', 'implementation.reverted'] }
+});

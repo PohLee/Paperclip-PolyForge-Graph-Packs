@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 import { readFile, realpath, readdir } from 'node:fs/promises';
 import path from 'node:path';
-import { graphs, productDesignGraphs } from '../graphs/catalog.mjs';
+import { graphs, productDesignGraphs, adlcHandoffGraphs, automatedVisualVersion } from '../graphs/catalog.mjs';
 import { brandGraphs } from '../graphs/brand-catalog.mjs';
 import { compositionGraphs } from '../graphs/composition-catalog.mjs';
 import { inspectLogoSvg } from '../adapters/brand-tools/svg.mjs';
@@ -22,7 +22,17 @@ function records(run) {
   return run.graph.nodes.flatMap(node=>(run.nodeStates[node.id]?.attempts??[]).flatMap(attempt=>(attempt.artifacts??[]).map(item=>({item,attempt,node, payload:attempt.output?.creativeArtifacts?.[item.kind]}))));
 }
 const exactRecord=(run,ref)=>createArtifactLineage(run).exactRecord(ref);
-function getGraph(packId,graphId) { return packId==='creative-team'?[...graphs,...productDesignGraphs,...brandGraphs,...compositionGraphs].find(g=>g.id===graphId):undefined; }
+function getGraph(packId,graphId,version) {
+  return packId==='creative-team'
+    ? [...graphs,...productDesignGraphs,...brandGraphs,...compositionGraphs,...adlcHandoffGraphs]
+      .find(g=>g.id===graphId&&(!version||g.version===version))
+    : undefined;
+}
+export function canAgentApproveVisual(manifest, audit) {
+  return Boolean(manifest?.systemScope==='in-system' && manifest.behaviorChanged===false && audit?.behaviorChanged===false &&
+    sameRef(audit.manifestRef,manifest) && Array.isArray(audit.findings) &&
+    audit.findings.every(finding=>['P2','P3','nit'].includes(finding?.severity)));
+}
 function requestedCount(run) { return run.input.creative_brief?.requestedCount??run.input.requestedCount; }
 function asRefs(candidates) { return candidates.map(c=>({id:c.id,version:c.version})); }
 
@@ -428,6 +438,17 @@ export function createCreativeHostApi({engine,artifactRootForRun,hasImageProvide
         const payload=enrichedPayloads[artifact.kind];
         await validateArtifact(run,artifact,payload,actor);
       }
+      if(run.graph.id==='g3-visual-contract'&&run.graph.version===automatedVisualVersion) {
+        if(nodeId==='prepare-visual-manifest'&&typeof payloads.visual_manifest.behaviorChanged!=='boolean') {
+          throw new Error('Visual manifest must declare whether observable behavior changed');
+        }
+        if(nodeId==='design-audit') {
+          const manifest=latestPayload(run,'prepare-visual-manifest','visual_manifest');
+          const audit=payloads.visual_audit;
+          if(!manifest||!sameRef(audit.manifestRef,manifest)) throw new Error('Audit must reference the exact visual manifest');
+          enrichedPayloads.visual_audit={...audit,manifestDigest:digest(Buffer.from(stableJson(manifest)))};
+        }
+      }
       if(nodeId==='review-set') {
         const review=payloads.concept_set_review;
         if(!review||!['complete','incomplete','blocked'].includes(review.disposition)) throw new Error('Concept review needs an explicit disposition');
@@ -745,10 +766,17 @@ export function createCreativeHostApi({engine,artifactRootForRun,hasImageProvide
     validateRun,
     async startRun(args) {
       const actor=await trustedActor(args.actor,{operation:'startRun',packId:args.packId,graphId:args.graphId});
-      const graph=getGraph(args.packId,args.graphId);
+      const graph=getGraph(args.packId,args.graphId,args.graphVersion);
       if(!graph) throw new Error(`Unknown creative graph: ${args.graphId}`);
       const input={...(args.input??{})};
       await validateStartInput({...args,graph,input},{actor,enrich:true});
+      if(graph.id==='g3-visual-contract'&&graph.version===automatedVisualVersion) {
+        const project=await services.getProjectConfig?.(input.projectId)??{};
+        const requested=args.mode??project.automationMode;
+        const mode=requested==='assisted'?'assisted':
+          ['autonomous','full-auto'].includes(requested)&&project.allowFullAuto===true?'autonomous':'manual';
+        return engine.startRun({...args,input,actor,mode});
+      }
       return engine.startRun({...args,input,actor});
     },
 
@@ -776,7 +804,17 @@ export function createCreativeHostApi({engine,artifactRootForRun,hasImageProvide
       actor=await trustedActor(actor,{operation:'decideNode',run,nodeId,outcome});
       const node=run.graph.nodes.find(n=>n.id===nodeId); if(!node||node.type!=='decision') throw new Error('Creative decision node not found');
       if(!(await engine.getReadyNodes(runId)).some(n=>n.id===nodeId)) throw new Error('Creative decision is not ready');
-      if(nodeId==='g3'&&(actor.kind!=='human'||!actor.roles.includes('human-owner'))) throw new Error('G3 requires an authenticated human owner');
+      if(nodeId==='g3'&&!(actor.kind==='human'&&actor.roles.includes('human-owner'))) {
+        const manifest=latestPayload(run,'prepare-visual-manifest','visual_manifest');
+        const audit=latestPayload(run,'design-audit','visual_audit');
+        const project=await services.getProjectConfig?.(run.input.projectId)??{};
+        const assisted=run.mode==='assisted'||(run.mode==='autonomous'&&project.allowFullAuto===true);
+        if(run.graph.version!==automatedVisualVersion||!assisted||actor.kind!=='agent'||
+          !actor.roles.includes('design-director')||
+          (outcome!=='human'&&(outcome!=='approve'||!canAgentApproveVisual(manifest,audit)))) {
+          throw new Error('G3 requires an authenticated human owner for this manifest');
+        }
+      }
       if(nodeId==='adopt-brand-assets'&&(actor.kind!=='human'||!actor.roles.includes('human-owner'))) throw new Error('Formal brand asset adoption requires an authenticated human owner');
       const evidence=await requireDecisionEvidence(run,nodeId,outcome);
       const expectedRunDigest=snapshotDigest(run);

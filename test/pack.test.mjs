@@ -20,10 +20,11 @@ test('published pack registers with the core validator and has the lifecycle inv
     'system-architecture', 'code-delivery', 'technical-design', 'design-drift',
     'system-architecture-workflow', 'code-delivery-workflow', 'architecture-review-composed',
     'request-triage', 'product-discovery', 'external-intel-rerank', 'requirements-baseline',
-    'technical-design', 'implementation', 'verification', 'code-delivery', 'bug-fast-lane'
+    'technical-design', 'implementation', 'verification', 'code-delivery', 'bug-fast-lane', 'verification',
+    'architecture-improvement', 'technical-design', 'retro-correct'
   ]);
   assert.equal(Object.keys(pack.roles).length, 11);
-  assert.equal(new Set(pack.graphs.map(graph => `${graph.id}@${graph.version}`)).size, 27);
+  assert.equal(new Set(pack.graphs.map(graph => `${graph.id}@${graph.version}`)).size, 31);
 });
 
 test('every Graph appears in a company dashboard run view', () => {
@@ -73,7 +74,7 @@ test('ADLC department heads report to the company CEO without changing review es
     'principal-engineer': 'cto-caio', 'lead-engineer': 'principal-engineer',
     'qa-engineer': 'cto-caio', 'security-engineer': 'cto-caio'
   };
-  assert.equal(pack.version, '0.3.15');
+  assert.equal(pack.version, '0.3.16');
   assert.deepEqual(Object.fromEntries(Object.values(pack.roles).map(role => [role.id, role.reportsToRole])), reportsTo);
   assert.deepEqual(Object.fromEntries(Object.values(pack.roles).map(role => [role.id, role.supervisorRole])), reviewEscalation);
   assert.equal(Object.values(pack.roles).filter(role => role.reportsToRole === 'ceo').length, 3);
@@ -83,7 +84,7 @@ test('ADLC department heads report to the company CEO without changing review es
     assert.match(role.documents.role, /## Artifact review\n\nDefault review escalation role:/);
     assert.match(role.documents.instruction, /organizational reporting line.*Graph node/s);
   }
-  assert.deepEqual(pack.graphs.filter(graph => graph.id !== 'small-change').map(graph => graph.version), ['0.2.1', '0.2.2', '0.1.7', '0.1.7', '0.1.0', '0.1.0', '0.1.0', '0.1.1', '0.1.0', '0.1.0', '0.1.1', '0.1.0', '0.1.0', '0.1.0', '1.0.1', '1.0.0', '1.0.1', '0.2.2', '0.2.3', '0.1.0', '0.1.2', '0.1.1', '0.1.8', '0.1.8', '0.1.1', '0.1.0']);
+  assert.deepEqual(pack.graphs.filter(graph => graph.id !== 'small-change').map(graph => graph.version), ['0.2.1', '0.2.2', '0.1.7', '0.1.7', '0.1.0', '0.1.0', '0.1.0', '0.1.1', '0.1.0', '0.1.0', '0.1.1', '0.1.0', '0.1.0', '0.1.0', '1.0.1', '1.0.0', '1.0.1', '0.2.2', '0.2.3', '0.1.0', '0.1.2', '0.1.1', '0.1.8', '0.1.8', '0.1.1', '0.1.0', '0.1.9', '0.1.0', '0.1.2', '0.1.0']);
   assert.equal(pack.policies.cpoCtoConflict.protocolVersion, 2);
 });
 
