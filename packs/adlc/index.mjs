@@ -63,7 +63,7 @@ function loadRole(spec) {
 }
 
 const roles = Object.fromEntries(roleCatalog.map(spec => [spec.id, loadRole(spec)]));
-const packVersion = '0.3.12';
+const packVersion = '0.3.13';
 const graphs = [lifecycleGraphs[0], lifecycleGraphs[1], ...engineeringGraphs, ...lifecycleGraphs.slice(2), ...architectureDeliveryGraphs, ...designAssuranceGraphs, ...createWorkflowCompositionGraphs(packVersion)];
 const operatingPolicies = readText(resolve(root, 'OPERATING_POLICIES.md'));
 const evidenceContracts = readText(resolve(root, 'docs/EVIDENCE_CONTRACTS.md'));
@@ -212,5 +212,9 @@ pack.release = { digest: `sha256:${digest(JSON.stringify(pack))}`, builtAt: '202
 export default pack;
 export {
   validateRequestBrief, validateEvidenceLedger, validateExperimentRecord, validateExperimentRoute,
-  validateRequirementsHandoff, validateCompetitiveDiff, validateCompetitiveRoute, validateInvestmentCase
+  validateRequirementsHandoff, validateCompetitiveDiff, validateCompetitiveRoute, validateInvestmentCase,
+  validateApprovalManifest, validateContractLock, validateContractIndexEntry, validateCompletionLedger,
+  validateReviewFindings, validateVerificationManifest, judgeVerificationManifest, validateReturnRequest,
+  contractPathFence, checkContractPathFence, adlcProjectConfigSchema, validateSeatDeclaration,
+  resolveSeatOrder, checkSeatConstraints
 } from './product-method-contracts.mjs';

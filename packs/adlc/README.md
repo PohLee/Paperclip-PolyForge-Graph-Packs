@@ -2,7 +2,7 @@
 
 Versioned Agentic Development Life Cycle domain pack for the separate [PolyForge Graph core](../../../Paperclip-PolyForge-Graph). Import `pack` from `index.mjs`, register it with `GraphEngine.registerPack(pack)`, and bind its role IDs to real Paperclip agents or authenticated human operations in the host. The pack contains no agent UUIDs or installed-tool claims.
 
-The current source is `adlc@0.3.12` and targets Core `>=0.8.5 <0.9.0` with `workflow-composition@^1.0.0`. UI and interaction design workflows belong to the Creative Team Pack. Every artifact-producing task requires an attempt-bound work Decision Record. Implementation and verification pin `versioned_requirement` and `acceptance_criteria` as their delivery contract; verification also pins a versioned `verification_plan`. See [evidence contracts and input examples](docs/EVIDENCE_CONTRACTS.md), [Product Manager Skills adaptation](docs/PRODUCT_MANAGER_SKILLS_ADAPTATION.md), [method/agent mapping](docs/FACTORY_BLUEPRINT_ADAPTATION.md), [MCode adaptation](docs/MCODE_STACK_ADAPTATION.md), [Matt/pstack adaptation](docs/MATT_PSTACK_ADAPTATION.md), and [Elephant Goldfish research](docs/ELEPHANT_GOLDFISH_RESEARCH.md).
+The current source is `adlc@0.3.13` and targets Core `>=0.8.5 <0.9.0` with `workflow-composition@^1.0.0`. UI and interaction design workflows belong to the Creative Team Pack. Every artifact-producing task requires an attempt-bound work Decision Record. Implementation and verification pin `versioned_requirement` and `acceptance_criteria` as their delivery contract; verification also pins a versioned `verification_plan`. See [evidence contracts and input examples](docs/EVIDENCE_CONTRACTS.md), [Product Manager Skills adaptation](docs/PRODUCT_MANAGER_SKILLS_ADAPTATION.md), [method/agent mapping](docs/FACTORY_BLUEPRINT_ADAPTATION.md), [MCode adaptation](docs/MCODE_STACK_ADAPTATION.md), [Matt/pstack adaptation](docs/MATT_PSTACK_ADAPTATION.md), and [Elephant Goldfish research](docs/ELEPHANT_GOLDFISH_RESEARCH.md).
 
 Version 0.3.12 changes no Graph route or review. It lists every Graph in a company dashboard view, documents targeted node retry, and corrects the delivery clock and Graph inventory statements in the [operating policies](OPERATING_POLICIES.md). Excluding human waits from the delivery clock is Core behavior and needs a Core build with that fix. `small-change@0.2.1` now declares `pilot_scope` as an admission-only input, which Core drops when it routes to the standard flow.
 
@@ -112,6 +112,16 @@ These are adaptations of the named methods, not bundled copies or claims that th
 Every artifact-producing task records a sourced work choice in the current attempt and submits its ID in `decisionIds`. The core checks actor, execution, attempt, and active product decision references. CPO/CTO conflict protocol v2 requires independent positions and a documented negotiation before human resolution. Named external design, developer-subagent, and security methods are conditional on actual host installation and permission.
 
 Every required evidence item is identified by `kind`. Gate evidence must also reference the exact current candidate artifacts with `subjectRefs`. A `review-disposition` submission includes `artifact_version`, `review_findings`, and `self_review_history`, each covering every current candidate via `{ artifactId, version }`. See the [review handoff example](skills/review-handoff.md#supervisor-decision). The host records a decision before following its route. It should link product decisions, history and artifact versions to each change. See [operating policies](OPERATING_POLICIES.md) and the core contract for method details.
+
+## Target workflow contracts
+
+ADLC 0.3.13 exports validators for approval manifests, contract locks and index entries, completion ledgers, review findings, verification manifests and return requests. The Host can also judge verification coverage, check contract write paths and validate seat assignments.
+
+The project schema describes the contracts root, GitHub Projects backlog and field mappings, approver IDs, node-seat profile names, project profiles and automation mode. Set `neverAutoMerge` entries to false to disable individual rules. The Host treats omitted rules as enabled. Profile fallback is an ordered list of concrete profile settings, and the Host calls `checkSeatConstraints` before dispatch and on each fallback.
+
+`resolveSeatOrder` accepts resolved settings under `runOverride`, `projectNodeSeat`, `projectProfile`, `companyProfile` and `paperclipAgent`, in descending precedence. It merges fields shallowly and reports the highest contributing layer in `source`. Seat constraints take assignments of `{ name, vendor }`. For a judge declaration, `judgeVendorNotIn` lists the other seat names whose vendors must differ from the declared judge seat.
+
+See the [contract directory and templates](docs/CONTRACT_DIRECTORY.md), [evidence examples](docs/EVIDENCE_CONTRACTS.md#target-workflow-evidence) and [target workflow plan](docs/TARGET_WORKFLOW_PLAN.md).
 
 ## Maintenance
 

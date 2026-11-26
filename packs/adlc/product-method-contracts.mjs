@@ -138,3 +138,308 @@ export function validateInvestmentCase(value) {
   if (value.method === 'RICE' && value.dataQuality === 'insufficient' && value.preciseScore !== undefined) throw new Error('Do not manufacture a precise RICE score');
   return value;
 }
+
+function fields(value, names) {
+  for (const name of names) required(value?.[name], name);
+}
+
+function choice(value, options, label) {
+  if (!options.includes(value)) throw new Error(`Invalid ${label}`);
+}
+
+function validateSupersedes(value) {
+  if (value !== null) required(value, 'supersedes');
+}
+
+export function validateApprovalManifest(manifest) {
+  identity(manifest, 'approval manifest');
+  if ('approver' in manifest) throw new Error('approver must come from the Host run record');
+  fields(manifest, ['egmReportRef']);
+  validateSupersedes(manifest.supersedes);
+  rows(manifest.unresolvedEscalations, 'unresolvedEscalations');
+  rows(manifest.assumptions, 'assumptions');
+  const keys = rows(manifest.deliverables, 'deliverables').map(row => {
+    fields(row, ['key', 'revisionId', 'digest']);
+    return row.key;
+  });
+  unique(keys, 'deliverable keys');
+  for (const key of ['prd', 'acceptance.feature']) {
+    if (!keys.includes(key)) throw new Error(`Missing deliverable ${key}`);
+  }
+  return manifest;
+}
+
+const contractSections = ['product', 'design', 'technical'];
+
+function repositoryPath(path) {
+  return typeof path === 'string' && !/[\\:\x00-\x1f]/.test(path)
+    && path.split('/').every(segment => segment && segment !== '.' && segment !== '..' && !/[. ]$/.test(segment));
+}
+
+export function validateContractLock(lock) {
+  fields(lock, ['contractId', 'epic', 'backlogItemRef']);
+  fields(lock.approvalManifest, ['id', 'revisionId', 'digest']);
+  validateSupersedes(lock.supersedes);
+  const paths = rows(lock.files, 'files').map(file => {
+    fields(file, ['path', 'digest']);
+    choice(file.section, contractSections, 'section');
+    if (!repositoryPath(file.path) || !file.path.startsWith(file.section + '/')) {
+      throw new Error('Invalid section path: ' + file.path);
+    }
+    return file.path;
+  });
+  unique(paths.map(path => path.toLowerCase()), 'file paths');
+  return lock;
+}
+
+const contractFolder = /^(\d{4})\/(\d{2})\/(\1-\2-\d{2})-[a-z0-9]+(?:-[a-z0-9]+)*-[a-z0-9_-]+$/i;
+
+function isContractFolder(folder) {
+  const match = contractFolder.exec(folder);
+  if (!match) return false;
+  const date = new Date(match[3]);
+  return Number.isFinite(date.getTime()) && date.toISOString().slice(0, 10) === match[3];
+}
+
+export function validateContractIndexEntry(entry) {
+  fields(entry, ['contractId', 'folder']);
+  if (!isContractFolder(entry.folder)) throw new Error('Invalid contract folder');
+  choice(entry.status, ['active', 'superseded', 'withdrawn'], 'status');
+  if (entry.status === 'superseded') required(entry.supersededBy, 'supersededBy');
+  return entry;
+}
+
+export function validateCompletionLedger(ledger) {
+  rows(ledger?.done, 'done');
+  rows(ledger.notDone, 'notDone');
+  for (const [group, field] of [['skipped', 'reason'], ['blocked', 'blockedBy'], ['unverified', 'reason']]) {
+    for (const item of rows(ledger[group], group)) fields(item, [field]);
+  }
+  return ledger;
+}
+
+export function validateReviewFindings(report) {
+  choice(report?.status, ['completed', 'not-run'], 'review status');
+  const findings = rows(report.findings, 'findings');
+  if (report.status === 'not-run' && findings.length) throw new Error('A not-run review cannot contain findings');
+  for (const finding of findings) {
+    fields(finding, ['location', 'trigger', 'verification']);
+    choice(finding.dimension, ['security', 'performance', 'logic', 'data-migration', 'tests', 'api-maintainability'], 'dimension');
+    choice(finding.severity, ['P0', 'P1', 'P2', 'P3', 'nit'], 'severity');
+    if (!/^.+:[1-9]\d*$/.test(finding.location)) throw new Error('location must be file:line');
+    if (['P0', 'P1'].includes(finding.severity)) required(finding.reproduction, 'reproduction');
+  }
+  return report;
+}
+
+function stringRows(value, label) {
+  for (const item of rows(value, label)) required(item, label);
+  unique(value, label);
+}
+
+function verificationKey(scenarioId, combination, dimensions) {
+  return JSON.stringify([scenarioId, ...dimensions.map(({ name }) => combination[name])]);
+}
+
+export function validateVerificationManifest(manifest) {
+  fields(manifest, ['checkoutSha']);
+  const { expectedScenarios, dimensions, results } = manifest;
+  stringRows(expectedScenarios, 'expectedScenarios');
+  if (Object.hasOwn(manifest, 'status')) choice(manifest.status, ['not-run'], 'manifest status');
+  const dimensionNames = rows(dimensions, 'dimensions').map(dimension => {
+    fields(dimension, ['name']);
+    stringRows(dimension.values, 'dimension values');
+    if (!dimension.values.length) throw new Error('A dimension needs at least one value');
+    return dimension.name;
+  });
+  unique(dimensionNames, 'dimension names');
+  const keys = rows(results, 'results').map(row => {
+    fields(row, ['scenarioId']);
+    choice(row.scenarioId, expectedScenarios, 'scenarioId');
+    choice(row.result, ['pass', 'fail', 'unverified'], 'result');
+    for (const ref of rows(row.evidenceRefs, 'evidenceRefs')) required(ref, 'evidenceRef');
+    const combination = row.dimensions;
+    if (!combination || typeof combination !== 'object' || Array.isArray(combination)
+      || Object.keys(combination).length !== dimensionNames.length
+      || dimensions.some(({ name, values }) => !Object.hasOwn(combination, name) || !values.includes(combination[name]))) {
+      throw new Error('Invalid result dimension combination');
+    }
+    return verificationKey(row.scenarioId, combination, dimensions);
+  });
+  unique(keys, 'result combinations');
+  return manifest;
+}
+
+export function judgeVerificationManifest(manifest) {
+  validateVerificationManifest(manifest);
+  const { dimensions, expectedScenarios, results } = manifest;
+  const combinations = dimensions.reduce((current, { name, values }) =>
+    current.flatMap(combination => values.map(value => ({ ...combination, [name]: value }))), [{}]);
+  const byKey = new Map(results.map(row => [verificationKey(row.scenarioId, row.dimensions, dimensions), row]));
+  const gaps = [];
+  let failed = false;
+  for (const scenarioId of expectedScenarios) {
+    for (const combination of combinations) {
+      const row = byKey.get(verificationKey(scenarioId, combination, dimensions));
+      const gap = { scenarioId, dimensions: combination };
+      if (manifest.status === 'not-run') gaps.push({ ...gap, reason: 'not-run' });
+      else if (!row) gaps.push({ ...gap, reason: 'missing-result' });
+      else if (!row.evidenceRefs.length) gaps.push({ ...gap, reason: 'missing-evidence' });
+      else if (row.result === 'unverified') gaps.push({ ...gap, reason: 'unverified' });
+      else if (row.result === 'fail') failed = true;
+    }
+  }
+  let status = 'pass';
+  if (manifest.status === 'not-run' || gaps.length) status = 'unverified';
+  if (failed) status = 'fail';
+  return { status, gaps };
+}
+
+export function validateReturnRequest(request) {
+  fields(request, ['question', 'impact', 'owner', 'dueAt', 'resumeCondition']);
+  choice(request.kind, ['clarification-request', 'spec-amendment-request'], 'kind');
+  for (const field of ['evidence', 'options', 'affectedTickets']) rows(request[field], field);
+  if (Object.hasOwn(request, 'resolution')) {
+    choice(request.resolution, ['accepted', 'rejected', 'timed-out', 'superseded'], 'resolution');
+  }
+  return request;
+}
+
+export const contractPathFence = Object.freeze({
+  cpo: 'product',
+  'product-manager': 'product',
+  'product-owner': 'product',
+  'internal-product-analyst': 'product',
+  'external-product-analyst': 'product',
+  creative: 'design',
+  'principal-engineer': 'technical',
+  'contract-merge-bot': '*'
+});
+
+export function checkContractPathFence({ role, changedFiles, contractsRoot = 'docs/contracts' }) {
+  if (!repositoryPath(contractsRoot)) throw new Error('Invalid contractsRoot path');
+  const root = contractsRoot.toLowerCase();
+  const allowed = Object.hasOwn(contractPathFence, role) ? contractPathFence[role] : undefined;
+  return rows(changedFiles, 'changedFiles').filter(path => {
+    if (!repositoryPath(path)) return true;
+    const canonical = path.toLowerCase();
+    if (/(^|\/)codeowners$/.test(canonical) || canonical.startsWith('.github/')
+      || ['.gitlab-ci.yml', 'azure-pipelines.yml', 'jenkinsfile'].includes(canonical)) {
+      return allowed !== '*';
+    }
+    if (canonical !== root && !canonical.startsWith(root + '/')) return false;
+    if (allowed === '*') return false;
+    const relative = path.slice(contractsRoot.length + 1).split('/');
+    const [year, month, folder, section] = relative;
+    return !allowed || relative.length < 5 || section !== allowed
+      || !isContractFolder([year, month, folder].join('/'))
+      || relative.some(segment => ['index.json', 'contract.lock.json'].includes(segment.toLowerCase()));
+  });
+}
+
+function positiveInteger(value, label) {
+  if (!Number.isSafeInteger(value) || value < 1) throw new Error(label + ' must be a positive integer');
+}
+
+export function validateSeatDeclaration(declaration) {
+  fields(declaration, ['name']);
+  const allowed = ['name', 'distinctVendor', 'judgeVendorNotIn', 'minSeats', 'onUnavailable', 'waitDeadlineMs'];
+  for (const key of Object.keys(declaration)) {
+    if (!allowed.includes(key)) throw new Error('Unknown seat declaration field: ' + key);
+  }
+  if (Object.hasOwn(declaration, 'distinctVendor') && typeof declaration.distinctVendor !== 'boolean') {
+    throw new Error('distinctVendor must be a boolean');
+  }
+  if (Object.hasOwn(declaration, 'judgeVendorNotIn')) stringRows(declaration.judgeVendorNotIn, 'judgeVendorNotIn');
+  if (Object.hasOwn(declaration, 'minSeats')) positiveInteger(declaration.minSeats, 'minSeats');
+  if (Object.hasOwn(declaration, 'onUnavailable')) choice(declaration.onUnavailable, ['wait', 'block'], 'onUnavailable');
+  if (Object.hasOwn(declaration, 'waitDeadlineMs')) positiveInteger(declaration.waitDeadlineMs, 'waitDeadlineMs');
+  return declaration;
+}
+
+export function resolveSeatOrder(layers) {
+  const precedence = [
+    ['paperclipAgent', 'paperclip-agent'],
+    ['companyProfile', 'company-profile'],
+    ['projectProfile', 'project-profile'],
+    ['projectNodeSeat', 'project-node-seat'],
+    ['runOverride', 'run-override']
+  ];
+  let resolved = { source: 'paperclip-agent' };
+  for (const [layer, source] of precedence) {
+    const settings = Object.entries(layers?.[layer] ?? {}).filter(([, value]) => value !== undefined);
+    if (settings.length) resolved = { ...resolved, ...Object.fromEntries(settings), source };
+  }
+  return resolved;
+}
+
+export function checkSeatConstraints(assignments, declaration) {
+  validateSeatDeclaration(declaration);
+  const byName = new Map();
+  for (const assignment of rows(assignments, 'assignments')) {
+    fields(assignment, ['name', 'vendor']);
+    if (byName.has(assignment.name)) throw new Error('Seat names must be unique');
+    byName.set(assignment.name, assignment.vendor.trim().toLowerCase());
+  }
+  if (byName.size < (declaration.minSeats ?? 1)) throw new Error('minSeats is not satisfied');
+  if (declaration.distinctVendor && new Set(byName.values()).size !== byName.size) {
+    throw new Error('distinctVendor requires a different vendor for each seat');
+  }
+  for (const name of declaration.judgeVendorNotIn ?? []) {
+    const judgeVendor = byName.get(declaration.name);
+    const excludedVendor = byName.get(name);
+    if (!judgeVendor || !excludedVendor || judgeVendor === excludedVendor) {
+      throw new Error('judgeVendorNotIn requires a known judge vendor distinct from seat ' + name);
+    }
+  }
+  return assignments;
+}
+
+const nonemptyString = { type: 'string', minLength: 1 };
+const positiveIntegerSchema = { type: 'integer', minimum: 1 };
+
+function objectSchema(properties, requiredFields = Object.keys(properties)) {
+  return { type: 'object', properties, required: requiredFields, additionalProperties: false };
+}
+
+const profileSettings = {
+  harness: nonemptyString,
+  model: nonemptyString,
+  reasoning: nonemptyString,
+  timeoutMs: positiveIntegerSchema,
+  budget: { type: 'number', minimum: 0 }
+};
+
+export const adlcProjectConfigSchema = {
+  $schema: 'https://json-schema.org/draft/2020-12/schema',
+  ...objectSchema({
+    contractsRoot: { ...nonemptyString, default: 'docs/contracts' },
+    backlog: objectSchema({
+      provider: { const: 'github-projects' },
+      owner: nonemptyString,
+      projectNumber: positiveIntegerSchema,
+      fields: objectSchema({
+        agentPriority: nonemptyString,
+        humanPriority: nonemptyString,
+        sourceEventId: nonemptyString,
+        signalCount: nonemptyString,
+        distinctUsers: nonemptyString
+      })
+    }),
+    approvers: objectSchema({
+      g2: nonemptyString,
+      g3OutOfSystem: nonemptyString,
+      escalation: nonemptyString
+    }),
+    seats: { type: 'object', additionalProperties: nonemptyString },
+    profiles: {
+      type: 'object',
+      additionalProperties: objectSchema({
+        ...profileSettings,
+        fallback: { type: 'array', items: objectSchema(profileSettings, ['harness', 'model']) }
+      }, [])
+    },
+    automationMode: { enum: ['manual', 'assisted', 'full-auto'], default: 'manual' },
+    neverAutoMerge: { type: 'object', additionalProperties: { type: 'boolean', default: true }, default: {} }
+  }, [])
+};

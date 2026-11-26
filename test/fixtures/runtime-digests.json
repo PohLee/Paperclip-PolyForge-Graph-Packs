@@ -82,5 +82,10 @@
     "packs/adlc/product-method-contracts.mjs": "82f69b6daab8307de528e1498883d273ef5ed8f141f50cd8016d5831b551027f",
     "packs/adlc/runtime/host-api.mjs": "03eb2a10946f7d46a906713ee8c497d3429e3fbc462e6ba60f8bcce1e18c05a0",
     "packs/adlc/runtime/small-change.mjs": "e9ec2b3240b0a6e58b1bf39c83b868a3c2f2b398fcb4142ad850457bb4a701b8"
+  },
+  "adlc@0.3.13": {
+    "packs/adlc/product-method-contracts.mjs": "0a1992aded828e48f45e89302048bce87bffcf72b868ed0e4533fe5bc96016e3",
+    "packs/adlc/runtime/host-api.mjs": "03eb2a10946f7d46a906713ee8c497d3429e3fbc462e6ba60f8bcce1e18c05a0",
+    "packs/adlc/runtime/small-change.mjs": "e9ec2b3240b0a6e58b1bf39c83b868a3c2f2b398fcb4142ad850457bb4a701b8"
   }
 }

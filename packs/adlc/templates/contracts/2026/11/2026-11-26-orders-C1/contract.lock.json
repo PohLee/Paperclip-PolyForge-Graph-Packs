@@ -1,0 +1,12 @@
+{
+  "contractId": "C1",
+  "epic": "orders",
+  "backlogItemRef": "github-projects:orders:1",
+  "approvalManifest": {
+    "id": "G2-C1",
+    "revisionId": "r1",
+    "digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000"
+  },
+  "supersedes": null,
+  "files": []
+}
