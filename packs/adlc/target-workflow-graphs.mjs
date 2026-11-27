@@ -98,7 +98,7 @@ const requirements = {
     { ...baseline.nodes.find(node => node.id === 'requirements-gate'),
       requiredInputs: ['approval_manifest', 'requirements_draft', 'readiness_report'],
       candidateNodes: ['prepare-g2'], candidateKinds: ['approval_manifest'] },
-    task('publish-baseline', 'product-owner', 'Use the single requirements-acceptance Decision Record as G2 authority. Publish the validated requirements handoff and a contract publication request pinned to the approved manifest and Decision Record. Wait for a trusted merge event before starting downstream work.', ['requirements_handoff', 'contract_publication_request'], ['approval_manifest']),
+    task('publish-baseline', 'product-owner', 'Use the single requirements-acceptance Decision Record as G2 authority. Publish the validated requirements handoff and a contract_publication_request with section product, runId, decisionId, manifest { id, revisionId }, positive pullNumber and contract_pins (empty for first publication). Wait for a trusted merge event before starting downstream work.', ['requirements_handoff', 'contract_publication_request'], ['approval_manifest']),
     end('requirements-accepted', 'contract_publication_requested'),
     end('requirements-held', 'requirements_held')
   ],

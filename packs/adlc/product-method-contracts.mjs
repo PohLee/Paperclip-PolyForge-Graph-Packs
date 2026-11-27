@@ -167,6 +167,17 @@ function validateSupersedes(value) {
   if (value !== null) required(value, 'supersedes');
 }
 
+export function validateContractPublicationRequest(request) {
+  if (request?.section !== 'product') throw new Error('Publication section must be product');
+  required(request.runId, 'Publication runId');
+  required(request.decisionId, 'Publication decisionId');
+  required(request.manifest?.id, 'Publication manifest id');
+  required(request.manifest?.revisionId, 'Publication manifest revisionId');
+  if (!Number.isSafeInteger(request.pullNumber) || request.pullNumber < 1) throw new Error('Publication pullNumber must be positive');
+  rows(request.contract_pins, 'Publication contract_pins');
+  return request;
+}
+
 export function validateApprovalManifest(manifest) {
   identity(manifest, 'approval manifest');
   if ('approver' in manifest) throw new Error('approver must come from the Host run record');
