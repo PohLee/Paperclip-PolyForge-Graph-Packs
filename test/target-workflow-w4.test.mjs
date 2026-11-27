@@ -285,8 +285,6 @@ test('assisted G3 requires current clean audit evidence and an active project ce
   assert.equal((await api.decideNode({ ...args, actor: owner })).outcome, 'approve');
 });
 
-const e1 = { skip: 'TODO(E1): enable when Core grants owner-only actors direct authority on human-required gates' };
-
 async function completePrelude(engine, run, nodes) {
   // Seed eligible work so the test exercises the real decision and terminal transitions.
   const state = await engine.store.read();
@@ -342,7 +340,7 @@ test('real assisted G3 approval checks the current project ceiling', async () =>
   assert.equal((await api.decideNode(decision)).decision.outcome, 'approve');
 });
 
-test('G3 0.1.1 accepts a direct manual decision from an owner-only actor', e1, async () => {
+test('G3 0.1.1 accepts a direct manual decision from an owner-only actor', async () => {
   const { api, runId, nodeId } = await readyG3({ automationMode: 'manual' });
   const result = await api.decideNode({ runId, nodeId, actor: owner, outcome: 'approve', reason: 'Accept visual scope' });
   assert.equal(result.decision.outcome, 'approve');
@@ -396,14 +394,14 @@ async function readyVerification(graphVersion, exception) {
   return { api, engine, runId: run.id, manifest, pr_head };
 }
 
-test('manual G5 accepts a hold from an owner-only actor', e1, async () => {
+test('manual G5 accepts a hold from an owner-only actor', async () => {
   const { api, runId, manifest, pr_head } = await readyVerification('0.1.9', false);
   const result = await api.decideNode({ runId, nodeId: 'g5', actor: owner, outcome: 'hold', reason: 'Await owner review',
     evidence: [{ kind: 'merge_evidence', subjectRefs: [manifest, pr_head].map(({ id, version }) => ({ artifactId: id, version })) }] });
   assert.equal(result.decision.outcome, 'hold');
 });
 
-test('verification-exception records the owner acceptance and reaches its terminal output', e1, async () => {
+test('verification-exception records the owner acceptance and reaches its terminal output', async () => {
   const { api, engine, runId, manifest } = await readyVerification('0.1.8', true);
   const result = await api.decideNode({ runId, nodeId: 'verification-exception', actor: owner, outcome: 'accept',
     reason: 'Accept missing verification', evidence: [{ kind: 'acceptance_exception', reason: 'Missing evidence',
