@@ -165,7 +165,7 @@ test('WP4.1 trusted G5 binds the current PR and verification before an assisted 
   await assert.rejects(api.decideNode({ ...decision, actor: { ...agent, id: 'author' } }), /human owner/);
   run.mode = 'autonomous';
   await assert.rejects(api.decideNode(decision), /ceiling/);
-  assert.equal((await api.decideNode({ ...decision, actor: owner })).outcome, 'accept');
+  assert.equal((await api.decideNode({ ...decision, outcome: 'human' })).outcome, 'human');
 });
 
 test('migration changes and unknown dependency majors are assessed conservatively', () => {

@@ -497,7 +497,7 @@ export function createAdlcHostApi({engine,resolveActor,runValidationDigest,servi
       const run=await engine.getRun(runId);
       if(!run||run.packId!=='adlc') throw new Error('ADLC run not found');
       actor=await trustedActor(actor,{operation:'decideNode',run,nodeId,outcome});
-      if (automatedMerge(run) && nodeId === 'g5' && actor.kind === 'agent') automationMode(run.mode, await projectConfig(run));
+      if (automatedMerge(run) && nodeId === 'g5' && actor.kind === 'agent' && outcome !== 'human') automationMode(run.mode, await projectConfig(run));
       validateDecisionRoute(run,nodeId,outcome);
       await validateTechnicalRoute(run,nodeId,outcome,actor,rest.evidence);
       const expectedRunDigest=snapshotDigest(run);
