@@ -218,7 +218,11 @@ test('path fence folds compatibility and full case, requires an ASCII root, and 
   }
   assert.throws(() => adlc.checkContractPathFence({ role: 'product-owner', changedFiles: [], contractsRoot: 'ΟΣ/contracts' }),
     /contractsRoot/);
-  const loose = [`${folder}/arbitrary.txt`, `${folder}/product/INDEX.json`, `${folder}/other/file.md`];
+  const sharpS = 'docs/busineẞ/2026/11/26112607_feat-orders_PRC-687256771405/product/prd.md';
+  assert.deepEqual(adlc.checkContractPathFence({ role: 'lead-engineer', changedFiles: [sharpS], contractsRoot: 'docs/business' }),
+    [sharpS]);
+  const loose = [`${folder}/arbitrary.txt`, `${folder}/product/INDEX.json`, `${folder}/other/file.md`,
+    `${folder}/technical/Jenkinsfile`, `${folder}/product/CODEOWNERS`, `${folder}/design/.github/x.yml`];
   const allowedBot = [`${folder}/contract.lock.json`, `${folder}/technical/spec.md`];
   assert.deepEqual(adlc.checkContractPathFence({ role: 'contract-merge-bot', changedFiles: [...allowedBot, ...loose] }), loose);
 });

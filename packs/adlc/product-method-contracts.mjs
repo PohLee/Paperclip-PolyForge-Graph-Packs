@@ -464,16 +464,23 @@ export const contractPathFence = Object.freeze({
 });
 
 // Folds compatibility forms and full case so spellings a case-insensitive filesystem
-// treats as one directory (ſ/s, ς/σ, decomposed forms) compare equal to the root.
-function foldContractPath(path) {
-  return path.normalize('NFKC').toUpperCase().toLowerCase();
+// treats as one directory (ſ/s, ẞ/ss, ς/σ, decomposed forms) compare equal to the root.
+export function foldContractPath(path) {
+  return path.normalize('NFKC').toLowerCase().toUpperCase().toLowerCase();
 }
 
 const asciiPrintable = /^[\x20-\x7e]+$/;
-const reservedContractSegments = ['index.json', 'contract.lock.json'];
+
+export function isContractsRoot(root) {
+  return repositoryPath(root) && asciiPrintable.test(root);
+}
+
+// Names reserved below a contract section, shared with Core's publication fence.
+export const contractReservedSegments = Object.freeze(['index.json', 'contract.lock.json', 'codeowners', '.github',
+  '.gitlab-ci.yml', 'azure-pipelines.yml', 'jenkinsfile', '.circleci', '.buildkite']);
 
 export function checkContractPathFence({ role, changedFiles, contractsRoot = defaultContractsRoot }) {
-  if (!repositoryPath(contractsRoot) || !asciiPrintable.test(contractsRoot)) throw new Error('Invalid contractsRoot path');
+  if (!isContractsRoot(contractsRoot)) throw new Error('Invalid contractsRoot path');
   const rootPrefix = contractsRoot + '/';
   const canonicalRoot = contractsRoot.toLowerCase();
   const allowed = Object.hasOwn(contractPathFence, role) ? contractPathFence[role] : undefined;
@@ -493,7 +500,7 @@ export function checkContractPathFence({ role, changedFiles, contractsRoot = def
     const segments = relative.split('/');
     const [year, month, folder, section] = segments;
     if (segments.length < 4 || !matchContractFolder([year, month, folder].join('/'))) return true;
-    const reserved = segments.slice(4).some(segment => reservedContractSegments.includes(segment.toLowerCase()));
+    const reserved = segments.slice(4).some(segment => contractReservedSegments.includes(segment.toLowerCase()));
     if (allowed === '*') {
       if (segments.length === 4) return section !== 'contract.lock.json';
       return !contractSections.includes(section) || reserved;
