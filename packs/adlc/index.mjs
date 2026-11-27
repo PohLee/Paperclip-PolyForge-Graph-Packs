@@ -6,7 +6,7 @@ import { engineeringGraphs } from './engineering-graphs.mjs';
 import { lifecycleGraphs } from './lifecycle-graphs.mjs';
 import { architectureDeliveryGraphs } from './architecture-delivery-graphs.mjs';
 import { designAssuranceGraphs } from './design-assurance-graphs.mjs';
-import { workflowCompositionGraphs } from './workflow-composition-graphs.mjs';
+import { createWorkflowCompositionGraphs } from './workflow-composition-graphs.mjs';
 import { roleCatalog } from './roles/catalog.mjs';
 import { skillCatalog } from './skills/catalog.mjs';
 export { createAdlcHostApi } from './runtime/host-api.mjs';
@@ -16,10 +16,10 @@ const root = fileURLToPath(new URL('.', import.meta.url));
 const docs = ['soul', 'role', 'goal', 'instruction', 'decision_model'];
 const digest = value => createHash('sha256').update(value).digest('hex');
 const roleSkills = {
-  'cpo': ['product-memory', 'conflict-resolution', 'versioned-evidence', 'product-direction', 'lifecycle-orchestration', 'product-discovery'],
+  'cpo': ['product-memory', 'conflict-resolution', 'review-handoff', 'versioned-evidence', 'product-direction', 'lifecycle-orchestration', 'product-discovery'],
   'internal-product-analyst': ['product-memory', 'versioned-evidence', 'research-brief', 'requirements-discovery', 'product-discovery', 'request-triage'],
   'external-product-analyst': ['versioned-evidence', 'research-brief', 'requirements-discovery', 'product-discovery', 'request-triage'],
-  'product-manager': ['product-memory', 'versioned-evidence', 'product-definition', 'requirements-discovery', 'product-discovery', 'ticket-planning'],
+  'product-manager': ['product-memory', 'review-handoff', 'versioned-evidence', 'product-definition', 'requirements-discovery', 'product-discovery', 'ticket-planning'],
   'product-owner': ['product-memory', 'versioned-evidence', 'product-definition', 'requirements-discovery', 'lifecycle-orchestration', 'product-discovery', 'release-process', 'request-triage', 'ticket-planning'],
   'cto-caio': ['product-memory', 'conflict-resolution', 'review-handoff', 'versioned-evidence', 'engineering-delivery', 'lifecycle-orchestration', 'release-process', 'production-monitoring'],
   'principal-engineer': ['product-memory', 'review-handoff', 'versioned-evidence', 'engineering-delivery', 'development-loop', 'systematic-debugging', 'release-process', 'ticket-planning', 'correction-guardrails'],
@@ -63,7 +63,8 @@ function loadRole(spec) {
 }
 
 const roles = Object.fromEntries(roleCatalog.map(spec => [spec.id, loadRole(spec)]));
-const graphs = [lifecycleGraphs[0], lifecycleGraphs[1], ...engineeringGraphs, ...lifecycleGraphs.slice(2), ...architectureDeliveryGraphs, ...designAssuranceGraphs, ...workflowCompositionGraphs];
+const packVersion = '0.3.12';
+const graphs = [lifecycleGraphs[0], lifecycleGraphs[1], ...engineeringGraphs, ...lifecycleGraphs.slice(2), ...architectureDeliveryGraphs, ...designAssuranceGraphs, ...createWorkflowCompositionGraphs(packVersion)];
 const operatingPolicies = readText(resolve(root, 'OPERATING_POLICIES.md'));
 const evidenceContracts = readText(resolve(root, 'docs/EVIDENCE_CONTRACTS.md'));
 const decisionRules = Object.values(roles).flatMap(role => role.decisionModel.rules.flatMap(rule =>
@@ -76,7 +77,7 @@ const decisionRules = Object.values(roles).flatMap(role => role.decisionModel.ru
 ));
 
 export const pack = {
-  id: 'adlc', version: '0.3.3', schemaVersion: 1,
+  id: 'adlc', version: packVersion, schemaVersion: 1,
   compatibility: {
     coreRange: '>=0.8.5 <0.9.0',
     contracts: { graph: 1, decision: 1, evidence: 1 },
@@ -92,7 +93,7 @@ export const pack = {
       { id: 'unresolved-reviews', label: 'Unresolved severe reviews', source: 'reviews.severeOpen' }
     ],
     views: [
-      { id: 'delivery', label: 'Delivery work', kind: 'run-list', graphIds: ['product-discovery', 'product-experiment', 'requirements-baseline', 'implementation', 'verification', 'system-architecture-workflow', 'architecture-review-composed', 'code-delivery-workflow'] },
+      { id: 'delivery', label: 'Delivery work', kind: 'run-list', graphIds: ['request-triage', 'product-discovery', 'product-experiment', 'requirements-baseline', 'technical-design', 'implementation', 'small-change', 'verification', 'design-drift', 'system-architecture', 'code-delivery', 'system-architecture-workflow', 'architecture-review-composed', 'code-delivery-workflow'] },
       { id: 'product-learning', label: 'Product learning', kind: 'run-list', graphIds: ['product-experiment', 'competitive-watch'] },
       { id: 'release', label: 'Release and observation', kind: 'run-list', graphIds: ['release-process', 'release-observation', 'production-monitoring'] },
       { id: 'decisions', label: 'Product decisions and history', kind: 'decision-history' }
@@ -119,6 +120,7 @@ export const pack = {
     'product-experiment': ['product-manager', 'cpo', 'human-owner'],
     'requirements-baseline': ['product-owner', 'cpo', 'human-owner'],
     'competitive-watch': ['external-product-analyst', 'product-manager', 'cpo', 'human-owner'],
+    'small-change': ['human-owner'],
     implementation: ['product-owner', 'principal-engineer', 'cto-caio', 'human-owner'],
     verification: ['product-owner', 'cpo', 'cto-caio', 'human-owner'],
     'release-process': ['product-owner', 'cto-caio', 'human-owner'],
@@ -139,7 +141,7 @@ export const pack = {
     capabilities: 'Resolve each role capabilityRequirement to a real tool, permission or harness before dispatch. Bundled skills are prompt instructions, not claims about installed tools.',
     releaseExecution: 'The host must verify that the acceptance decision covers the exact candidate, enforce the named human release-start decision on its exact plan and candidate before any production action, and validate the execution event against that authorization. Start release-observation only from that verified event; the Graph never invokes a pipeline or certifies a release.',
     monitoringInput: 'The host supplies a versioned monitoring plan and sourced observations with freshness. Scheduling, telemetry collection, paging and automatic recovery are external capabilities; absence of an alert is not health evidence.',
-    workflowComposition: 'The additive system-architecture-workflow@1.0.0 and code-delivery-workflow@1.0.0 entry graphs accept business fields only in input.workflowInput and return a validated projection of the completed evidence-producing task output only after governed completion. They declare evidenceInputSource=workflowInput so existing architecture/delivery validators consume those business fields without copying them into trusted host fields. Legacy Graph contracts and trusted input envelope behavior are unchanged. architecture-review-composed@1.0.0 maps system_id and architecture_brief from parent workflowInput to the exact child workflowInput and starts through Core atomic child binding as the original root actor with no business input enrichment. The Host must install and pin the exact Pack digest, authorize the parent graph start, enforce exact installed/enabled child versions and child graphStartRoles, pin the same ADLC adapter before dispatch, and reconcile via trusted system orchestration. Retain existing evidence validators, product-decision checks, actor/execution provenance and human decision rules; do not expose raw child start as an Agent operation.',
+    workflowComposition: 'The additive system-architecture-workflow@1.0.1 and code-delivery-workflow@1.0.0 entry graphs accept business fields only in input.workflowInput and return a validated projection of the completed evidence-producing task output only after governed completion. They declare evidenceInputSource=workflowInput so existing architecture/delivery validators consume those business fields without copying them into trusted host fields. Legacy Graph contracts and trusted input envelope behavior are unchanged. architecture-review-composed@1.0.1 maps system_id and architecture_brief from parent workflowInput to the exact child workflowInput and starts through Core atomic child binding as the original root actor with no business input enrichment. The Host must install and pin the exact Pack digest, authorize the parent graph start, enforce exact installed/enabled child versions and child graphStartRoles, pin the same ADLC adapter before dispatch, and reconcile via trusted system orchestration. Retain existing evidence validators, product-decision checks, actor/execution provenance and human decision rules; do not expose raw child start as an Agent operation.',
     triageSources: 'The host verifies issue/PR history, duplicate checks and reporter updates; it may pass a recorded ready triage report into discovery or implementation.',
     ticketTracker: 'The host retains completed ticket IDs and evidence, computes the ready frontier, and dispatches only unblocked work.',
     applicationVerification: 'The host supplies an isolated application harness and validates that the declared profile proof ran on the real surface; schema checks cannot authenticate observations.',
@@ -205,7 +207,7 @@ export const pack = {
 };
 
 // The release digest identifies the deterministic pack payload, excluding its own digest.
-pack.release = { digest: `sha256:${digest(JSON.stringify(pack))}`, builtAt: '2026-11-03T00:00:00.000Z', status: 'candidate' };
+pack.release = { digest: `sha256:${digest(JSON.stringify(pack))}`, builtAt: '2026-11-26T00:00:00.000Z', status: 'candidate' };
 
 export default pack;
 export {

@@ -6,11 +6,11 @@ const edge = (from, to, when) => ({ from, to, ...(when ? { when } : {}) });
 
 export const architectureDeliveryGraphs = [
   {
-    id: 'system-architecture', version: '0.1.0', start: 'architecture-baseline',
+    id: 'system-architecture', version: '0.1.1', start: 'architecture-baseline',
     description: 'Create or revise a system architecture baseline; acceptance and implementation status are separate records.',
     nodes: [
       task('architecture-baseline', 'principal-engineer', 'cto-caio', 'Read the existing baseline if supplied; describe component boundaries and data flow, stable invariants, enforcement and proof. Preserve previous invariant IDs.', {
-        requiredInputs: ['system_id', 'architecture_brief'], produces: ['architecture_baseline'], outputContract: 'architecture-baseline'
+        requiredInputs: ['system_id', 'architecture_brief'], produces: ['architecture_baseline'], outputContract: 'architecture-baseline', deliveryMilestone: true
       }),
       { id: 'architecture-gate', type: 'decision', role: 'cto-caio', decisionType: 'architecture-acceptance', outcomes: ['accept', 'rework', 'human'],
         requiredInputs: ['architecture_baseline'], candidateNodes: ['architecture-baseline'], candidateKinds: ['architecture_baseline'],

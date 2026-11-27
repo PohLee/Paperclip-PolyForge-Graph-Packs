@@ -13,7 +13,7 @@ test('collection exports independent Pack releases and keeps ADLC default', asyn
   assert.equal(pack, adlcPack);
   assert.deepEqual(Object.keys(packCatalog), ['adlc','marketing','creative-team']);
   assert.equal(packCatalog['creative-team'], creativeTeamPack);
-  assert.deepEqual(packs.map(item => `${item.id}@${item.version}`), ['adlc@0.3.3','marketing@0.0.5','creative-team@0.3.3']);
+  assert.deepEqual(packs.map(item => `${item.id}@${item.version}`), ['adlc@0.3.12','marketing@0.0.5','creative-team@0.3.3']);
   const engine = new GraphEngine();
   for (const item of packs) {
     assert.deepEqual(item.compatibility.contracts, CORE_RUNTIME.contracts);
@@ -35,9 +35,9 @@ test('collection exports independent Pack releases and keeps ADLC default', asyn
 
 test('legacy shadow declaration requires a fresh Sub-Agent review for ADLC verification QA', () => {
   const verification = adlcPack.graphs.find(graph => graph.id === 'verification');
-  assert.equal(verification.version, '0.1.6');
+  assert.equal(verification.version, '0.1.7');
   assert.deepEqual(verification.compatibility.requiredCapabilities,
-    { 'shadow-review-execution': '>=1.0.0 <2.0.0' });
+    { 'shadow-review-execution': '>=1.0.0 <2.0.0', 'verification-report-lineage': '^1.0.0' });
   assert.deepEqual(verification.nodes.find(node => node.id === 'qa').shadow,
     { trigger:'before-dispatch', reviewer:'same-agent', required:true });
   assert.ok(verification.nodes.filter(node => node.shadow).every(node => node.id === 'qa'));
@@ -61,7 +61,7 @@ test('Pack roles reference one company CEO and every Graph role has a document',
     for (const graph of item.graphs) for (const node of graph.nodes) {
       if (node.role) assert.ok(item.roles[node.role], `${item.id}/${graph.id}/${node.id}`);
       if (node.review && item !== creativeTeamPack) {
-        assert.equal(node.review.maxSelfReviews,5);
+        assert.equal(node.review.maxSelfReviews, graph.id === 'small-change' ? 1 : 5);
         assert.notEqual(node.role,node.review.supervisorRole);
       }
     }

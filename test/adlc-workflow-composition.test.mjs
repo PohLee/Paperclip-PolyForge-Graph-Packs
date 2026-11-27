@@ -55,7 +55,7 @@ function makeHarness() {
 test('ADLC contracts use workflowInput business fields and leave legacy graph contracts unchanged', async () => {
   const engine = new GraphEngine({ store: new MemoryStore() });
   await engine.registerPack(pack);
-  assert.equal(pack.version, '0.3.3');
+  assert.equal(pack.version, '0.3.12');
   assert.equal(pack.compatibility.requiredCapabilities['workflow-composition'], '^1.0.0');
   assert.equal(pack.graphs.find(graph => graph.id === 'request-triage').workflowContract, undefined);
   assert.equal(pack.graphs.find(graph => graph.id === 'system-architecture').evidenceInputSource, undefined);
@@ -64,6 +64,10 @@ test('ADLC contracts use workflowInput business fields and leave legacy graph co
   const codeDelivery = pack.graphs.find(graph => graph.id === 'code-delivery-workflow');
   assert.equal(architecture.evidenceInputSource, 'workflowInput');
   assert.equal(codeDelivery.evidenceInputSource, 'workflowInput');
+  const composed = pack.graphs.find(graph => graph.id === 'architecture-review-composed');
+  assert.deepEqual(composed.nodes.find(node => node.type === 'workflow').workflow,
+    { packId: pack.id, packVersion: pack.version, graphId: architecture.id, graphVersion: architecture.version },
+    'the composed child resolves inside the containing pack release');
   assert.deepEqual(codeDelivery.inputContracts, ['delivery-target']);
   validateWorkflowInput(architecture, workflowInput);
   assert.throws(() => validateWorkflowInput(architecture, { systemId: 'billing-api', architectureBrief: 'brief' }), /system_id is required/);
@@ -104,6 +108,7 @@ test('architecture-review-composed completes a real child through the trusted AD
   const child = await engine.startChildWorkflow({ runId: parent.id, nodeId: workflowNode.id, actor: system });
   assert.deepEqual(startActorIds, ['owner', 'owner'], 'adapter starts the child as the original root actor');
   assert.deepEqual(child.parentWorkflow, { runId: parent.id, nodeId: workflowNode.id, attempt: 1 });
+  assert.equal(child.graph.version, '1.0.1');
   assert.deepEqual(child.input.workflowInput, workflowInput);
   assert.equal(child.input.system_id, undefined, 'child input is not enriched outside workflowInput');
   assert.equal(child.input.paperclipCompanyId, 'company-1');
@@ -125,11 +130,16 @@ test('architecture-review-composed completes a real child through the trusted AD
     output: baseline, artifacts: [artifact], decisionIds: [workChoice.id] });
   await api.recordSelfReview({ runId: child.id, nodeId: 'architecture-baseline', actor: principal,
     artifactVersion: 'v1', findings: [], fixes: [] });
+  assert.deepEqual((await raw.getDeliveryStatus(child.id)).acceptedMilestones, []);
   const reviewEvidence = ['artifact_version', 'review_findings', 'self_review_history'].map(kind => ({ kind,
     summary: `Reviewed ${kind} for architecture-baseline-billing-v1@v1`,
     subjectRefs: [{ artifactId: artifact.id, version: artifact.version }] }));
   await engine.reviewWork({ runId: child.id, nodeId: 'architecture-baseline', actor: owner,
     outcome: 'accept', reason: 'The proposed baseline satisfies the architecture artifact contract.', evidence: reviewEvidence });
+  const delivery = await raw.getDeliveryStatus(parent.id);
+  assert.deepEqual(delivery.acceptedMilestones.map(({ runId, nodeId, artifacts }) => ({ runId, nodeId, artifacts })), [
+    { runId: child.id, nodeId: 'architecture-baseline', artifacts: [artifact] }
+  ]);
 
   const gateEvidence = ['architecture_baseline', 'architecture_review'].map(kind => ({ kind,
     summary: `Human review of ${artifact.id}@${artifact.version}`,
