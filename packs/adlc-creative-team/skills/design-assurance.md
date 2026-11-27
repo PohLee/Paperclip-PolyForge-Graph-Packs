@@ -5,6 +5,8 @@ description: Review a fixed design or implementation candidate against scoped ev
 
 # Design QA and accessibility
 
+Write G2 and G3 contract deliverables, file names and paths in English. Apply this rule when auditing the G3 visual manifest.
+
 Pin the exact subject version and review scope. Separate observed facts, expert judgments, and taste preferences. Use rendered evidence for visual contrast and layout claims; source scans alone cannot prove rendering. Static imagery cannot prove keyboard behavior. Keep author and reviewer execution identities distinct. Bound repair rounds, retest the same scope after changes, and state pass, fail, or unverified per check.
 
 ## Procedure and completion

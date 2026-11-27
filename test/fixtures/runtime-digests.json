@@ -138,7 +138,7 @@
   "adlc@0.3.17": {
     "packs/adlc/backlog.mjs": "620f33f5bf6a5f77bb180b06e4e8d763f3d0623b736c2c9626b8f589d308e4dc",
     "packs/adlc/merge-producers.mjs": "06dd8b5126b9b2191c81622c6d2a9b70e1ac27696e3316c73d386a1814881395",
-    "packs/adlc/product-method-contracts.mjs": "1cb7c00a52daaeb04e7f1145c5628fe41ddb10faea66b2eb5c2e554825fad6e4",
+    "packs/adlc/product-method-contracts.mjs": "2f93821ac01de683b4ca0514f211291de67ecf9f432da65032db1c98f56b087c",
     "packs/adlc/product-review.mjs": "6add371e7d69fe7a49c93d3953d944a4961564bd0daf19bfdbfb08715c06131c",
     "packs/adlc/runtime/host-api.mjs": "528a401bfaf9de4e25476377f1fc30406eb696a612d0ae29c4c17994b93c5677",
     "packs/adlc/runtime/small-change.mjs": "e9ec2b3240b0a6e58b1bf39c83b868a3c2f2b398fcb4142ad850457bb4a701b8",

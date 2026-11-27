@@ -213,6 +213,7 @@ const maxContractSlugLength = 32;
 const contractPrefix = '[A-Z][A-Z0-9]{0,9}-';
 const contractPrefixPattern = new RegExp(`^${contractPrefix}$`);
 const contractIdPattern = new RegExp(`^${contractPrefix}[0-9]{12}$`);
+const nonAsciiLetterMarkOrNumber = /[[\p{L}\p{M}\p{N}]--[A-Za-z0-9]]/v;
 const nonLatinLetter = /[\p{L}&&\P{Script=Latin}]/v;
 const defaultContractsRoot = 'knowledge/contracts';
 const contractSections = ['product', 'design', 'technical'];
@@ -228,8 +229,8 @@ export function validateContractSlug(slug) {
 }
 
 export function deriveContractSlug(englishTitle) {
-  if (typeof englishTitle !== 'string' || nonLatinLetter.test(englishTitle)) {
-    throw new Error('Contract slug requires an English title');
+  if (typeof englishTitle !== 'string' || nonAsciiLetterMarkOrNumber.test(englishTitle)) {
+    throw new Error('Contract slug requires an English title with ASCII letters and numbers or an explicit slug');
   }
   const slug = englishTitle.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
   if (slug.length <= maxContractSlugLength) return validateContractSlug(slug);
@@ -247,7 +248,8 @@ export function contractIdFromDecision(decisionId, prefix = 'PRC-') {
   return prefix + number.toString().padStart(12, '0');
 }
 
-export function contractFolderName({ approvedAt, type, slug, contractId }) {
+export function contractFolderName(input) {
+  const { approvedAt, type, slug, contractId } = input ?? {};
   if (!(approvedAt instanceof Date)
     && (typeof approvedAt !== 'string'
       || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?(?:Z|[+-]\d{2}:\d{2})$/.test(approvedAt)
@@ -319,6 +321,7 @@ export function validateContractText(bytes) {
 
 export function validateContractLock(lock) {
   fields(lock, ['contractId', 'epic', 'backlogItemRef']);
+  if (!contractIdPattern.test(lock.contractId)) throw new Error('Invalid contract lock contractId');
   const separator = lock.epic.indexOf('-');
   if (separator < 0 || !contractTypes.includes(lock.epic.slice(0, separator))
     || !isContractSlug(lock.epic.slice(separator + 1))) {
@@ -346,7 +349,10 @@ export function validateContractIndexEntry(entry) {
   const { contractId } = parseContractFolder(entry.folder);
   if (entry.contractId !== contractId) throw new Error('Index contractId must match the contract folder ID');
   choice(entry.status, ['active', 'superseded', 'withdrawn'], 'status');
-  if (entry.status === 'superseded') required(entry.supersededBy, 'supersededBy');
+  if (entry.status === 'superseded'
+    && (typeof entry.supersededBy !== 'string' || !contractIdPattern.test(entry.supersededBy))) {
+    throw new Error('Invalid index supersededBy contract ID');
+  }
   return entry;
 }
 
@@ -458,25 +464,29 @@ export const contractPathFence = Object.freeze({
 });
 
 export function checkContractPathFence({ role, changedFiles, contractsRoot = defaultContractsRoot }) {
-  if (!isContractPath(contractsRoot)) throw new Error('Invalid contractsRoot path');
-  const root = contractsRoot.toLowerCase();
+  if (!repositoryPath(contractsRoot)) throw new Error('Invalid contractsRoot path');
+  const rootPrefix = contractsRoot + '/';
+  const canonicalRoot = contractsRoot.toLowerCase();
   const allowed = Object.hasOwn(contractPathFence, role) ? contractPathFence[role] : undefined;
   return rows(changedFiles, 'changedFiles').filter(path => {
     if (!repositoryPath(path)) return true;
     const canonical = path.toLowerCase();
-    const inContractsRoot = canonical === root || canonical.startsWith(root + '/');
-    if (inContractsRoot && !isContractPath(path)) return true;
+    const inContractsRoot = canonical === canonicalRoot || canonical.startsWith(canonicalRoot + '/');
+    if (inContractsRoot && !path.startsWith(rootPrefix)) return true;
     if (/(^|\/)codeowners$/.test(canonical) || canonical.startsWith('.github/')
       || ['.gitlab-ci.yml', 'azure-pipelines.yml', 'jenkinsfile'].includes(canonical)) {
-      return allowed !== '*';
+      if (allowed !== '*') return true;
     }
     if (!inContractsRoot) return false;
+    const relative = path.slice(rootPrefix.length);
+    if (!isContractPath(relative)) return true;
+    if (relative === 'INDEX.json') return allowed !== '*';
+    const segments = relative.split('/');
+    const [year, month, folder, section] = segments;
+    if (segments.length < 4 || !matchContractFolder([year, month, folder].join('/'))) return true;
     if (allowed === '*') return false;
-    const relative = path.slice(contractsRoot.length + 1).split('/');
-    const [year, month, folder, section] = relative;
-    return !allowed || relative.length < 5 || section !== allowed
-      || !matchContractFolder([year, month, folder].join('/'))
-      || relative.some(segment => ['index.json', 'contract.lock.json'].includes(segment.toLowerCase()));
+    return !allowed || segments.length < 5 || section !== allowed
+      || segments.some(segment => ['index.json', 'contract.lock.json'].includes(segment.toLowerCase()));
   });
 }
 

@@ -22,4 +22,4 @@ Pin prd, acceptance.feature and applicable interaction-design issue document rev
 
 Write G2 contract deliverables, file names and paths in English.
 
-Set `contract.type` and `contract.slug` in the G2 approval manifest using the [contract directory rules](../docs/CONTRACT_DIRECTORY.md).
+Set `contract.type` to one of `feat`, `fix`, `refactor`, `perf`, `spike`, `proto`, `exp`, `doc` or `rule` in the G2 approval manifest. Set `contract.slug` to an approved slug of at most 32 characters that matches `^[a-z0-9]+(?:-[a-z0-9]+)*$`.

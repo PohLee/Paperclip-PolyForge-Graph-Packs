@@ -114,7 +114,7 @@ export const pack = Object.freeze({
   organization,graphs:allGraphs,roles,skills,decisionRules,policyDocuments,policyDocumentDigests,methodReferences,brandMethods,runtimeRequirements,
   policies:{decisionTraceRequired:false,artifactValidation:'host-callable-pack-validator',review:{independentExecutionRequired:true},
     conceptSprint:{minCount:3,maxCount:5,completionRequiresRealImages:true,oneGallery:true}},
-  release:{digest:'sha256:7c9c91f1da3bfd0f4d1ece6dfacb687ca12fa2bdfd90301bfe57e94eb2cb368e',builtAt:'2026-11-27T00:00:00.000Z',status:'candidate'},
+  release:{digest:'sha256:599bf6b60d24696224d7b628e8d7240b2353e89e0261a835697713762c0b85d2',builtAt:'2026-11-27T00:00:00.000Z',status:'candidate'},
 });
 
 export function loadPack() { return pack; }

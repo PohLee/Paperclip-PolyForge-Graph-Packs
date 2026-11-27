@@ -183,6 +183,8 @@ The Pack exports these shape validators for Host use. The Host verifies identity
 
 The G2 manifest names its ID and version, pins each deliverable revision and digest, and records the EGM report reference, unresolved escalations and assumptions. Include unique `prd` and `acceptance.feature` keys. Use `supersedes: null` initially and an immutable predecessor reference on replacement. The Host run record supplies approver identity.
 
+The optional `contract: { type, slug }` field pins the approved work type and slug used for publication. When supplied, both values must follow the [contract directory rules](CONTRACT_DIRECTORY.md).
+
 ```json
 {
   "id": "G2-C1",

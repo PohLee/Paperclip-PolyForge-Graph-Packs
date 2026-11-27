@@ -34,7 +34,8 @@ test('contract slugs use a fixed type enum and at most 32 lowercase ASCII charac
   for (const slug of ['', 'Orders', 'two--words', 'two_words', '-orders', 'orders-', limit + 'a', null, '订单']) {
     assert.throws(() => adlc.validateContractSlug(slug), /slug/);
   }
-  for (const title of ['订单管理', 'Order 订单', '!!!', limit + 'a']) {
+  for (const title of ['Café', 'Cafe\u0301', 'Đăng nhập', 'Release ＡＰＩ', 'Release ２ API', 'İstanbul',
+    '订单管理', 'Order 订单', '!!!', limit + 'a']) {
     assert.throws(() => adlc.deriveContractSlug(title), /slug/);
   }
 });
@@ -72,6 +73,8 @@ test('contract folder names round-trip the UTC approval hour across month and ye
     assert.throws(() => adlc.contractFolderName({ approvedAt, ...fields }), /approval time/);
   }
   const approvedAt = '2026-11-26T07:00:00Z';
+  assert.throws(() => adlc.contractFolderName(), /Invalid contract approval time/);
+  assert.throws(() => adlc.contractFolderName(null), /Invalid contract approval time/);
   assert.throws(() => adlc.contractFolderName({ approvedAt, ...fields, type: 'feature' }), /type/);
   assert.throws(() => adlc.contractFolderName({ approvedAt, ...fields, slug: 'Orders' }), /slug/);
   assert.throws(() => adlc.contractFolderName({ approvedAt, ...fields, contractId: 'C1' }), /ID/);
@@ -105,6 +108,7 @@ test('contract lock confines unique file paths to their section', () => {
   const lock = { contractId: 'PRC-687256771405', epic: 'feat-orders', backlogItemRef: 'item:1',
     approvalManifest: { id: 'G2', revisionId: 'v1', digest: 'a'.repeat(64) }, supersedes: null, files: [file] };
   assert.equal(adlc.validateContractLock(lock), lock);
+  assert.throws(() => adlc.validateContractLock({ ...lock, contractId: 'PRC-42' }), /contractId/);
   for (const path of ['product/../technical/spec.md', 'product/..\\spec.md', 'design/spec.md', 'product/订单.md']) {
     assert.throws(() => adlc.validateContractLock({ ...lock, files: [{ ...file, path }] }), /path/);
   }
@@ -120,6 +124,9 @@ test('index entry uses a valid publication date and names its successor when sup
   assert.throws(() => adlc.validateContractIndexEntry({ ...entry, folder: '2026/10/26112607_feat-orders_PRC-687256771405' }), /folder/);
   assert.throws(() => adlc.validateContractIndexEntry({ ...entry, contractId: 'PRC-500253700074' }), /contractId/);
   assert.throws(() => adlc.validateContractIndexEntry({ ...entry, status: 'superseded' }), /supersededBy/);
+  const superseded = { ...entry, status: 'superseded', supersededBy: 'PRC-500253700074' };
+  assert.equal(adlc.validateContractIndexEntry(superseded), superseded);
+  assert.throws(() => adlc.validateContractIndexEntry({ ...superseded, supersededBy: 'PRC-42' }), /supersededBy/);
 });
 
 test('completion ledger requires all groups and reasons for exceptions', () => {
@@ -178,9 +185,28 @@ test('path fence limits contributors to their section and reserves metadata for 
   assert.deepEqual(adlc.checkContractPathFence({ role: 'product-owner', changedFiles }),
     [lock, ci, traversal, nonAscii]);
   assert.deepEqual(adlc.checkContractPathFence({ role: 'contract-merge-bot', changedFiles }), [traversal, nonAscii]);
-  const customPath = 'custom/contracts/2026/11/26112607_feat-orders_PRC-687256771405/product/with space.md';
-  assert.deepEqual(adlc.checkContractPathFence({ role: 'contract-merge-bot', changedFiles: [customPath],
-    contractsRoot: 'custom/contracts' }), [customPath]);
+});
+
+test('path fence applies the contract alphabet below a custom root with spaces', () => {
+  const contractsRoot = 'Product Docs/contracts';
+  const folder = `${contractsRoot}/2026/11/26112607_feat-orders_PRC-687256771405`;
+  const spaced = `${folder}/product/file name.md`;
+  for (const role of ['product-owner', 'contract-merge-bot']) {
+    assert.deepEqual(adlc.checkContractPathFence({ role, contractsRoot,
+      changedFiles: [`${folder}/product/prd.md`, spaced] }), [spaced]);
+  }
+});
+
+test('path fence requires the configured root case and confines bot contract writes to the v2 layout', () => {
+  const contractsRoot = 'Knowledge/Contracts';
+  const folder = '2026/11/26112607_feat-orders_PRC-687256771405';
+  const wrongCase = `knowledge/contracts/${folder}/product/prd.md`;
+  const invalid = [wrongCase, contractsRoot, `${contractsRoot}/index.json`, `${contractsRoot}/product/prd.md`,
+    `${contractsRoot}/2026/11/2026-11-26-orders-C1/product/prd.md`, `${contractsRoot}/${folder}`];
+  const changedFiles = [`${contractsRoot}/INDEX.json`, `${contractsRoot}/${folder}/contract.lock.json`,
+    '.github/workflows/contracts.yml', 'CODEOWNERS', 'docs/CODEOWNERS', ...invalid];
+  assert.deepEqual(adlc.checkContractPathFence({ role: 'contract-merge-bot', changedFiles, contractsRoot }), invalid);
+  assert.deepEqual(adlc.checkContractPathFence({ role: 'product-owner', changedFiles: [wrongCase], contractsRoot }), [wrongCase]);
 });
 
 test('seat declarations describe portable constraints without concrete provider settings', () => {
