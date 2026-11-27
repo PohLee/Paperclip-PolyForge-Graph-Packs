@@ -235,7 +235,10 @@ export function createCreativeHostApi({engine,artifactRootForRun,hasImageProvide
       const audit=latestPayload(run,'design-audit','visual_audit');
       if(!manifest || !audit || !sameRef(audit.manifestRef,manifest) || audit.manifestDigest!==digest(stableJson(manifest))) throw new Error('G3 requires an audit of the exact visual manifest');
       assertCreativeArtifact('visual_manifest',manifest);
-      if(audit.behaviorChanged !== (outcome==='return-to-g2')) throw new Error('Behavior changes must return to G2');
+      const behaviorChanged = automatedVisual(run.graph)
+        ? manifest.behaviorChanged !== false || audit.behaviorChanged !== false
+        : audit.behaviorChanged;
+      if(behaviorChanged !== (outcome==='return-to-g2')) throw new Error('Behavior changes must return to G2');
     }
     if(nodeId==='naming-disposition'&&outcome==='shortlist') {
       const candidates=latestPayload(run,'develop-name-candidates','brand_name_candidates');

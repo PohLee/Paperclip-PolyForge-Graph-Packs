@@ -303,16 +303,16 @@ function completedArtifact(namespace, kind, payload) {
   };
 }
 
-async function readyG3(project, systemScope = 'out-of-system') {
+async function readyG3(project, systemScope = 'out-of-system', { manifestChanged = false, auditChanged = false } = {}) {
   const { GraphEngine, runValidationDigest } = await loadCore();
   const engine = new GraphEngine();
   await engine.registerPack(creativePack);
   const ref = { id: 'baseline', version: '1' };
-  const manifest = { id: 'visual', version: '1', systemScope, behaviorChanged: false,
+  const manifest = { id: 'visual', version: '1', systemScope, behaviorChanged: manifestChanged,
     productContractRef: ref, interactionRef: ref, designBaselineRef: ref, tokens: [], components: [], assets: [{ ...ref, digest: 'a'.repeat(64) }],
     deliverables: [{ key: 'design.json', digest: 'a'.repeat(64) }] };
   const audit = { id: 'audit', version: '1', manifestRef: manifest, manifestDigest: canonicalDigest(manifest),
-    behaviorChanged: false, findings: [] };
+    behaviorChanged: auditChanged, findings: [] };
   const manifestSubject = { artifactId: manifest.id, version: manifest.version };
   const api = createCreativeHostApi({ engine, runValidationDigest, resolveActor: ({ claimedActor }) => claimedActor,
     services: { getProjectConfig: async () => project,
@@ -413,4 +413,17 @@ test('verification-exception records the owner acceptance and reaches its termin
   const run = await engine.getRun(runId);
   assert.equal(run.nodeStates['verification-exception-accepted'].status, 'completed');
   assert.equal(run.graph.nodes.find(node => node.id === 'verification-exception-accepted').output, 'verification_exception_accepted');
+});
+test('G3 behavior changes reported by either artifact must return to G2', async () => {
+  const director = { ...agent, roles: ['design-director'] };
+  for (const changes of [{ manifestChanged: true }, { auditChanged: true }]) {
+    const { api, runId, nodeId } = await readyG3({ automationMode: 'assisted' }, 'in-system', changes);
+    const approval = { runId, nodeId, outcome: 'approve', reason: 'Approve visual scope' };
+    await assert.rejects(api.decideNode({ ...approval, actor: owner }), /return to G2/);
+    await assert.rejects(api.decideNode({ ...approval, actor: director }), /human owner/);
+    const escalated = await api.decideNode({ ...approval, actor: director, outcome: 'human' });
+    const resolution = { ...approval, actor: owner, expectedDecisionId: escalated.decision.id };
+    await assert.rejects(api.resolveHumanGate(resolution), /return to G2/);
+    assert.equal((await api.resolveHumanGate({ ...resolution, outcome: 'return-to-g2' })).decision.outcome, 'return-to-g2');
+  }
 });
