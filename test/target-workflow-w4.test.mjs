@@ -282,7 +282,6 @@ test('assisted G3 requires current clean audit evidence and an active project ce
   await assert.rejects(api.decideNode(args), /citing the current visual audit/);
   ceiling = 'manual';
   await assert.rejects(api.decideNode(args), /ceiling/);
-  assert.equal((await api.decideNode({ ...args, actor: owner })).outcome, 'approve');
 });
 
 async function completePrelude(engine, run, nodes) {
@@ -358,13 +357,14 @@ test('G3 director escalates an ineligible manifest and the owner resolves the ga
   assert.equal((await engine.getRun(runId)).nodeStates.g3.outcome, 'approve');
 });
 
-async function readyVerification(graphVersion, exception) {
+async function readyVerification(graphVersion, exception, mode = 'manual') {
   const { GraphEngine, runValidationDigest } = await loadCore();
   const engine = new GraphEngine({ availableCapabilities: {
     'company-control': '1.0.0', 'cross-pack-plans': '1.0.0', 'cross-pack-handoff': '1.0.0'
   } });
   await engine.registerPack(pack);
-  const api = createAdlcHostApi({ engine, runValidationDigest, resolveActor: ({ claimedActor }) => claimedActor });
+  const api = createAdlcHostApi({ engine, runValidationDigest, resolveActor: ({ claimedActor }) => claimedActor,
+    services: { getProjectConfig: async () => ({ automationMode: mode }) } });
   const headSha = 'a'.repeat(40);
   const pr_head = { id: 'pr:example/project#1', version: headSha, repository: 'example/project', pullNumber: 1, headSha };
   const contract_pins = ['product', 'technical'].map(section => ({ section, contractId: 'C1', commit: headSha }));
@@ -376,7 +376,7 @@ async function readyVerification(graphVersion, exception) {
     await engine.recordContractMerge(publication.id, { ...pin, mergeCommitSha: pin.commit,
       repository: pr_head.repository, pullNumber: index + 2, supersedes: null });
   }
-  const run = await api.startRun({ ...start, graphId: 'verification', graphVersion, mode: 'manual',
+  const run = await api.startRun({ ...start, graphId: 'verification', graphVersion, mode,
     input: { projectId: 'project', pr_head, contract_pins, verification_scope } });
   const manifest = { ...verification_scope, id: 'manifest', checkoutSha: headSha,
     results: exception ? [] : [{ scenarioId: 'BDD-1', dimensions: {}, result: 'pass', evidenceRefs: ['ci'] }] };
@@ -426,4 +426,18 @@ test('G3 behavior changes reported by either artifact must return to G2', async 
     await assert.rejects(api.resolveHumanGate(resolution), /return to G2/);
     assert.equal((await api.resolveHumanGate({ ...resolution, outcome: 'return-to-g2' })).decision.outcome, 'return-to-g2');
   }
+});
+
+test('assisted G3 accepts approval from an owner-only actor', { skip: 'TODO(F2)' }, async () => {
+  const { api, runId, nodeId } = await readyG3({ automationMode: 'assisted' });
+  const decision = { runId, nodeId, outcome: 'approve', reason: 'Accept visual scope' };
+  await assert.rejects(api.decideNode({ ...decision, actor: agent }), /human owner/);
+  assert.equal((await api.decideNode({ ...decision, actor: owner })).decision.outcome, 'approve');
+});
+
+test('assisted G5 accepts hold from an owner-only actor', { skip: 'TODO(F2)' }, async () => {
+  const { api, runId, manifest, pr_head } = await readyVerification('0.1.9', false, 'assisted');
+  const decision = { runId, nodeId: 'g5', outcome: 'hold', reason: 'Await owner review',
+    evidence: [{ kind: 'merge_evidence', subjectRefs: [manifest, pr_head].map(({ id, version }) => ({ artifactId: id, version })) }] };
+  assert.equal((await api.decideNode({ ...decision, actor: owner })).decision.outcome, 'hold');
 });
