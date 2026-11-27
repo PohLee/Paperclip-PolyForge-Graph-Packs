@@ -1,5 +1,5 @@
 import { pack } from '../index.mjs';
-import { mergeProducers } from '../merge-producers.mjs';
+import { mergeProducers, currentAttemptPayload } from '../merge-producers.mjs';
 import {
   validateRequestBrief, validateEvidenceLedger, validateExperimentRecord, validateExperimentRoute,
   validateRequirementsHandoff, validateCompetitiveDiff, validateCompetitiveRoute, validateInvestmentCase,
@@ -52,6 +52,10 @@ function latestPayload(run,nodeId,kind) {
   const ref=[...(nodeState.artifacts??[])].reverse().find(item=>item.kind===kind);
   const payload=attempt.output?.adlcProductMethods?.[kind];
   return ref&&payload?.id===ref.id&&payload?.version===ref.version ? payload : null;
+}
+
+export function candidatePayload(run, ref) {
+  return currentAttemptPayload(run, ref, 'adlcProductMethods');
 }
 
 /** Trusted host boundary for pack-owned ADLC product-method contracts. */

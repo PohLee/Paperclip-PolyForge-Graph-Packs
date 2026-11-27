@@ -6,8 +6,8 @@ import { pathToFileURL } from 'node:url';
 import { canonicalDigest, validateContractPublicationRequest } from '../packs/adlc/product-method-contracts.mjs';
 import { pack, mergeProducers, adlcProjectConfigSchema, assessDeterministicRisk, metricDefinitions } from '../packs/adlc/index.mjs';
 import { pack as creativePack } from '../packs/adlc-creative-team/index.mjs';
-import { createAdlcHostApi } from '../packs/adlc/runtime/host-api.mjs';
-import { canAgentApproveVisual, createCreativeHostApi, creativeRequiredServicesByGraph } from '../packs/adlc-creative-team/runtime/host-api.mjs';
+import { createAdlcHostApi, candidatePayload as adlcPayload } from '../packs/adlc/runtime/host-api.mjs';
+import { candidatePayload as creativePayload, canAgentApproveVisual, createCreativeHostApi, creativeRequiredServicesByGraph } from '../packs/adlc-creative-team/runtime/host-api.mjs';
 import { assessW4ImplementationRisk, automationMode, canAgentApproveMerge, technicalValidators } from '../packs/adlc/runtime/technical-workflow.mjs';
 
 async function loadCore() {
@@ -449,6 +449,9 @@ test('G2 publication validates the request and its exact approval on submission 
       revisedPayload: { ...request, version: '2', ...change } });
     await assert.rejects(revise({ decisionId: 'other' }), /current G2 approval/);
     await revise({ pullNumber: 6 });
+    const revised = await engine.getRun(runId);
+    assert.equal(adlcPayload(revised, { ...revisedArtifact, version: '1' }), null);
+    assert.equal(adlcPayload(revised, revisedArtifact).pullNumber, 6);
   }
 });
 
@@ -515,6 +518,28 @@ test('G3 rejects audit replacement after approval', async () => {
   await completePrelude(engine, await engine.getRun(runId), {
     'design-audit': completedArtifact('creativeArtifacts', 'visual_audit', replacement)
   });
+  const revised = await engine.getRun(runId);
+  assert.equal(creativePayload(revised, { kind: 'visual_audit', id: audit.id, version: '1' }), null);
+  assert.deepEqual(creativePayload(revised, { kind: 'visual_audit', id: audit.id, version: '2' }), replacement);
   const { submit } = designRequest({ ...fixture, audit: replacement }, approval.decision.id);
   await assert.rejects(submit(), /approved audit/);
+});
+
+test('Creative candidate payload follows the latest self-review revision', async () => {
+  const { api, engine, runId, audit } = await readyG3({ automationMode: 'manual' });
+  const actor = { ...agent, roles: ['design-qa-accessibility'] };
+  const nodeId = 'design-audit';
+  const state = await engine.store.read();
+  const run = state.runs[runId];
+  // Enable the generic review path on this fixture to exercise the real wrapper and engine.
+  run.graph.nodes.find(node => node.id === nodeId).review = { supervisorRole: 'design-director' };
+  run.nodeStates[nodeId].status = 'awaiting_self_review';
+  Object.assign(run.nodeStates[nodeId].attempts[0], { actor, selfReviews: [] });
+  await engine.store.write(state, state.revision);
+  const revisedArtifact = { id: audit.id, version: '2', kind: 'visual_audit' };
+  await api.recordSelfReview({ runId, nodeId, actor, artifactVersion: '2', revisedArtifact,
+    revisedPayload: { ...audit, version: '2' } });
+  const revised = await engine.getRun(runId);
+  assert.equal(creativePayload(revised, { ...revisedArtifact, version: '1' }), null);
+  assert.equal(creativePayload(revised, revisedArtifact).version, '2');
 });

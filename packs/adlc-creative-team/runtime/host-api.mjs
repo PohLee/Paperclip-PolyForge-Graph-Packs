@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto';
+import { currentAttemptPayload } from '../../adlc/merge-producers.mjs';
 import { readFile, realpath, readdir } from 'node:fs/promises';
 import path from 'node:path';
 import { graphs, productDesignGraphs, adlcHandoffGraphs, automatedVisualVersion, designPublication } from '../graphs/catalog.mjs';
@@ -81,6 +82,10 @@ async function insideRoot(root, relative) {
   const realCandidate=await realpath(candidate), realRel=path.relative(realRoot,realCandidate);
   if(realRel.startsWith('..')||path.isAbsolute(realRel)) throw new Error('Artifact symlink escapes the run artifact directory');
   return {realRoot,realCandidate};
+}
+
+export function candidatePayload(run, ref) {
+  return currentAttemptPayload(run, ref, 'creativeArtifacts');
 }
 
 export function createCreativeHostApi({engine,artifactRootForRun,hasImageProvider,decodeImage,loadExternalArtifact,getArtifactProvenance,resolveDecisionEvidence,resolveActor,authorizeBrandSelection,loadBrandContext,runValidationDigest,services={}}={}) {
