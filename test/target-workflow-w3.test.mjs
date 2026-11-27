@@ -29,7 +29,10 @@ test('WP3.1 G4 binds the technical approval manifest and offers all clarificatio
   assert.equal(g4.decisionType, 'technical-contract-approval');
   assert.deepEqual(g4.candidateKinds, ['technical_approval_manifest']);
   assert.deepEqual(node('technical-design', 'clarification').outcomes, ['accepted', 'rejected', 'timed-out', 'superseded']);
-  assert.ok(node('technical-design', 'comprehension-review').freshContextRequired);
+  const review = node('technical-design', 'comprehension-review');
+  assert.ok(review.freshContextRequired);
+  assert.equal(review.seat.name, 'implementation-goldfish');
+  assert.deepEqual(review.seat.judgeVendorNotIn, [node('technical-design', 'draft-technical-design').seat.name]);
   assert.throws(() => technicalValidators.technical_specs({ specs: [{ id: 'SPEC-01' }] }), /Incomplete technical spec/);
   assert.throws(() => technicalValidators.technical_approval_manifest({ version: '1', revisionId: '2', deliverables: [] }), /exact technical revisions/);
 });
