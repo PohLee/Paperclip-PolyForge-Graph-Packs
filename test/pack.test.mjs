@@ -18,15 +18,16 @@ test('published pack registers with the core validator and has the lifecycle inv
     'request-triage', 'product-discovery', 'implementation', 'verification', 'small-change',
     'release-process', 'release-observation', 'production-monitoring', 'requirements-baseline', 'product-experiment', 'competitive-watch',
     'system-architecture', 'code-delivery', 'technical-design', 'design-drift',
-    'system-architecture-workflow', 'code-delivery-workflow', 'architecture-review-composed'
+    'system-architecture-workflow', 'code-delivery-workflow', 'architecture-review-composed',
+    'request-triage', 'product-discovery', 'external-intel-rerank', 'requirements-baseline'
   ]);
   assert.equal(Object.keys(pack.roles).length, 10);
-  assert.equal(new Set(pack.graphs.map(graph => `${graph.id}@${graph.version}`)).size, 18);
+  assert.equal(new Set(pack.graphs.map(graph => `${graph.id}@${graph.version}`)).size, 22);
 });
 
 test('every Graph appears in a company dashboard run view', () => {
   const listed = new Set(pack.dashboard.views.flatMap(view => view.graphIds ?? []));
-  assert.deepEqual([...listed].sort(), pack.graphs.map(graph => graph.id).sort());
+  assert.deepEqual([...listed].sort(), [...new Set(pack.graphs.map(graph => graph.id))].sort());
 });
 
 test('every task role and supervisor maps to a documented blueprint', () => {
@@ -70,7 +71,7 @@ test('ADLC department heads report to the company CEO without changing review es
     'principal-engineer': 'cto-caio', 'lead-engineer': 'principal-engineer',
     'qa-engineer': 'cto-caio', 'security-engineer': 'cto-caio'
   };
-  assert.equal(pack.version, '0.3.12');
+  assert.equal(pack.version, '0.3.14');
   assert.deepEqual(Object.fromEntries(Object.values(pack.roles).map(role => [role.id, role.reportsToRole])), reportsTo);
   assert.deepEqual(Object.fromEntries(Object.values(pack.roles).map(role => [role.id, role.supervisorRole])), reviewEscalation);
   assert.equal(Object.values(pack.roles).filter(role => role.reportsToRole === 'ceo').length, 2);
@@ -80,7 +81,7 @@ test('ADLC department heads report to the company CEO without changing review es
     assert.match(role.documents.role, /## Artifact review\n\nDefault review escalation role:/);
     assert.match(role.documents.instruction, /organizational reporting line.*Graph node/s);
   }
-  assert.deepEqual(pack.graphs.filter(graph => graph.id !== 'small-change').map(graph => graph.version), ['0.2.1', '0.2.2', '0.1.7', '0.1.7', '0.1.0', '0.1.0', '0.1.0', '0.1.1', '0.1.0', '0.1.0', '0.1.1', '0.1.0', '0.1.0', '0.1.0', '1.0.1', '1.0.0', '1.0.1']);
+  assert.deepEqual(pack.graphs.filter(graph => graph.id !== 'small-change').map(graph => graph.version), ['0.2.1', '0.2.2', '0.1.7', '0.1.7', '0.1.0', '0.1.0', '0.1.0', '0.1.1', '0.1.0', '0.1.0', '0.1.1', '0.1.0', '0.1.0', '0.1.0', '1.0.1', '1.0.0', '1.0.1', '0.2.2', '0.2.3', '0.1.0', '0.1.2']);
   assert.equal(pack.policies.cpoCtoConflict.protocolVersion, 2);
 });
 
@@ -151,7 +152,7 @@ test('important artifact tasks self review and hand off to an independent review
       assert.equal(node.review, undefined);
       continue;
     }
-    if (['cpo-alignment', 'cto-alignment'].includes(node.id)) {
+    if (['cpo-alignment', 'cto-alignment', 'candidate-a', 'candidate-b', 'judge', 'prepare-g2'].includes(node.id)) {
       assert.equal(node.review, undefined, `${node.id} is a signed position rather than an artifact approval`);
       continue;
     }
@@ -184,7 +185,7 @@ async function playGraph(graphId, routes, expectedStatus, options = {}) {
     ...(graphId === 'release-process' ? { implementation_candidate: { id: 'CODE-1', version: 'v1' }, verification_decision: { id: 'ACCEPT-1', version: 'v1' } } : {}),
     ...(graphId === 'release-observation' ? { implementation_candidate: { id: 'CODE-1', version: 'v1' }, release_execution_event: { id: 'EXEC-1', version: 'v1' }, release_plan_identity: { id: 'PLAN-1', version: 'v1' }, release_authorization_decision: { id: 'START-1', version: 'v1' } } : {}),
     ...(graphId === 'production-monitoring' ? { service_identity: { id: 'SERVICE-1', version: 'v1' }, monitoring_plan_identity: { id: 'MON-PLAN-1', version: 'v1' }, observation_window: { start: '2026-10-28T00:00:00Z', end: '2026-10-28T01:00:00Z' }, signal_snapshot: { id: 'SIGNAL-1', version: 'v1' } } : {}), ...options.input };
-  const run = await engine.startRun({ packId: pack.id, packVersion: pack.version, graphId, mode: 'autonomous', actor: starter, input });
+  const run = await engine.startRun({ packId: pack.id, packVersion: pack.version, graphId, graphVersion: options.graphVersion, mode: 'autonomous', actor: starter, input });
   const next = Object.fromEntries(Object.entries(routes).map(([key, value]) => [key, Array.isArray(value) ? [...value] : [value]]));
   let count = 0;
   while (count++ < 160) {
@@ -676,4 +677,15 @@ test('optional architecture and code-delivery graphs execute their documented ou
     const run = await playGraph('code-delivery', { 'delivery-gate': outcome }, 'completed');
     assert.equal(run.nodeStates['delivery-gate'].outcome, outcome);
   }
+});
+
+test('G2 completes the new baseline through one Core human requirements-acceptance decision', async () => {
+  const run = await playGraph('requirements-baseline', { 'scope-route': 'small', 'requirements-gate': 'accept' },
+    'completed', { graphVersion: '0.1.2' });
+  const decisions = await run._engine.listDecisions({ runId: run.id });
+  const g2 = decisions.filter(record => record.nodeId === 'requirements-gate');
+  assert.equal(g2.length, 1);
+  assert.equal(g2[0].outcome, 'accept');
+  assert.equal(g2[0].actor.kind, 'human');
+  assert.equal(run.nodeStates['requirements-accepted'].status, 'completed');
 });

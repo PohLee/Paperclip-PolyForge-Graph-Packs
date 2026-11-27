@@ -14,7 +14,7 @@ const sample = {
 };
 
 test('0.3.3 opts into composition while leaving legacy graph contracts unchanged', async () => {
-  assert.equal(pack.version, '0.3.3');
+  assert.equal(pack.version, '0.3.4');
   assert.deepEqual(compatibilityIssues(pack), []);
   const { ['workflow-composition']: _cap, ...withoutComposition } = CORE_RUNTIME.capabilities;
   assert.match(compatibilityIssues(pack, null, { runtime: { ...CORE_RUNTIME, capabilities: withoutComposition } }).join(' '), /workflow-composition/);

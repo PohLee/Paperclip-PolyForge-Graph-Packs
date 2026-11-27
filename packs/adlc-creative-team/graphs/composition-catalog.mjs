@@ -59,7 +59,7 @@ const parent = {
   },
   nodes: [{
     id: 'foundation', type: 'workflow',
-    workflow: { packId: 'creative-team', packVersion: '0.3.3', graphId: child.id, graphVersion: child.version },
+    workflow: { packId: 'creative-team', packVersion: '0.3.4', graphId: child.id, graphVersion: child.version },
     inputMapping: {
       brandName: { source: 'input', path: ['brandName'] }, category: { source: 'input', path: ['category'] },
       targetAudience: { source: 'input', path: ['targetAudience'] }, brandPromise: { source: 'input', path: ['brandPromise'] },

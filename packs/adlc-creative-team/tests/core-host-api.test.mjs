@@ -108,6 +108,8 @@ test('new design-system bootstrap can accurately inventory an empty system',()=>
 test('each graph has a valid terminal artifact contract fixture',()=>{
   const ref=(id,kind='artifact')=>({id,version:'1',kind});
   const fixtures={
+    'pre-g2-interaction':['interaction_design',{id:'interaction',version:'1',intentRef:ref('intent'),states:['loading'],scenarioRefs:[ref('scenario')],suppliedDesigns:[]}],
+    'g3-visual-contract':['visual_manifest',{id:'visual',version:'1',productContractRef:ref('product'),interactionRef:ref('interaction'),designBaselineRef:ref('baseline'),assets:[{...ref('asset'),digest:'a'.repeat(64)}],tokens:[],components:[],deliverables:[{key:'design.json',digest:'a'.repeat(64)}],systemScope:'in-system'}],
     'creative-intake':['creative_brief',{id:'brief',version:'1',objective:'Clarify the task',audience:'Operators'}],
     'brand-foundation':['brand_baseline',{id:'brand',version:'1',strategyRef:ref('strategy','brand_strategy'),identityRef:ref('identity','brand_identity_system'),voiceRef:ref('voice','brand_voice_system'),decisionRef:ref('decision','decision')}],
     'concept-sprint':['concept_gallery',{id:'gallery',version:'1',path:'index.html',digest:'a'.repeat(64),setRef:ref('set','concept_set'),candidateRefs:[ref('c1','concept_candidate'),ref('c2','concept_candidate'),ref('c3','concept_candidate')]}],
@@ -129,7 +131,7 @@ test('each graph has a valid terminal artifact contract fixture',()=>{
     'brand-rollout-plan':['brand_rollout_review',{id:'rollout-review',version:'1',rolloutRef:ref('rollout','brand_rollout_plan'),measurementRef:ref('measure','brand_measurement_plan'),disposition:'accepted',findings:[],reviewerExecutionId:'review-exec'}],
     'brand-foundation-contract':['brand_foundation_package',{id:'foundation',version:'1',strategyRef:ref('strategy','brand_strategy'),identityRef:ref('identity','brand_identity_system'),voiceRef:ref('voice','brand_voice_system'),evidenceRefs:[ref('evidence','brand_evidence_ledger')],reviewRef:ref('review','brand_foundation_review'),acceptanceDecisionRef:ref('decision','decision')}],
   };
-  assert.deepEqual(Object.keys(fixtures),pack.graphs.filter(graph=>graph.id!=='brand-foundation-composed').map(graph=>graph.id));
+  assert.deepEqual(Object.keys(fixtures).sort(),pack.graphs.filter(graph=>graph.id!=='brand-foundation-composed').map(graph=>graph.id).sort());
   for(const [graphId,[kind,payload]] of Object.entries(fixtures)) {
     const result=validateCreativeArtifact(kind,payload);
     assert.equal(result.valid,true,`${graphId}: ${result.errors.join('; ')}`);
@@ -234,4 +236,15 @@ test('G03 wrapper completes real three-, four-, and five-image sets with one can
     assert.equal(final.nodeStates['gallery-incomplete'].status,'pending');
    }
   } finally { await dispose(); }
+});
+
+test('Creative host starts both ADLC handoff graphs', async t => {
+  const { api, dispose } = await hostFixture();
+  t.after(dispose);
+  const ref = { id: 'fixture', version: '1' };
+  for (const graphId of ['pre-g2-interaction', 'g3-visual-contract']) {
+    const result = await api.startRun({ packId: pack.id, packVersion: pack.version, graphId, mode: 'manual',
+      input: { draft_product_intent: ref, approved_product_contract: ref, design_baseline: ref } });
+    assert.equal(result.graph.id, graphId);
+  }
 });

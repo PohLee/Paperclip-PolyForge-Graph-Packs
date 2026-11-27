@@ -55,7 +55,7 @@ function makeHarness() {
 test('ADLC contracts use workflowInput business fields and leave legacy graph contracts unchanged', async () => {
   const engine = new GraphEngine({ store: new MemoryStore() });
   await engine.registerPack(pack);
-  assert.equal(pack.version, '0.3.12');
+  assert.equal(pack.version, '0.3.14');
   assert.equal(pack.compatibility.requiredCapabilities['workflow-composition'], '^1.0.0');
   assert.equal(pack.graphs.find(graph => graph.id === 'request-triage').workflowContract, undefined);
   assert.equal(pack.graphs.find(graph => graph.id === 'system-architecture').evidenceInputSource, undefined);

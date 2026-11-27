@@ -1,11 +1,31 @@
 import {
   validateRequestBrief, validateEvidenceLedger, validateExperimentRecord, validateExperimentRoute,
   validateRequirementsHandoff, validateCompetitiveDiff, validateCompetitiveRoute, validateInvestmentCase,
+  validateApprovalManifest,
 } from '../product-method-contracts.mjs';
+
+import { validateGrillRecord, validateIntelTrigger, validateLegalSignal } from '../backlog.mjs';
+import { egmConverged, validateEgmReport } from '../product-review.mjs';
 
 import { assessSmallChangeAdmission, inspectSmallChangeSubmission } from './small-change.mjs';
 
 const validators=Object.freeze({
+  grill_record:validateGrillRecord,
+  intel_snapshot: snapshot => {
+    if (!Array.isArray(snapshot.signals)) throw new Error('Intel snapshot needs a signals array');
+    snapshot.signals.forEach(validateLegalSignal);
+    return snapshot;
+  },
+  admission_plan: plan => {
+    if (!['entry-a','entry-b','entry-c','entry-d','entry-e','schedule','okr-change','signal-threshold'].includes(plan.entry) ||
+        ['writesPlanned','newHighCostEpic','researchConclusion'].some(key => typeof plan[key]!=='boolean')) {
+      throw new Error('Admission plan must declare entry, mutation, high cost and research conclusion');
+    }
+    if(plan.newHighCostEpic && !plan.writesPlanned) throw new Error('New epic requires a planned write');
+    return plan;
+  },
+  egm_report:validateEgmReport,
+  approval_manifest:validateApprovalManifest,
   request_brief:validateRequestBrief, evidence_ledger:validateEvidenceLedger, experiment_record:validateExperimentRecord,
   requirements_handoff:validateRequirementsHandoff, competitive_diff:validateCompetitiveDiff, investment_case:validateInvestmentCase,
 });
@@ -42,6 +62,37 @@ export function createAdlcHostApi({engine,resolveActor,runValidationDigest,servi
   };
   function validateDecisionRoute(run,nodeId,outcome) {
     if(outcome==='human') return;
+    const grillSource = {
+      'request-triage@0.2.2': ['triage-disposition', 'assess-request'],
+      'product-discovery@0.2.3': ['discovery-gate', 'grill-discovery']
+    }[run.graph.id + '@' + run.graph.version];
+    if (grillSource?.[0] === nodeId) {
+      const grill = latestPayload(run, grillSource[1], 'grill_record');
+      if (!grill || (grill.status==='needs-info' && outcome!=='needs-info')) {
+        throw new Error('Unresolved product direction must route to needs-info');
+      }
+    }
+    if(nodeId==='admission-route') {
+      const plan=latestPayload(run,'prepare-admission','admission_plan');
+      if(!plan) throw new Error('Backlog routing requires an admission plan');
+      const requiresHuman=plan.newHighCostEpic ||
+        (run.mode==='manual' && ['entry-a','entry-c'].includes(plan.entry) && plan.researchConclusion);
+      if(plan.writesPlanned && requiresHuman && outcome!=='human-review') throw new Error('G1 human approval is required');
+      if(plan.writesPlanned === (outcome==='skip')) throw new Error('Backlog route must match the planned writes');
+    }
+    if(nodeId==='requirements-gate' && run.graph.id==='requirements-baseline' && run.graph.version==='0.1.2' && outcome==='accept') {
+      const manifest=validateApprovalManifest(latestPayload(run,'prepare-g2','approval_manifest'));
+      const review=latestPayload(run,'challenge-requirements','egm_report');
+      if(!review || manifest.egmReportRef!==review.id) throw new Error('G2 must reference the current EGM report');
+      const reviewed = new Map(review.deliverables?.map(row => [row.key, row]));
+      if (reviewed.size !== manifest.deliverables.length || manifest.deliverables.some(row =>
+        reviewed.get(row.key)?.revisionId !== row.revisionId || reviewed.get(row.key)?.digest !== row.digest)) {
+        throw new Error('G2 deliverables must match the exact revisions reviewed by EGM');
+      }
+      if(!egmConverged(review) && !manifest.unresolvedEscalations.length) {
+        throw new Error('EGM nonconvergence must be escalated to G2');
+      }
+    }
     if(nodeId==='experiment-gate') validateExperimentRoute(latestPayload(run,'assess-probe','experiment_record'),outcome);
     if(nodeId==='watch-route') validateCompetitiveRoute(latestPayload(run,'compare-snapshots','competitive_diff'),outcome);
   }
@@ -108,6 +159,7 @@ export function createAdlcHostApi({engine,resolveActor,runValidationDigest,servi
       if(args.packId!=='adlc') throw new Error('ADLC packId is required');
       const actor=await trustedActor(args.actor,{operation:'startRun',graphId:args.graphId});
       const { admission: _callerAdmission, ...request } = args;
+      if (args.graphId === 'external-intel-rerank') validateIntelTrigger(args.input?.intel_trigger);
       if (args.graphId !== 'small-change') return engine.startRun({ ...request, actor });
       if (actor.kind !== 'human' || !actor.roles.includes('human-owner')) throw new Error('Small-change admission requires a human owner');
       const admission = await assessSmallChangeAdmission(request, services?.inspectSmallChange);

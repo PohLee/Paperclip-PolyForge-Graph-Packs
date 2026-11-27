@@ -174,3 +174,142 @@ Ready requires every configured check passing, independent approving review, dis
 ## Check execution
 
 Core supplies optional `src/host/check-runner.mjs` and CLI `scripts/check-runner.mjs` (built as `dist/check-runner.js`). Host-owned configuration defines command/agent checks, setup, feedback, timeouts and attempt bounds; see Core's host runner guide. Publish logs/manifests as immutable source artifacts and map actual observations to criterion proof. Retry/stop, missing tools or telemetry cannot become pass. After worker changes, pin the final candidate and perform final verification. The runner does not submit Graph decisions automatically.
+
+## Target workflow evidence
+
+The Pack exports these shape validators for Host use. The Host verifies identity, revisions and evidence provenance.
+
+### Approval manifest
+
+The G2 manifest names its ID and version, pins each deliverable revision and digest, and records the EGM report reference, unresolved escalations and assumptions. Include unique `prd` and `acceptance.feature` keys. Use `supersedes: null` initially and an immutable predecessor reference on replacement. The Host run record supplies approver identity.
+
+```json
+{
+  "id": "G2-C1",
+  "version": "v1",
+  "deliverables": [
+    {
+      "key": "prd",
+      "revisionId": "r1",
+      "digest": "0000000000000000000000000000000000000000000000000000000000000000"
+    },
+    {
+      "key": "acceptance.feature",
+      "revisionId": "r1",
+      "digest": "0000000000000000000000000000000000000000000000000000000000000000"
+    }
+  ],
+  "egmReportRef": "artifact:egm/r1",
+  "unresolvedEscalations": [],
+  "assumptions": [],
+  "supersedes": null
+}
+```
+
+### Verification manifest
+
+List approved BDD scenario IDs in `expectedScenarios`. Each dimension declares a unique name and a nonempty list of values. Supply one result per Cartesian combination for each scenario. With zero dimensions, use `{}`. Each result names its scenario, dimensions, result and evidence references for the pinned checkout. An optional manifest `status: "not-run"`, missing result, missing evidence or explicit `unverified` leaves a gap. A failure with evidence determines the overall status even when other rows have gaps.
+
+```json
+{
+  "checkoutSha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "expectedScenarios": [
+    "save"
+  ],
+  "dimensions": [
+    {
+      "name": "engine",
+      "values": [
+        "chromium"
+      ]
+    }
+  ],
+  "results": [
+    {
+      "scenarioId": "save",
+      "dimensions": {
+        "engine": "chromium"
+      },
+      "result": "pass",
+      "evidenceRefs": [
+        "artifact:check/1"
+      ]
+    }
+  ]
+}
+```
+
+### Completion ledger
+
+Provide all five groups. Use empty arrays where appropriate. Include `reason` on skipped and unverified items and `blockedBy` on blocked items.
+
+```json
+{
+  "done": [
+    "Run unit suite"
+  ],
+  "notDone": [],
+  "skipped": [
+    {
+      "item": "Publish",
+      "reason": "Outside this task"
+    }
+  ],
+  "blocked": [
+    {
+      "item": "Run staging checks",
+      "blockedBy": "Staging unavailable"
+    }
+  ],
+  "unverified": [
+    {
+      "item": "Deployment proof",
+      "reason": "No receipt"
+    }
+  ]
+}
+```
+
+### Six-dimension review findings
+
+A `completed` review can have zero or more findings. Use `not-run` with an empty findings array for a review that did not execute. Dimensions are `security`, `performance`, `logic`, `data-migration`, `tests` and `api-maintainability`. Use severity `P0` through `P3` or `nit`, a `file:line` location, a trigger and verification. Supply a reproduction reference for P0 and P1.
+
+```json
+{
+  "status": "completed",
+  "findings": [
+    {
+      "dimension": "logic",
+      "severity": "P1",
+      "location": "src/order.mjs:9",
+      "trigger": "Retry the save",
+      "verification": "Confirm a single persisted order",
+      "reproduction": "artifact:check/retry"
+    }
+  ]
+}
+```
+
+### Return request
+
+Use `clarification-request` or `spec-amendment-request`. Record the question, evidence, options, impact, affected tickets, owner, due date and resume condition. When resolved, set `resolution` to `accepted`, `rejected`, `timed-out` or `superseded`.
+
+```json
+{
+  "kind": "clarification-request",
+  "question": "Which accounts can edit?",
+  "evidence": [
+    "artifact:spec/r1"
+  ],
+  "options": [
+    "Owner only"
+  ],
+  "impact": "Changes authorization",
+  "affectedTickets": [
+    "T1"
+  ],
+  "owner": "product-owner",
+  "dueAt": "2026-11-30T00:00:00Z",
+  "resumeCondition": "Product owner records a decision"
+}
+```

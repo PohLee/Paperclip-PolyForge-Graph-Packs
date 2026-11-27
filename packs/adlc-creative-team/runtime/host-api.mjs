@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 import { readFile, realpath, readdir } from 'node:fs/promises';
 import path from 'node:path';
-import { graphs, productDesignGraphs } from '../graphs/catalog.mjs';
+import { graphs, productDesignGraphs, adlcHandoffGraphs } from '../graphs/catalog.mjs';
 import { brandGraphs } from '../graphs/brand-catalog.mjs';
 import { compositionGraphs } from '../graphs/composition-catalog.mjs';
 import { inspectLogoSvg } from '../adapters/brand-tools/svg.mjs';
@@ -22,13 +22,14 @@ function records(run) {
   return run.graph.nodes.flatMap(node=>(run.nodeStates[node.id]?.attempts??[]).flatMap(attempt=>(attempt.artifacts??[]).map(item=>({item,attempt,node, payload:attempt.output?.creativeArtifacts?.[item.kind]}))));
 }
 const exactRecord=(run,ref)=>createArtifactLineage(run).exactRecord(ref);
-function getGraph(packId,graphId) { return packId==='creative-team'?[...graphs,...productDesignGraphs,...brandGraphs,...compositionGraphs].find(g=>g.id===graphId):undefined; }
+function getGraph(packId,graphId) { return packId==='creative-team'?allGraphs.find(g=>g.id===graphId):undefined; }
 function requestedCount(run) { return run.input.creative_brief?.requestedCount??run.input.requestedCount; }
 function asRefs(candidates) { return candidates.map(c=>({id:c.id,version:c.version})); }
 
-const graphIds=[...graphs,...productDesignGraphs,...brandGraphs,...compositionGraphs].map(item=>item.id);
-const decisionGraphIds=new Set([...graphs,...productDesignGraphs,...brandGraphs,...compositionGraphs].filter(item=>item.nodes.some(node=>node.type==='decision')).map(item=>item.id));
-const serviceRequirements=Object.fromEntries(graphIds.map(id=>[id,new Set()]));
+const allGraphs=[...graphs,...productDesignGraphs,...brandGraphs,...compositionGraphs,...adlcHandoffGraphs];
+const graphIds=new Set(allGraphs.map(item=>item.id));
+const decisionGraphIds=new Set(allGraphs.filter(item=>item.nodes.some(node=>node.type==='decision')).map(item=>item.id));
+const serviceRequirements=Object.fromEntries([...graphIds].map(id=>[id,new Set()]));
 const requireServices=(ids,...names)=>{ for(const id of ids) for(const name of names) serviceRequirements[id]?.add(name); };
 requireServices([...decisionGraphIds],'resolveDecisionEvidence');
 requireServices(['concept-sprint'],'artifactRootForRun','hasImageProvider','decodeImage');
@@ -198,6 +199,12 @@ export function createCreativeHostApi({engine,artifactRootForRun,hasImageProvide
     if(!node||node.type!=='decision') throw new Error('Decision evidence requested for a non-decision node');
     const prior=decisions??await engine.listDecisions({runId:run.id});
     if(!Array.isArray(prior)) throw new Error('Decision snapshot must be an array');
+    if(nodeId==='g3' && ['approve','return-to-g2'].includes(outcome)) {
+      const manifest=latestPayload(run,'prepare-visual-manifest','visual_manifest');
+      const audit=latestPayload(run,'design-audit','visual_audit');
+      if(!manifest || !audit || !sameRef(audit.manifestRef,manifest) || audit.manifestDigest!==digest(stableJson(manifest))) throw new Error('G3 requires an audit of the exact visual manifest');
+      if(audit.behaviorChanged !== (outcome==='return-to-g2')) throw new Error('Behavior changes must return to G2');
+    }
     if(nodeId==='naming-disposition'&&outcome==='shortlist') {
       const candidates=latestPayload(run,'develop-name-candidates','brand_name_candidates');
       const screening=latestPayload(run,'screen-name-conflicts','brand_name_screening');
@@ -770,6 +777,7 @@ export function createCreativeHostApi({engine,artifactRootForRun,hasImageProvide
       actor=await trustedActor(actor,{operation:'decideNode',run,nodeId,outcome});
       const node=run.graph.nodes.find(n=>n.id===nodeId); if(!node||node.type!=='decision') throw new Error('Creative decision node not found');
       if(!(await engine.getReadyNodes(runId)).some(n=>n.id===nodeId)) throw new Error('Creative decision is not ready');
+      if(nodeId==='g3'&&(actor.kind!=='human'||!actor.roles.includes('human-owner'))) throw new Error('G3 requires an authenticated human owner');
       if(nodeId==='adopt-brand-assets'&&(actor.kind!=='human'||!actor.roles.includes('human-owner'))) throw new Error('Formal brand asset adoption requires an authenticated human owner');
       const evidence=await requireDecisionEvidence(run,nodeId,outcome);
       const expectedRunDigest=snapshotDigest(run);
