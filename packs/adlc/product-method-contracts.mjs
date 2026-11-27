@@ -463,14 +463,23 @@ export const contractPathFence = Object.freeze({
   'contract-merge-bot': '*'
 });
 
+// Folds compatibility forms and full case so spellings a case-insensitive filesystem
+// treats as one directory (ſ/s, ς/σ, decomposed forms) compare equal to the root.
+function foldContractPath(path) {
+  return path.normalize('NFKC').toUpperCase().toLowerCase();
+}
+
+const asciiPrintable = /^[\x20-\x7e]+$/;
+const reservedContractSegments = ['index.json', 'contract.lock.json'];
+
 export function checkContractPathFence({ role, changedFiles, contractsRoot = defaultContractsRoot }) {
-  if (!repositoryPath(contractsRoot)) throw new Error('Invalid contractsRoot path');
+  if (!repositoryPath(contractsRoot) || !asciiPrintable.test(contractsRoot)) throw new Error('Invalid contractsRoot path');
   const rootPrefix = contractsRoot + '/';
   const canonicalRoot = contractsRoot.toLowerCase();
   const allowed = Object.hasOwn(contractPathFence, role) ? contractPathFence[role] : undefined;
   return rows(changedFiles, 'changedFiles').filter(path => {
     if (!repositoryPath(path)) return true;
-    const canonical = path.toLowerCase();
+    const canonical = foldContractPath(path);
     const inContractsRoot = canonical === canonicalRoot || canonical.startsWith(canonicalRoot + '/');
     if (inContractsRoot && !path.startsWith(rootPrefix)) return true;
     if (/(^|\/)codeowners$/.test(canonical) || canonical.startsWith('.github/')
@@ -484,9 +493,12 @@ export function checkContractPathFence({ role, changedFiles, contractsRoot = def
     const segments = relative.split('/');
     const [year, month, folder, section] = segments;
     if (segments.length < 4 || !matchContractFolder([year, month, folder].join('/'))) return true;
-    if (allowed === '*') return false;
-    return !allowed || segments.length < 5 || section !== allowed
-      || segments.some(segment => ['index.json', 'contract.lock.json'].includes(segment.toLowerCase()));
+    const reserved = segments.slice(4).some(segment => reservedContractSegments.includes(segment.toLowerCase()));
+    if (allowed === '*') {
+      if (segments.length === 4) return section !== 'contract.lock.json';
+      return !contractSections.includes(section) || reserved;
+    }
+    return !allowed || segments.length < 5 || section !== allowed || reserved;
   });
 }
 
@@ -571,7 +583,7 @@ export const adlcProjectConfigSchema = {
     ciPaths: { type: 'array', items: nonemptyString },
     riskRules: { type: 'array', items: objectSchema({ id: nonemptyString, pathPattern: nonemptyString,
       floor: { enum: ['low', 'medium', 'high'] }, neverAutoMerge: nonemptyString }, ['id', 'pathPattern', 'floor']) },
-    contractsRoot: { ...nonemptyString, default: defaultContractsRoot },
+    contractsRoot: { ...nonemptyString, pattern: '^[\\x20-\\x7e]+$', default: defaultContractsRoot },
     backlog: objectSchema({
       provider: { const: 'github-projects' },
       owner: nonemptyString,

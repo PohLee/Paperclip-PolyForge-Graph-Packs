@@ -30,7 +30,7 @@
 
 | 函数 | 校验对象 | 必须检查 |
 | --- | --- | --- |
-| `validateApprovalManifest` | G2 审批清单 | `id`、`version`；`deliverables[]` 每项有 `key`、`revisionId`、`digest`，key 唯一且至少包含 `prd` 和 `acceptance.feature`；`egmReportRef`；`unresolvedEscalations[]`；`assumptions[]`；`supersedes`（首版为 `null`，否则为非空字符串）；可选 `contract: { type, slug }`，字段严格遵循[契约目录规则](CONTRACT_DIRECTORY.md)，PR-B2 发布时必填；`approver` 不得在清单内自报（出现即报错，审批人只能来自 Host 运行记录） |
+| `validateApprovalManifest` | G2 审批清单 | `id`、`version`；`deliverables[]` 每项有 `key`、`revisionId`、`digest`，key 唯一且至少包含 `prd` 和 `acceptance.feature`；`egmReportRef`；`unresolvedEscalations[]`；`assumptions[]`；`supersedes`（首版为 `null`，否则为非空字符串）；可选 `contract: { type, slug }`，字段严格遵循[契约目录规则](CONTRACT_DIRECTORY.md)，合约发布时必填；`approver` 不得在清单内自报（出现即报错，审批人只能来自 Host 运行记录） |
 | `validateContractLock` | `contract.lock.json` | `contractId`（永久 ID）、`epic`、`backlogItemRef`、`approvalManifest {id, revisionId, digest}`、`supersedes`、`files[]`（`path`、`digest`、`section` ∈ `product` / `design` / `technical`），路径不越出所属 section 目录，path 唯一 |
 | `validateContractIndexEntry` | `INDEX.json` 的一条 | `contractId`、`folder`（形如 `YYYY/MM/yyMMDDHH_<type>-<slug>_<contractId>`，年月与 UTC 时间戳一致，且 ID 与 `contractId` 相同）、`status`（`active` / `superseded` / `withdrawn`）、`supersededBy`（仅 superseded 时必填） |
 | `validateCompletionLedger` | 交付物完成台账 | `done[]`、`notDone[]`、`skipped[]`（每项带 `reason`）、`blocked[]`（每项带 `blockedBy`）、`unverified[]`（每项带 `reason`）；五组都必须出现，空组写 `[]`，不允许省略 |

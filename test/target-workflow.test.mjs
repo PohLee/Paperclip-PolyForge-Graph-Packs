@@ -209,6 +209,20 @@ test('path fence requires the configured root case and confines bot contract wri
   assert.deepEqual(adlc.checkContractPathFence({ role: 'product-owner', changedFiles: [wrongCase], contractsRoot }), [wrongCase]);
 });
 
+test('path fence folds compatibility and full case, requires an ASCII root, and confines bot folder writes', () => {
+  const folder = 'knowledge/contracts/2026/11/26112607_feat-orders_PRC-687256771405';
+  const longS = 'knowledge/contractſ/2026/11/26112607_feat-orders_PRC-687256771405/product/prd.md';
+  const fullWidth = 'knowledge/ｃｏｎｔｒａｃｔｓ/2026/11/26112607_feat-orders_PRC-687256771405/product/prd.md';
+  for (const role of ['product-owner', 'lead-engineer']) {
+    assert.deepEqual(adlc.checkContractPathFence({ role, changedFiles: [longS, fullWidth] }), [longS, fullWidth]);
+  }
+  assert.throws(() => adlc.checkContractPathFence({ role: 'product-owner', changedFiles: [], contractsRoot: 'ΟΣ/contracts' }),
+    /contractsRoot/);
+  const loose = [`${folder}/arbitrary.txt`, `${folder}/product/INDEX.json`, `${folder}/other/file.md`];
+  const allowedBot = [`${folder}/contract.lock.json`, `${folder}/technical/spec.md`];
+  assert.deepEqual(adlc.checkContractPathFence({ role: 'contract-merge-bot', changedFiles: [...allowedBot, ...loose] }), loose);
+});
+
 test('seat declarations describe portable constraints without concrete provider settings', () => {
   const declaration = { name: 'review', distinctVendor: true, judgeVendorNotIn: ['author'],
     minSeats: 2, onUnavailable: 'wait', waitDeadlineMs: 5000 };
