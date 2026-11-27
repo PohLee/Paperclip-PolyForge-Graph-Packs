@@ -503,6 +503,18 @@ for (const route of ['owner', 'director', 'escalation']) {
   });
 }
 
+test('G3 publication refuses a changed manifest at the approved ID and version', async () => {
+  const fixture = await readyG3({ automationMode: 'manual' });
+  const { api, engine, runId, nodeId, manifest } = fixture;
+  const approval = await api.decideNode({ runId, nodeId, outcome: 'approve', actor: owner, reason: 'Approve audited design' });
+  const changed = { ...manifest, deliverables: [{ key: 'design.json', digest: 'b'.repeat(64) }] };
+  await completePrelude(engine, await engine.getRun(runId), {
+    'prepare-visual-manifest': completedArtifact('creativeArtifacts', 'visual_manifest', changed)
+  });
+  const { submit } = designRequest(fixture, approval.decision.id);
+  await assert.rejects(submit(), /current G3 approval and approved audit/);
+});
+
 test('G3 hold and behavior-change routes bypass design publication', async () => {
   for (const outcome of ['hold', 'return-to-g2']) {
     const { api, engine, runId, nodeId } = await readyG3({ automationMode: 'manual' }, 'out-of-system',

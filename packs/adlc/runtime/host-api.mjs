@@ -206,7 +206,7 @@ export function createAdlcHostApi({engine,resolveActor,runValidationDigest,servi
       const request = payloads[publication.kind];
       const manifest = latestPayload(run, publication.candidateNodeId, publication.candidateKind);
       const gate = run.nodeStates[publication.gateNodeId];
-      if (!manifest || request.runId !== run.id || gate.outcome !== 'accept' ||
+      if (!manifest || request.runId !== run.id || gate.status !== 'completed' || gate.outcome !== 'accept' ||
           request.decisionId !== gate.attempts.at(-1)?.decisionId ||
           request.manifest.id !== manifest.id || request.manifest.revisionId !== manifest.version) {
         throw new Error('Publication must bind current G2 approval');

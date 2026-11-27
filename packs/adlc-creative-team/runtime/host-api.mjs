@@ -245,6 +245,7 @@ export function createCreativeHostApi({engine,artifactRootForRun,hasImageProvide
     if(nodeId==='g3' && ['approve','return-to-g2'].includes(outcome)) {
       const manifest=latestPayload(run,'prepare-visual-manifest','visual_manifest');
       const audit=latestPayload(run,'design-audit','visual_audit');
+      if(outcome==='approve' && !audit) throw new Error('G3 approval requires the current visual audit');
       if(!manifest || !audit || !sameRef(audit.manifestRef,manifest) || audit.manifestDigest!==digest(stableJson(manifest))) throw new Error('G3 requires an audit of the exact visual manifest');
       assertCreativeArtifact('visual_manifest',manifest);
       const behaviorChanged = automatedVisual(run.graph)
@@ -492,7 +493,8 @@ export function createCreativeHostApi({engine,artifactRootForRun,hasImageProvide
         const approval = gate.attempts.at(-1);
         const audited = approval?.evidence?.findLast(item => item.kind === 'approved_visual_audit');
         if (request.runId !== run.id || gate.outcome !== 'approve' || request.decisionId !== approval?.decisionId ||
-            !sameRef(audit.manifestRef, manifest) || !sameRef(audited?.subjectRefs?.[0], audit) ||
+            !sameRef(audit.manifestRef, manifest) || audit.manifestDigest !== digest(stableJson(manifest)) ||
+            !sameRef(audited?.subjectRefs?.[0], audit) ||
             audited.digest !== digest(stableJson(audit))) throw new Error('Publication must bind the current G3 approval and approved audit');
       }
       if(run.graph.id==='g3-visual-contract') {
