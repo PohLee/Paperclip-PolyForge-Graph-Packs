@@ -75,6 +75,7 @@ const externalIntel = addAdmission({
 }, '0.1.0', 'rerank-route', 'apply', 'read-ready');
 
 export const productSeats = Object.freeze([
+  { name: 'pm-author', minSeats: 1, onUnavailable: 'block' },
   { name: 'candidate-a', distinctVendor: true, minSeats: 3, onUnavailable: 'block' },
   { name: 'candidate-b', distinctVendor: true, minSeats: 3, onUnavailable: 'block' },
   { name: 'judge', judgeVendorNotIn: ['candidate-a', 'candidate-b'], minSeats: 3, onUnavailable: 'block' },
@@ -91,7 +92,7 @@ const requirements = {
     { ...task('candidate-a', 'product-manager', 'Use the candidate-a seat. Draft independently against the pinned rubric.', ['draft_a'], ['scope_record']), seat: { ...productSeats.find(item => item.name === 'candidate-a') } },
     { ...task('candidate-b', 'product-manager', 'Use the candidate-b seat. Draft independently against the pinned rubric without reading draft A.', ['draft_b'], ['scope_record']), seat: { ...productSeats.find(item => item.name === 'candidate-b') }, independentOf: ['candidate-a'] },
     { ...task('judge', 'product-manager', 'Use the judge seat. Verify three distinct vendors, rank against the rubric and synthesize the selected base with the other draft strengths. Block if seat provenance is unavailable.', ['arena_report'], ['draft_a', 'draft_b']), seat: { ...productSeats.find(item => item.name === 'judge') }, independentOf: ['candidate-a', 'candidate-b'] },
-    task('draft-requirements', 'product-manager', 'PM owns the final PRD, Assumptions and stable BDD IDs. Use the small-scope template or the arena result as applicable. For frontend work pin the Creative pre-G2 interaction revision and align BDD. Publish issue document revisions.', ['requirements_draft'], ['scope_record']),
+    { ...task('draft-requirements', 'product-manager', 'PM owns the final PRD, Assumptions and stable BDD IDs. Use the small-scope template or the arena result as applicable. For frontend work pin the Creative pre-G2 interaction revision and align BDD. Publish issue document revisions.', ['requirements_draft'], ['scope_record']), seat: { ...productSeats.find(item => item.name === 'pm-author') } },
     { ...task('challenge-requirements', 'internal-product-analyst', 'Run mandatory EGM feature review per target-product-workflow. Report scope, complianceRelevant, and rounds with a reviewers map and findings array. Require a fresh Goldfish from a different vendor with the read-only packet. Record per-round dimension coverage, findings, dispositions and not-run. Iterate with the PM within the 2/5-round caps. Escalate nonconvergence. Record the final reviewed deliverables as key, revisionId and digest tuples.', ['egm_report', 'readiness_report'], ['requirements_draft']), seat: { ...productSeats.find(item => item.name === 'goldfish') }, independentOf: ['draft-requirements'] },
     task('prepare-g2', 'cpo', 'Pre-review the final reviewed revisions. Pin prd, acceptance.feature and interaction-design when applicable in the approval-manifest issue document. Include EGM report, unresolved escalations, Assumptions and supersedes. Require human disposition for each assumption and escalation, and replace a stale manifest before approval.', ['approval_manifest'], ['readiness_report', 'egm_report']),
     { ...baseline.nodes.find(node => node.id === 'requirements-gate'),
