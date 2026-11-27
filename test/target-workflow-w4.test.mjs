@@ -8,7 +8,7 @@ import { pack, adlcProjectConfigSchema, assessDeterministicRisk, metricDefinitio
 import { pack as creativePack } from '../packs/adlc-creative-team/index.mjs';
 import { createAdlcHostApi } from '../packs/adlc/runtime/host-api.mjs';
 import { canAgentApproveVisual, createCreativeHostApi, creativeRequiredServicesByGraph } from '../packs/adlc-creative-team/runtime/host-api.mjs';
-import { automationMode, canAgentApproveMerge, technicalValidators } from '../packs/adlc/runtime/technical-workflow.mjs';
+import { assessW4ImplementationRisk, automationMode, canAgentApproveMerge, technicalValidators } from '../packs/adlc/runtime/technical-workflow.mjs';
 
 async function loadCore() {
   const coreArtifact = process.env.PINNED_CORE_ARTIFACT;
@@ -128,44 +128,17 @@ test('WP4.3 full-auto requires explicit opt-in and baseline metrics specify sour
   }
 });
 test('WP4.1 trusted G5 binds the current PR and verification before an assisted decision', async () => {
-  const headSha = 'a'.repeat(40);
-  const contract_pins = [{ contractId: 'C1', section: 'technical', commit: 'b'.repeat(40) }];
-  const pr_head = { repository: 'example/project', pullNumber: 1, headSha };
-  const completed = (kind, payload) => ({
-    status: 'completed', artifacts: [{ kind, id: payload.id, version: payload.version }],
-    attempts: [{ output: { adlcProductMethods: { [kind]: payload } } }]
-  });
-  const manifest = { id: 'manifest', version: '1', checkoutSha: headSha, expectedScenarios: ['BDD-1'],
-    dimensions: [], results: [{ scenarioId: 'BDD-1', dimensions: {}, result: 'pass', evidenceRefs: ['ci'] }] };
-  const risk = { riskLevel: 'low', neverAutoMerge: [], authorAgentId: 'author', evidenceComplete: true };
-  const passed = { status: 'completed', findings: [] };
-  const run = { id: 'run', packId: 'adlc', graph: graph('verification', '0.1.9'), mode: 'assisted',
-    input: { pr_head, contract_pins, projectId: 'project' },
-    nodeStates: {
-      'verify-head': completed('verification_manifest', manifest),
-      'review-head': completed('pr_reviews', { id: 'review', version: '1', headSha,
-        reviews: { interrogate: passed, 'deep-review': passed, 'edge-cases': passed, 'security-review': passed } }),
-      'prepare-g5': completed('merge_context', { id: 'risk', version: '1', modelRisk: 'low', risk })
-    } };
-  const api = createAdlcHostApi({
-    engine: { getRun: async () => run, decideNode: async args => args },
-    resolveActor: ({ claimedActor }) => claimedActor, runValidationDigest: () => 'digest',
-    services: { getProjectConfig: async () => ({ automationMode: 'assisted' }), inspectImplementationPull: async () => ({
-      headSha, upToDate: true, checksPassed: true, currentPins: contract_pins, prPins: contract_pins,
-      changes: [{ path: 'src/index.mjs', status: 'modified' }], dependencyChanges: [], authorAgentId: 'author'
-    }) }
-  });
-  const evidence = [{ kind: 'merge_evidence', subjectRefs: [
-    { artifactId: 'pr:example/project#1', version: headSha }, { artifactId: manifest.id, version: manifest.version }
-  ] }];
-  const decision = { runId: run.id, nodeId: 'g5', actor: agent, outcome: 'accept', evidence };
-  const approval = await api.decideNode(decision);
-  assert.equal(approval.evidence[1].kind, 'implementation-risk');
+  const project = { automationMode: 'assisted' };
+  const { api, runId, manifest, pr_head } = await readyVerification('0.1.9', false, 'assisted', project);
+  const evidence = [{ kind: 'merge_evidence', subjectRefs: [manifest, pr_head].map(({ id, version }) => ({ artifactId: id, version })) }];
+  const decision = { runId, nodeId: 'g5', actor: agent, outcome: 'accept', reason: 'Checks passed', evidence };
   await assert.rejects(api.decideNode({ ...decision, evidence: [] }), /bind the PR head/);
   await assert.rejects(api.decideNode({ ...decision, actor: { ...agent, id: 'author' } }), /human owner/);
-  run.mode = 'autonomous';
+  project.automationMode = 'manual';
   await assert.rejects(api.decideNode(decision), /ceiling/);
-  assert.equal((await api.decideNode({ ...decision, outcome: 'human' })).outcome, 'human');
+  project.automationMode = 'assisted';
+  const approval = await api.decideNode(decision);
+  assert.equal(approval.decision.evidence[1].kind, 'implementation-risk');
 });
 
 test('migration changes and unknown dependency majors are assessed conservatively', () => {
@@ -248,42 +221,6 @@ test('G3 decision types preserve owner approval and register automated graph ser
   }
 });
 
-test('assisted G3 requires current clean audit evidence and an active project ceiling', async () => {
-  const ref = { id: 'baseline', version: '1' };
-  const digest = 'a'.repeat(64);
-  const manifest = { id: 'visual', version: '1', systemScope: 'in-system', behaviorChanged: false,
-    productContractRef: ref, interactionRef: ref, designBaselineRef: ref, tokens: [], components: [],
-    assets: [{ ...ref, digest }], deliverables: [{ key: 'design.json', digest }] };
-  const audit = { id: 'audit', version: '1', manifestRef: { id: manifest.id, version: manifest.version },
-    behaviorChanged: false, findings: [], manifestDigest: canonicalDigest(manifest) };
-  const completed = (kind, payload) => ({ status: 'completed', attempts: [{
-    artifacts: [{ id: payload.id, version: payload.version, kind }], output: { creativeArtifacts: { [kind]: payload } }
-  }] });
-  const run = { id: 'run', packId: creativePack.id, pack: creativePack,
-    graph: graph('g3-visual-contract', '0.1.1', creativePack), mode: 'assisted', input: { projectId: 'project' },
-    nodeStates: { 'prepare-visual-manifest': completed('visual_manifest', manifest), 'design-audit': completed('visual_audit', audit) } };
-  let ceiling = 'assisted';
-  let citeAudit = true;
-  const api = createCreativeHostApi({
-    engine: { getRun: async () => run, getReadyNodes: async () => [{ id: 'g3' }],
-      listDecisions: async () => [], decideNode: async args => args },
-    resolveActor: ({ claimedActor }) => claimedActor, runValidationDigest: () => 'digest',
-    services: { getProjectConfig: async () => ({ automationMode: ceiling }),
-      resolveDecisionEvidence: async () => [
-        { kind: 'visual_manifest', payload: manifest, subjectRefs: [{ artifactId: manifest.id, version: manifest.version }] },
-        { kind: 'visual_audit', payload: audit, subjectRefs: [
-          { artifactId: citeAudit ? audit.id : manifest.id, version: audit.version }
-        ] }
-      ] }
-  });
-  const args = { runId: run.id, nodeId: 'g3', outcome: 'approve', actor: { ...agent, roles: ['design-director'] } };
-  assert.equal((await api.decideNode(args)).outcome, 'approve');
-  citeAudit = false;
-  await assert.rejects(api.decideNode(args), /citing the current visual audit/);
-  ceiling = 'manual';
-  await assert.rejects(api.decideNode(args), /ceiling/);
-});
-
 async function completePrelude(engine, run, nodes) {
   // Seed eligible work so the test exercises the real decision and terminal transitions.
   const state = await engine.store.read();
@@ -302,7 +239,8 @@ function completedArtifact(namespace, kind, payload) {
   };
 }
 
-async function readyG3(project, systemScope = 'out-of-system', { manifestChanged = false, auditChanged = false } = {}) {
+async function readyG3(project, systemScope = 'out-of-system', options = {}) {
+  const { manifestChanged = false, auditChanged = false } = options;
   const { GraphEngine, runValidationDigest } = await loadCore();
   const engine = new GraphEngine();
   await engine.registerPack(creativePack);
@@ -317,7 +255,7 @@ async function readyG3(project, systemScope = 'out-of-system', { manifestChanged
     services: { getProjectConfig: async () => project,
       resolveDecisionEvidence: async () => [
         { kind: 'visual_manifest', payload: manifest, subjectRefs: [manifestSubject] },
-        { kind: 'visual_audit', payload: audit, subjectRefs: [manifestSubject, { artifactId: audit.id, version: audit.version }] }
+        { kind: 'visual_audit', payload: audit, subjectRefs: options.citeAudit === false ? [manifestSubject] : [manifestSubject, { artifactId: audit.id, version: audit.version }] }
       ] } });
   const run = await api.startRun({ packId: creativePack.id, packVersion: creativePack.version, graphId: 'g3-visual-contract',
     graphVersion: '0.1.1', actor: owner, input: { projectId: 'project', approved_product_contract: ref, design_baseline: ref } });
@@ -328,11 +266,14 @@ async function readyG3(project, systemScope = 'out-of-system', { manifestChanged
   return { api, engine, runId: run.id, nodeId: 'g3' };
 }
 
-test('real assisted G3 approval checks the current project ceiling', async () => {
+test('real assisted G3 approval requires current audit evidence and checks the project ceiling', async () => {
   const project = { automationMode: 'assisted' };
-  const { api, runId, nodeId } = await readyG3(project, 'in-system');
+  const evidence = { citeAudit: false };
+  const { api, runId, nodeId } = await readyG3(project, 'in-system', evidence);
   const decision = { runId, nodeId, actor: { ...agent, roles: ['design-director'] },
     outcome: 'approve', reason: 'Clean in-system audit' };
+  await assert.rejects(api.decideNode(decision), /citing the current visual audit/);
+  evidence.citeAudit = true;
   project.automationMode = 'manual';
   await assert.rejects(api.decideNode(decision), /ceiling/);
   project.automationMode = 'assisted';
@@ -357,17 +298,19 @@ test('G3 director escalates an ineligible manifest and the owner resolves the ga
   assert.equal((await engine.getRun(runId)).nodeStates.g3.outcome, 'approve');
 });
 
-async function readyVerification(graphVersion, exception, mode = 'manual') {
+async function readyVerification(graphVersion, exception, mode = 'manual', project = { automationMode: mode }) {
   const { GraphEngine, runValidationDigest } = await loadCore();
   const engine = new GraphEngine({ availableCapabilities: {
     'company-control': '1.0.0', 'cross-pack-plans': '1.0.0', 'cross-pack-handoff': '1.0.0'
   } });
   await engine.registerPack(pack);
-  const api = createAdlcHostApi({ engine, runValidationDigest, resolveActor: ({ claimedActor }) => claimedActor,
-    services: { getProjectConfig: async () => ({ automationMode: mode }) } });
   const headSha = 'a'.repeat(40);
   const pr_head = { id: 'pr:example/project#1', version: headSha, repository: 'example/project', pullNumber: 1, headSha };
   const contract_pins = ['product', 'technical'].map(section => ({ section, contractId: 'C1', commit: headSha }));
+  const snapshot = { headSha, upToDate: true, checksPassed: true, currentPins: contract_pins, prPins: contract_pins,
+    changes: [{ path: 'src/index.mjs', status: 'modified' }], dependencyChanges: [], authorAgentId: 'author' };
+  const api = createAdlcHostApi({ engine, runValidationDigest, resolveActor: ({ claimedActor }) => claimedActor,
+    services: { getProjectConfig: async () => project, inspectImplementationPull: async () => snapshot } });
   const verification_scope = { id: 'scope', version: '1', expectedScenarios: ['BDD-1'], dimensions: [] };
   const start = { packId: pack.id, packVersion: pack.version, actor: owner };
   const publication = await api.startRun({ ...start, graphId: 'retro-correct', input: { projectId: 'project',
@@ -381,15 +324,20 @@ async function readyVerification(graphVersion, exception, mode = 'manual') {
   const manifest = { ...verification_scope, id: 'manifest', checkoutSha: headSha,
     results: exception ? [] : [{ scenarioId: 'BDD-1', dimensions: {}, result: 'pass', evidenceRefs: ['ci'] }] };
   const artifact = (kind, payload) => completedArtifact('adlcProductMethods', kind, payload);
+  const passed = { status: 'completed', findings: [] };
+  const reviews = Object.fromEntries(['interrogate', 'deep-review', 'edge-cases', 'security-review'].map(name => [name, passed]));
+  const context = { id: 'context', version: '1', modelRisk: 'low',
+    risk: { ...assessW4ImplementationRisk('low', snapshot, project), authorAgentId: snapshot.authorAgentId, evidenceComplete: !exception } };
+  const prepared = artifact('merge_context', context);
+  prepared.artifacts.push(...artifact('merge_pr_head', pr_head).artifacts);
   await completePrelude(engine, run, {
     modernize: {},
     'modernize-route': { outcome: 'MODERNIZE' },
-    'review-head': {},
+    'review-head': artifact('pr_reviews', { id: 'review', version: '1', headSha, reviews }),
     'review-route': { outcome: 'pass' },
     'verify-head': artifact('verification_manifest', manifest),
     'acceptance-gate': { outcome: exception ? 'exception' : 'accept' },
-    ...(exception ? {} : { 'prepare-g5': { artifacts: [...artifact('merge_pr_head', pr_head).artifacts,
-      { kind: 'merge_context', id: 'context', version: '1' }] } })
+    ...(exception ? {} : { 'prepare-g5': prepared })
   });
   return { api, engine, runId: run.id, manifest, pr_head };
 }
@@ -428,16 +376,25 @@ test('G3 behavior changes reported by either artifact must return to G2', async 
   }
 });
 
-test('assisted G3 accepts approval from an owner-only actor', { skip: 'TODO(F2)' }, async () => {
+test('assisted G3 accepts approval from an owner-only actor', async () => {
   const { api, runId, nodeId } = await readyG3({ automationMode: 'assisted' });
   const decision = { runId, nodeId, outcome: 'approve', reason: 'Accept visual scope' };
   await assert.rejects(api.decideNode({ ...decision, actor: agent }), /human owner/);
   assert.equal((await api.decideNode({ ...decision, actor: owner })).decision.outcome, 'approve');
 });
 
-test('assisted G5 accepts hold from an owner-only actor', { skip: 'TODO(F2)' }, async () => {
+test('assisted G5 accepts hold from an owner-only actor', async () => {
   const { api, runId, manifest, pr_head } = await readyVerification('0.1.9', false, 'assisted');
   const decision = { runId, nodeId: 'g5', outcome: 'hold', reason: 'Await owner review',
     evidence: [{ kind: 'merge_evidence', subjectRefs: [manifest, pr_head].map(({ id, version }) => ({ artifactId: id, version })) }] };
   assert.equal((await api.decideNode({ ...decision, actor: owner })).decision.outcome, 'hold');
+});
+
+test('G5 can escalate even after the project lowers its automation ceiling', async () => {
+  const project = { automationMode: 'assisted' };
+  const { api, runId } = await readyVerification('0.1.9', false, 'assisted', project);
+  project.automationMode = 'manual';
+  const result = await api.decideNode({ runId, nodeId: 'g5', actor: agent,
+    outcome: 'human', reason: 'Owner review required' });
+  assert.equal(result.run.pendingHuman.nodeId, 'g5');
 });
