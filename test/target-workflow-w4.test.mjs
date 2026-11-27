@@ -444,6 +444,13 @@ test('G2 publication validates the request and its exact approval on submission 
     assert.throws(() => validateContractPublicationRequest({ ...request, pullNumber: 0 }), /pullNumber/);
     const firstRequest = { ...request };
     if (!supersedes) delete firstRequest.contract_pins;
+    const pending = await engine.store.read();
+    pending.runs[runId].nodeStates['requirements-gate'].status = 'pending';
+    await engine.store.write(pending, pending.revision);
+    await assert.rejects(submit(firstRequest), /current G2 approval/);
+    const completed = await engine.store.read();
+    completed.runs[runId].nodeStates['requirements-gate'].status = 'completed';
+    await engine.store.write(completed, completed.revision);
     await submit(firstRequest);
     const revisedArtifact = { kind: 'contract_publication_request', id: request.id, version: '2' };
     const revise = change => api.recordSelfReview({ runId, nodeId, actor, artifactVersion: '2', revisedArtifact,
