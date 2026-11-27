@@ -68,7 +68,7 @@ function loadRole(spec) {
 }
 
 const roles = Object.fromEntries(roleCatalog.map(spec => [spec.id, loadRole(spec)]));
-const packVersion = '0.3.16';
+const packVersion = '0.3.17';
 const graphs = [lifecycleGraphs[0], lifecycleGraphs[1], ...engineeringGraphs, ...lifecycleGraphs.slice(2), ...architectureDeliveryGraphs, ...designAssuranceGraphs, ...createWorkflowCompositionGraphs(packVersion), ...targetWorkflowGraphs, ...targetTechnicalGraphs];
 const operatingPolicies = readText(resolve(root, 'OPERATING_POLICIES.md'));
 const evidenceContracts = readText(resolve(root, 'docs/EVIDENCE_CONTRACTS.md'));
@@ -216,13 +216,15 @@ export const pack = {
 };
 
 // The release digest identifies the deterministic pack payload, excluding its own digest.
-pack.release = { digest: `sha256:${digest(JSON.stringify(pack))}`, builtAt: '2026-11-26T00:00:00.000Z', status: 'candidate' };
+pack.release = { digest: `sha256:${digest(JSON.stringify(pack))}`, builtAt: '2026-11-27T00:00:00.000Z', status: 'candidate' };
 
 export default pack;
 export {
   validateRequestBrief, validateEvidenceLedger, validateExperimentRecord, validateExperimentRoute,
   validateRequirementsHandoff, validateCompetitiveDiff, validateCompetitiveRoute, validateInvestmentCase,
   validateApprovalManifest, validateContractLock, validateContractIndexEntry, validateCompletionLedger,
+  contractTypes, validateContractSlug, deriveContractSlug, contractIdFromDecision, contractFolderName,
+  parseContractFolder, validateContractPath, validateContractText,
   validateReviewFindings, validateVerificationManifest, judgeVerificationManifest, validateReturnRequest,
   contractPathFence, checkContractPathFence, adlcProjectConfigSchema, assessDeterministicRisk, metricDefinitions, validateSeatDeclaration,
   resolveSeatOrder, checkSeatConstraints

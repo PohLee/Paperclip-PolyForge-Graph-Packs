@@ -74,7 +74,7 @@ test('ADLC department heads report to the company CEO without changing review es
     'principal-engineer': 'cto-caio', 'lead-engineer': 'principal-engineer',
     'qa-engineer': 'cto-caio', 'security-engineer': 'cto-caio'
   };
-  assert.equal(pack.version, '0.3.16');
+  assert.equal(pack.version, '0.3.17');
   assert.deepEqual(Object.fromEntries(Object.values(pack.roles).map(role => [role.id, role.reportsToRole])), reportsTo);
   assert.deepEqual(Object.fromEntries(Object.values(pack.roles).map(role => [role.id, role.supervisorRole])), reviewEscalation);
   assert.equal(Object.values(pack.roles).filter(role => role.reportsToRole === 'ceo').length, 3);

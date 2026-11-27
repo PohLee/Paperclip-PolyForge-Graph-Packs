@@ -1,6 +1,8 @@
 # ADLC Creative Team Pack
 
-Standalone, versioned Pack for design and creative workflows. Pack ID `creative-team`, version `0.3.5`, supplies nineteen legacy DAGs, two opt-in contracted workflows and two ADLC design handoff workflows, 14 role definitions, 26 skills, evidence and artifact contracts, offline interview/gallery helpers, brand tools, and a trusted host wrapper that enforces pack-specific checks against Core run state and real files.
+Standalone, versioned Pack for design and creative workflows. Pack ID `creative-team`, version `0.3.6`, supplies nineteen legacy DAGs, two opt-in contracted workflows and two ADLC design handoff workflows, 14 role definitions, 26 skills, evidence and artifact contracts, offline interview/gallery helpers, brand tools, and a trusted host wrapper that enforces pack-specific checks against Core run state and real files.
+
+Version 0.3.6 adds English-language authoring guidance for G3 contract deliverables.
 
 The pack loads and registers locally. It does not install agents, activate itself, generate images, connect to browser/Figma/BE services, publish content, or register an ADLC bridge. A host must provide authenticated identity, capability dispatch, immutable artifact storage, and the trusted evidence services described in [Core integration](docs/integration.md).
 

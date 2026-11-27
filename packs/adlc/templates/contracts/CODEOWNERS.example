@@ -1,8 +1,8 @@
 # Copy to .github/CODEOWNERS and substitute your organization's teams.
-/docs/contracts/ @example/contract-maintainers
-/docs/contracts/**/product/ @example/product
-/docs/contracts/**/design/ @example/creative
-/docs/contracts/**/technical/ @example/principal-engineering
-/docs/contracts/**/contract.lock.json @example/contract-maintainers
-/docs/contracts/INDEX.json @example/contract-maintainers
+/knowledge/contracts/ @example/contract-maintainers
+/knowledge/contracts/**/product/ @example/product
+/knowledge/contracts/**/design/ @example/creative
+/knowledge/contracts/**/technical/ @example/principal-engineering
+/knowledge/contracts/**/contract.lock.json @example/contract-maintainers
+/knowledge/contracts/INDEX.json @example/contract-maintainers
 /.github/ @example/contract-maintainers

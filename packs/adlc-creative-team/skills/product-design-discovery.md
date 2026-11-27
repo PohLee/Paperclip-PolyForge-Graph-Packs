@@ -5,6 +5,8 @@ description: Research user needs, create distinct wireframe directions, and eval
 
 # Product design discovery
 
+When preparing the G3 visual manifest, write contract deliverables, file names and paths in English.
+
 Use this workflow for substantial changes to an existing product interface when the user need, task structure, or interaction model still needs exploration.
 
 ## Work

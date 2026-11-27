@@ -8,7 +8,7 @@ const set = count => ({ id:'set-1',version:'v1',requestedCount:count,exploration
 
 test('pack imports and exposes all graph IDs and runtime validators',()=>{
   assert.deepEqual(pack.graphs.map(g=>g.id),['creative-intake','brand-foundation','concept-sprint','concept-to-web-design','saas-feature-design','design-system-evolution','design-assurance','brand-campaign-assets','minor-ui-change','product-design-discovery','ui-candidate-sprint','ui-prototype-experiment','brand-architecture-naming','logo-concept-design','brand-identity-kit','brand-asset-adoption','brand-guidelines','brand-packaging-brief','brand-rollout-plan','brand-foundation-contract','brand-foundation-composed','pre-g2-interaction','g3-visual-contract','g3-visual-contract']);
-  assert.equal(pack.version,'0.3.5');
+  assert.equal(pack.version,'0.3.6');
   assert.deepEqual(pack.compatibility.requiredCapabilities,{'workflow-composition':'^1.0.0'});
   assert.equal(pack.graphs.find(g=>g.id==='brand-foundation').workflowContract,undefined);
   assert.equal(pack.roles['head-of-design'].reportsToRole,null);

@@ -181,6 +181,16 @@ export function validateContractPublicationRequest(request) {
 export function validateApprovalManifest(manifest) {
   identity(manifest, 'approval manifest');
   if ('approver' in manifest) throw new Error('approver must come from the Host run record');
+  if (Object.hasOwn(manifest, 'contract')) {
+    const { contract } = manifest;
+    if (!contract || typeof contract !== 'object' || Array.isArray(contract)
+      || Object.keys(contract).length !== 2
+      || !Object.hasOwn(contract, 'type') || !Object.hasOwn(contract, 'slug')) {
+      throw new Error('Invalid manifest contract: expected type and slug');
+    }
+    choice(contract.type, contractTypes, 'contract type');
+    validateContractSlug(contract.slug);
+  }
   fields(manifest, ['egmReportRef']);
   validateSupersedes(manifest.supersedes);
   rows(manifest.unresolvedEscalations, 'unresolvedEscalations');
@@ -197,15 +207,126 @@ export function validateApprovalManifest(manifest) {
   return manifest;
 }
 
+export const contractTypes = Object.freeze(['feat', 'fix', 'refactor', 'perf', 'spike', 'proto', 'exp', 'doc', 'rule']);
+
+const maxContractSlugLength = 32;
+const contractPrefix = '[A-Z][A-Z0-9]{0,9}-';
+const contractPrefixPattern = new RegExp(`^${contractPrefix}$`);
+const contractIdPattern = new RegExp(`^${contractPrefix}[0-9]{12}$`);
+const nonAsciiLetterMarkOrNumber = /[[\p{L}\p{M}\p{N}]--[A-Za-z0-9]]/v;
+const nonLatinLetter = /[\p{L}&&\P{Script=Latin}]/v;
+const defaultContractsRoot = 'knowledge/contracts';
 const contractSections = ['product', 'design', 'technical'];
+
+function isContractSlug(slug) {
+  return typeof slug === 'string' && slug.length <= maxContractSlugLength
+    && /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug);
+}
+
+export function validateContractSlug(slug) {
+  if (!isContractSlug(slug)) throw new Error('Invalid contract slug');
+  return slug;
+}
+
+export function deriveContractSlug(englishTitle) {
+  if (typeof englishTitle !== 'string' || nonAsciiLetterMarkOrNumber.test(englishTitle)) {
+    throw new Error('Contract slug requires an English title with ASCII letters and numbers or an explicit slug');
+  }
+  const slug = englishTitle.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+  if (slug.length <= maxContractSlugLength) return validateContractSlug(slug);
+  const boundary = slug.lastIndexOf('-', maxContractSlugLength);
+  return validateContractSlug(boundary === -1 ? '' : slug.slice(0, boundary));
+}
+
+export function contractIdFromDecision(decisionId, prefix = 'PRC-') {
+  required(decisionId, 'G2 Decision Record ID');
+  if (typeof prefix !== 'string' || !contractPrefixPattern.test(prefix)) {
+    throw new Error('Invalid contract ID prefix');
+  }
+  const hash = createHash('sha256').update(decisionId, 'utf8').digest();
+  const number = hash.readBigUInt64BE(0) % (10n ** 12n);
+  return prefix + number.toString().padStart(12, '0');
+}
+
+export function contractFolderName(input) {
+  const { approvedAt, type, slug, contractId } = input ?? {};
+  if (!(approvedAt instanceof Date)
+    && (typeof approvedAt !== 'string'
+      || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?(?:Z|[+-]\d{2}:\d{2})$/.test(approvedAt)
+      || !isCalendarHour(approvedAt.slice(0, 13)))) {
+    throw new Error('Invalid contract approval time');
+  }
+  const date = new Date(approvedAt);
+  if (!Number.isFinite(date.getTime()) || date.getUTCFullYear() < 0 || date.getUTCFullYear() > 9999) {
+    throw new Error('Invalid contract approval time');
+  }
+  choice(type, contractTypes, 'contract type');
+  validateContractSlug(slug);
+  if (typeof contractId !== 'string' || !contractIdPattern.test(contractId)) {
+    throw new Error('Invalid contract ID');
+  }
+  const [year, month, day, hour] = date.toISOString().slice(0, 13).split(/[-T]/);
+  return `${year}/${month}/${year.slice(2)}${month}${day}${hour}_${type}-${slug}_${contractId}`;
+}
+
+function isCalendarHour(hour) {
+  const date = new Date(hour + ':00:00.000Z');
+  return Number.isFinite(date.getTime()) && date.toISOString().slice(0, 13) === hour;
+}
+
+function matchContractFolder(folder) {
+  if (typeof folder !== 'string') return null;
+  const match = /^(\d{4})\/(\d{2})\/(\d{2})(\d{2})(\d{2})(\d{2})_([a-z]+)-([^/_]+)_([^/]+)$/.exec(folder);
+  if (!match) return null;
+  const [, year, month, shortYear, stampedMonth, day, hour, type, slug, contractId] = match;
+  const calendarHour = `${year}-${month}-${day}T${hour}`;
+  if (shortYear !== year.slice(2) || stampedMonth !== month || !isCalendarHour(calendarHour)
+    || !contractTypes.includes(type) || !isContractSlug(slug) || !contractIdPattern.test(contractId)) {
+    return null;
+  }
+  return { approvedAt: calendarHour + ':00:00.000Z', type, slug, contractId };
+}
+
+export function parseContractFolder(folder) {
+  const parsed = matchContractFolder(folder);
+  if (!parsed) throw new Error('Invalid contract folder');
+  return parsed;
+}
 
 function repositoryPath(path) {
   return typeof path === 'string' && !/[\\:\x00-\x1f]/.test(path)
     && path.split('/').every(segment => segment && segment !== '.' && segment !== '..' && !/[. ]$/.test(segment));
 }
 
+function isContractPath(path) {
+  return repositoryPath(path) && path.split('/').every(segment => /^[A-Za-z0-9._-]+$/.test(segment));
+}
+
+export function validateContractPath(path) {
+  if (!isContractPath(path)) throw new Error('Invalid contract path: ' + path);
+  return path;
+}
+
+export function validateContractText(bytes) {
+  let text;
+  try {
+    if (bytes === undefined) throw new TypeError('Expected bytes');
+    text = new TextDecoder('utf-8', { fatal: true }).decode(bytes);
+  } catch (cause) {
+    throw new Error('Invalid UTF-8 contract text', { cause });
+  }
+  if (nonLatinLetter.test(text)) throw new Error('Contract text contains a non-Latin letter');
+  return bytes;
+}
+
 export function validateContractLock(lock) {
   fields(lock, ['contractId', 'epic', 'backlogItemRef']);
+  if (!contractIdPattern.test(lock.contractId)) throw new Error('Invalid contract lock contractId');
+  const separator = lock.epic.indexOf('-');
+  if (separator < 0 || !contractTypes.includes(lock.epic.slice(0, separator))
+    || !isContractSlug(lock.epic.slice(separator + 1))) {
+    throw new Error('Invalid contract lock epic');
+  }
   fields(lock.approvalManifest, ['id', 'revisionId', 'digest']);
   validateSha256Digest(lock.approvalManifest.digest);
   validateSupersedes(lock.supersedes);
@@ -213,7 +334,8 @@ export function validateContractLock(lock) {
     fields(file, ['path', 'digest']);
     validateSha256Digest(file.digest);
     choice(file.section, contractSections, 'section');
-    if (!repositoryPath(file.path) || !file.path.startsWith(file.section + '/')) {
+    validateContractPath(file.path);
+    if (!file.path.startsWith(file.section + '/')) {
       throw new Error('Invalid section path: ' + file.path);
     }
     return file.path;
@@ -222,20 +344,15 @@ export function validateContractLock(lock) {
   return lock;
 }
 
-const contractFolder = /^(\d{4})\/(\d{2})\/(\1-\2-\d{2})-[a-z0-9]+(?:-[a-z0-9]+)*-[a-z0-9_-]+$/i;
-
-function isContractFolder(folder) {
-  const match = contractFolder.exec(folder);
-  if (!match) return false;
-  const date = new Date(match[3]);
-  return Number.isFinite(date.getTime()) && date.toISOString().slice(0, 10) === match[3];
-}
-
 export function validateContractIndexEntry(entry) {
   fields(entry, ['contractId', 'folder']);
-  if (!isContractFolder(entry.folder)) throw new Error('Invalid contract folder');
+  const { contractId } = parseContractFolder(entry.folder);
+  if (entry.contractId !== contractId) throw new Error('Index contractId must match the contract folder ID');
   choice(entry.status, ['active', 'superseded', 'withdrawn'], 'status');
-  if (entry.status === 'superseded') required(entry.supersededBy, 'supersededBy');
+  if (entry.status === 'superseded'
+    && (typeof entry.supersededBy !== 'string' || !contractIdPattern.test(entry.supersededBy))) {
+    throw new Error('Invalid index supersededBy contract ID');
+  }
   return entry;
 }
 
@@ -346,24 +463,49 @@ export const contractPathFence = Object.freeze({
   'contract-merge-bot': '*'
 });
 
-export function checkContractPathFence({ role, changedFiles, contractsRoot = 'docs/contracts' }) {
-  if (!repositoryPath(contractsRoot)) throw new Error('Invalid contractsRoot path');
-  const root = contractsRoot.toLowerCase();
+// Folds compatibility forms and full case so spellings a case-insensitive filesystem
+// treats as one directory (ſ/s, ẞ/ss, ς/σ, decomposed forms) compare equal to the root.
+export function foldContractPath(path) {
+  return path.normalize('NFKC').toLowerCase().toUpperCase().toLowerCase();
+}
+
+const asciiPrintable = /^[\x20-\x7e]+$/;
+
+export function isContractsRoot(root) {
+  return repositoryPath(root) && asciiPrintable.test(root);
+}
+
+// Names reserved below a contract section, shared with Core's publication fence.
+export const contractReservedSegments = Object.freeze(['index.json', 'contract.lock.json', 'codeowners', '.github',
+  '.gitlab-ci.yml', 'azure-pipelines.yml', 'jenkinsfile', '.circleci', '.buildkite']);
+
+export function checkContractPathFence({ role, changedFiles, contractsRoot = defaultContractsRoot }) {
+  if (!isContractsRoot(contractsRoot)) throw new Error('Invalid contractsRoot path');
+  const rootPrefix = contractsRoot + '/';
+  const canonicalRoot = contractsRoot.toLowerCase();
   const allowed = Object.hasOwn(contractPathFence, role) ? contractPathFence[role] : undefined;
   return rows(changedFiles, 'changedFiles').filter(path => {
     if (!repositoryPath(path)) return true;
-    const canonical = path.toLowerCase();
+    const canonical = foldContractPath(path);
+    const inContractsRoot = canonical === canonicalRoot || canonical.startsWith(canonicalRoot + '/');
+    if (inContractsRoot && !path.startsWith(rootPrefix)) return true;
     if (/(^|\/)codeowners$/.test(canonical) || canonical.startsWith('.github/')
       || ['.gitlab-ci.yml', 'azure-pipelines.yml', 'jenkinsfile'].includes(canonical)) {
-      return allowed !== '*';
+      if (allowed !== '*') return true;
     }
-    if (canonical !== root && !canonical.startsWith(root + '/')) return false;
-    if (allowed === '*') return false;
-    const relative = path.slice(contractsRoot.length + 1).split('/');
-    const [year, month, folder, section] = relative;
-    return !allowed || relative.length < 5 || section !== allowed
-      || !isContractFolder([year, month, folder].join('/'))
-      || relative.some(segment => ['index.json', 'contract.lock.json'].includes(segment.toLowerCase()));
+    if (!inContractsRoot) return false;
+    const relative = path.slice(rootPrefix.length);
+    if (!isContractPath(relative)) return true;
+    if (relative === 'INDEX.json') return allowed !== '*';
+    const segments = relative.split('/');
+    const [year, month, folder, section] = segments;
+    if (segments.length < 4 || !matchContractFolder([year, month, folder].join('/'))) return true;
+    const reserved = segments.slice(4).some(segment => contractReservedSegments.includes(segment.toLowerCase()));
+    if (allowed === '*') {
+      if (segments.length === 4) return section !== 'contract.lock.json';
+      return !contractSections.includes(section) || reserved;
+    }
+    return !allowed || segments.length < 5 || section !== allowed || reserved;
   });
 }
 
@@ -448,7 +590,7 @@ export const adlcProjectConfigSchema = {
     ciPaths: { type: 'array', items: nonemptyString },
     riskRules: { type: 'array', items: objectSchema({ id: nonemptyString, pathPattern: nonemptyString,
       floor: { enum: ['low', 'medium', 'high'] }, neverAutoMerge: nonemptyString }, ['id', 'pathPattern', 'floor']) },
-    contractsRoot: { ...nonemptyString, default: 'docs/contracts' },
+    contractsRoot: { ...nonemptyString, pattern: '^[\\x20-\\x7e]+$', default: defaultContractsRoot },
     backlog: objectSchema({
       provider: { const: 'github-projects' },
       owner: nonemptyString,
