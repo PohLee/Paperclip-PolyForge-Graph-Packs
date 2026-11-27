@@ -30,9 +30,9 @@
 
 | 函数 | 校验对象 | 必须检查 |
 | --- | --- | --- |
-| `validateApprovalManifest` | G2 审批清单 | `id`、`version`；`deliverables[]` 每项有 `key`、`revisionId`、`digest`，key 唯一且至少包含 `prd` 和 `acceptance.feature`；`egmReportRef`；`unresolvedEscalations[]`；`assumptions[]`；`supersedes`（首版为 `null`，否则为非空字符串）；`approver` 不得在清单内自报（出现即报错，审批人只能来自 Host 运行记录） |
+| `validateApprovalManifest` | G2 审批清单 | `id`、`version`；`deliverables[]` 每项有 `key`、`revisionId`、`digest`，key 唯一且至少包含 `prd` 和 `acceptance.feature`；`egmReportRef`；`unresolvedEscalations[]`；`assumptions[]`；`supersedes`（首版为 `null`，否则为非空字符串）；可选 `contract: { type, slug }`，字段严格遵循[契约目录规则](CONTRACT_DIRECTORY.md)，PR-B2 发布时必填；`approver` 不得在清单内自报（出现即报错，审批人只能来自 Host 运行记录） |
 | `validateContractLock` | `contract.lock.json` | `contractId`（永久 ID）、`epic`、`backlogItemRef`、`approvalManifest {id, revisionId, digest}`、`supersedes`、`files[]`（`path`、`digest`、`section` ∈ `product` / `design` / `technical`），路径不越出所属 section 目录，path 唯一 |
-| `validateContractIndexEntry` | `INDEX.json` 的一条 | `contractId`、`folder`（形如 `YYYY/MM/YYYY-MM-DD-<epic>-<ID>`，且年月与日期一致）、`status`（`active` / `superseded` / `withdrawn`）、`supersededBy`（仅 superseded 时必填） |
+| `validateContractIndexEntry` | `INDEX.json` 的一条 | `contractId`、`folder`（形如 `YYYY/MM/yyMMDDHH_<type>-<slug>_<contractId>`，年月与 UTC 时间戳一致，且 ID 与 `contractId` 相同）、`status`（`active` / `superseded` / `withdrawn`）、`supersededBy`（仅 superseded 时必填） |
 | `validateCompletionLedger` | 交付物完成台账 | `done[]`、`notDone[]`、`skipped[]`（每项带 `reason`）、`blocked[]`（每项带 `blockedBy`）、`unverified[]`（每项带 `reason`）；五组都必须出现，空组写 `[]`，不允许省略 |
 | `validateReviewFindings` | 六维评审发现 | 每条 `dimension` ∈ `security` / `performance` / `logic` / `data-migration` / `tests` / `api-maintainability`；`severity` ∈ `P0`–`P3` 或 `nit`；`location`（`file:line`）、`trigger`、`verification`；P0 / P1 必须带 `reproduction`（可复现证据），否则校验失败；评审未运行时整体状态为 `not-run`，不得与“无发现”混同 |
 | `validateVerificationManifest` | 验证证据清单 | `checkoutSha`；`expectedScenarios[]`（从已批准 BDD 枚举）；`dimensions[]`（项目声明的执行维度，可为空）；`results[]` 每条 `scenarioId`、维度组合、`result` ∈ `pass` / `fail` / `unverified`、`evidenceRefs[]`。另导出 `judgeVerificationManifest(manifest)`：预期集合中每个 scenario × 维度组合都必须有记录，缺记录、`not-run`、缺证据都判 `unverified`；返回 `{ status: 'pass' | 'fail' | 'unverified', gaps[] }` |
@@ -40,14 +40,14 @@
 
 ### WP1.2 契约目录规范、写围栏与模板
 
-- 新增 `packs/adlc/docs/CONTRACT_DIRECTORY.md`：目录结构（`<contracts_root>/INDEX.json`、`YYYY/MM/<首次发布日>-<epic>-<永久 ID>/`，含 `contract.lock.json`、`product/`、`design/`、`technical/`），不搬家、命名、版本、`supersedes` 并发规则、大文件、多 repo 规则。
+- 新增 `packs/adlc/docs/CONTRACT_DIRECTORY.md`：目录结构（`<contractsRoot>/INDEX.json`、`YYYY/MM/yyMMDDHH_<type>-<slug>_<contractId>/`，含 `contract.lock.json`、`product/`、`design/`、`technical/`），不搬家、命名、版本、`supersedes` 并发规则、大文件、多 repo 规则。
 - 新增路径围栏数据与函数：`contractPathFence`（角色 → 允许写入的 section），`checkContractPathFence({ role, changedFiles, contractsRoot })` 返回违规列表。规则：产品角色只写 `product/`；Creative 只写 `design/`；PE 只写 `technical/`；`contract.lock.json`、`INDEX.json`、CI 配置、CODEOWNERS 只能由合并 bot 写；开发角色不得写任何契约路径。
 - 新增 `packs/adlc/templates/contracts/`：`INDEX.json`、`contract.lock.json` 示例、`CODEOWNERS.example`、空的 `product/`、`design/`、`technical/` 占位说明。示例必须能通过 WP1.1 校验器（测试覆盖）。
 - 在文档中写明已知局限：免费组织私有仓库没有 protected branches / rulesets，路径围栏和 required checks 不由 GitHub 强制；合并 bot 自行检查，人或其他 token 仍可绕过。
 
 ### WP1.3 项目配置与席位声明格式
 
-- 导出 `adlcProjectConfigSchema`（JSON Schema 对象，命名导出，不写入 Core 未支持的 `pack` 字段）：`contractsRoot`（默认 `docs/contracts`）、`backlog`（`provider: 'github-projects'`、`owner`、`projectNumber`、字段名映射：`agentPriority`、`humanPriority`、`sourceEventId`、`signalCount`、`distinctUsers`）、`approvers`（`g2`、`g3OutOfSystem`、`escalation`，单 owner 起步时可都指向同一身份）、`seats`（节点席位 → profile）、`profiles`（`harness`、`model`、`reasoning`、有序 `fallback[]`、`timeoutMs`、`budget`）、`automationMode` ∈ `manual` / `assisted` / `full-auto`、`neverAutoMerge`（默认开启的清单，可关闭）。
+- 导出 `adlcProjectConfigSchema`（JSON Schema 对象，命名导出，不写入 Core 未支持的 `pack` 字段）：`contractsRoot`（默认 `knowledge/contracts`）、`backlog`（`provider: 'github-projects'`、`owner`、`projectNumber`、字段名映射：`agentPriority`、`humanPriority`、`sourceEventId`、`signalCount`、`distinctUsers`）、`approvers`（`g2`、`g3OutOfSystem`、`escalation`，单 owner 起步时可都指向同一身份）、`seats`（节点席位 → profile）、`profiles`（`harness`、`model`、`reasoning`、有序 `fallback[]`、`timeoutMs`、`budget`）、`automationMode` ∈ `manual` / `assisted` / `full-auto`、`neverAutoMerge`（默认开启的清单，可关闭）。
 - 导出 `validateSeatDeclaration`：Pack 侧席位声明只允许 `name`、`distinctVendor`、`judgeVendorNotIn`、`minSeats`、`onUnavailable` ∈ `wait` / `block`、`waitDeadlineMs`；出现 `model` / `harness` 等具体值即报错（Pack 不写具体模型）。
 - 导出 `resolveSeatOrder(layers)`：纯函数，按“单次 run 覆盖 → 项目节点席位 → 项目用途 profile → 公司 profile → Paperclip Agent 自身设置”合并，返回解析结果与来源层；未配置返回 `{ source: 'paperclip-agent' }`。只做解析，不调用 Paperclip。
 - 导出 `checkSeatConstraints(assignments, declaration)`：校验厂商约束（`distinctVendor`、`judgeVendorNotIn`）和 `minSeats`；每次派发和 fallback 都应调用。

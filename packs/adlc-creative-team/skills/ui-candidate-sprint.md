@@ -7,6 +7,8 @@ description: Create and shortlist versioned interface candidates from an approve
 
 Use after product design discovery when a promoted wireframe direction needs comparable, implementation-relevant interface alternatives. These are product UI candidates with states, not static visual-concept images and not a complete multi-page website.
 
+Write G3 contract deliverables, file names and paths in English.
+
 ## Work
 
 1. Pin the exact product direction, brief, requirements and design baseline. A selected G03 visual concept may guide expression; retain its separate reference and do not treat it as a product-flow decision.

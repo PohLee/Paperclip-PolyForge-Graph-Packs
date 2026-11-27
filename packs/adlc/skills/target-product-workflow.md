@@ -19,3 +19,7 @@ EGM uses feature scope. PM authors with Project Memory. Goldfish reviews in a fr
 Every finding receives CONTEST with evidence in the reading packet, ESCALATE for evidence outside it, PROPOSE FIX, or DECLINE with rationale. No successful reviewer attempt means not-run. Small needs one clean round within two rounds. Large needs two consecutive clean rounds within five. Clean requires all applicable reviewers to have run and zero unresolved Blocker or Major findings. Report the cap or oscillation to the human.
 
 Pin prd, acceptance.feature and applicable interaction-design issue document revisions in the approval manifest after CPO pre-review. Confirm each assumption and unresolved escalation in the human G2 decision. Any change to listed revisions invalidates the manifest. After G2 hand the exact manifest and Decision Record to the contract merge host. Only a merge event authorizes downstream work.
+
+Write G2 contract deliverables, file names and paths in English.
+
+Set `contract.type` and `contract.slug` in the G2 approval manifest using the [contract directory rules](../docs/CONTRACT_DIRECTORY.md).

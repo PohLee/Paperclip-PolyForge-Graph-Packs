@@ -1,6 +1,6 @@
 {
-  "contractId": "C1",
-  "epic": "orders",
+  "contractId": "PRC-687256771405",
+  "epic": "feat-orders",
   "backlogItemRef": "github-projects:orders:1",
   "approvalManifest": {
     "id": "G2-C1",
