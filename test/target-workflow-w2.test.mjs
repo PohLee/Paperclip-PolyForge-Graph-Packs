@@ -119,7 +119,7 @@ test('seat nodes declare the exact dispatch constraints', () => {
   const graph = find(adlc, 'requirements-baseline', '0.1.2');
   for (const [id, seat] of Object.entries({
     'candidate-a': 'candidate-a', 'candidate-b': 'candidate-b', judge: 'judge',
-    'challenge-requirements': 'goldfish'
+    'draft-requirements': 'pm-author', 'challenge-requirements': 'goldfish'
   })) {
     assert.deepEqual(graph.nodes.find(node => node.id === id).seat,
       productSeats.find(declaration => declaration.name === seat));
