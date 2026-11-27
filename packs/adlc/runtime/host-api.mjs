@@ -1,8 +1,9 @@
 import { pack } from '../index.mjs';
+import { mergeProducers, currentAttemptPayload } from '../merge-producers.mjs';
 import {
   validateRequestBrief, validateEvidenceLedger, validateExperimentRecord, validateExperimentRoute,
   validateRequirementsHandoff, validateCompetitiveDiff, validateCompetitiveRoute, validateInvestmentCase,
-  validateApprovalManifest,
+  validateApprovalManifest, validateContractPublicationRequest,
 } from '../product-method-contracts.mjs';
 
 import { validateGrillRecord, validateIntelTrigger, validateLegalSignal } from '../backlog.mjs';
@@ -36,6 +37,9 @@ const validators=Object.freeze({
   },
   egm_report:validateEgmReport,
   approval_manifest:validateApprovalManifest,
+  contract_publication_request: payload => validateContractPublicationRequest({
+    ...payload, contract_pins: Object.hasOwn(payload, 'contract_pins') ? payload.contract_pins : []
+  }),
   request_brief:validateRequestBrief, evidence_ledger:validateEvidenceLedger, experiment_record:validateExperimentRecord,
   requirements_handoff:validateRequirementsHandoff, competitive_diff:validateCompetitiveDiff, investment_case:validateInvestmentCase,
 });
@@ -48,6 +52,10 @@ function latestPayload(run,nodeId,kind) {
   const ref=[...(nodeState.artifacts??[])].reverse().find(item=>item.kind===kind);
   const payload=attempt.output?.adlcProductMethods?.[kind];
   return ref&&payload?.id===ref.id&&payload?.version===ref.version ? payload : null;
+}
+
+export function candidatePayload(run, ref) {
+  return currentAttemptPayload(run, ref, 'adlcProductMethods');
 }
 
 /** Trusted host boundary for pack-owned ADLC product-method contracts. */
@@ -192,6 +200,22 @@ export function createAdlcHostApi({engine,resolveActor,runValidationDigest,servi
     }
   }
   async function validateTechnicalSubmission(run, nodeId, payloads, actor) {
+    const publication = mergeProducers.find(row => row.section === 'product' && row.nodeId === nodeId &&
+      row.graphId === run.graph.id && row.versions.includes(run.graph.version));
+    if (publication) {
+      const request = payloads[publication.kind];
+      const manifest = latestPayload(run, publication.candidateNodeId, publication.candidateKind);
+      const gate = run.nodeStates[publication.gateNodeId];
+      if (!manifest || request.runId !== run.id || gate.status !== 'completed' || gate.outcome !== 'accept' ||
+          request.decisionId !== gate.attempts.at(-1)?.decisionId ||
+          request.manifest.id !== manifest.id || request.manifest.revisionId !== manifest.version) {
+        throw new Error('Publication must bind current G2 approval');
+      }
+      if (manifest.supersedes === null ? request.contract_pins.length !== 0 :
+          !request.contract_pins.length || !samePins(request.contract_pins, run.input.contract_pins)) {
+        throw new Error('Publication contract_pins must match the G2 publication baseline');
+      }
+    }
     if (!technicalRun(run)) return;
     const { contract_pins: pins, pr_head: pr, verification_scope: scope } = run.input;
     const read = (node, kind) => latestPayload(run, node, kind);

@@ -228,3 +228,5 @@ export {
   resolveSeatOrder, checkSeatConstraints
 } from './product-method-contracts.mjs';
 export { effectivePriority, dedupeKey, routeIssue, grillSla, validateIntelTrigger, validateLegalSignal } from './backlog.mjs';
+
+export { mergeProducers } from './merge-producers.mjs';

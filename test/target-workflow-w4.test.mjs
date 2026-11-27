@@ -3,11 +3,12 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { canonicalDigest } from '../packs/adlc/product-method-contracts.mjs';
-import { pack, adlcProjectConfigSchema, assessDeterministicRisk, metricDefinitions } from '../packs/adlc/index.mjs';
+import { canonicalDigest, validateContractPublicationRequest } from '../packs/adlc/product-method-contracts.mjs';
+import { pack, mergeProducers, adlcProjectConfigSchema, assessDeterministicRisk, metricDefinitions } from '../packs/adlc/index.mjs';
+import { designPublication } from '../packs/adlc-creative-team/graphs/design-publication.mjs';
 import { pack as creativePack } from '../packs/adlc-creative-team/index.mjs';
-import { createAdlcHostApi } from '../packs/adlc/runtime/host-api.mjs';
-import { canAgentApproveVisual, createCreativeHostApi, creativeRequiredServicesByGraph } from '../packs/adlc-creative-team/runtime/host-api.mjs';
+import { createAdlcHostApi, candidatePayload as adlcPayload } from '../packs/adlc/runtime/host-api.mjs';
+import { candidatePayload as creativePayload, canAgentApproveVisual, createCreativeHostApi, creativeRequiredServicesByGraph } from '../packs/adlc-creative-team/runtime/host-api.mjs';
 import { assessW4ImplementationRisk, automationMode, canAgentApproveMerge, technicalValidators } from '../packs/adlc/runtime/technical-workflow.mjs';
 
 async function loadCore() {
@@ -263,7 +264,7 @@ async function readyG3(project, systemScope = 'out-of-system', options = {}) {
     'prepare-visual-manifest': completedArtifact('creativeArtifacts', 'visual_manifest', manifest),
     'design-audit': completedArtifact('creativeArtifacts', 'visual_audit', audit)
   });
-  return { api, engine, runId: run.id, nodeId: 'g3' };
+  return { api, engine, runId: run.id, nodeId: 'g3', manifest, audit };
 }
 
 test('real assisted G3 approval requires current audit evidence and checks the project ceiling', async () => {
@@ -397,4 +398,169 @@ test('G5 can escalate even after the project lowers its automation ceiling', asy
   const result = await api.decideNode({ runId, nodeId: 'g5', actor: agent,
     outcome: 'human', reason: 'Owner review required' });
   assert.equal(result.run.pendingHuman.nodeId, 'g5');
+});
+
+test('G2 publication validates the request and its exact approval on submission and revision', async () => {
+  const { GraphEngine, runValidationDigest } = await loadCore();
+  const engine = new GraphEngine();
+  await engine.registerPack(pack);
+  const nodeId = 'publish-baseline';
+  const graph = pack.graphs.find(row => row.id === 'requirements-baseline' && row.version === '0.1.2');
+  for (const supersedes of [null, 'PREVIOUS']) {
+    const pins = [{ section: 'product', contractId: 'C1', commit: 'a'.repeat(40) }];
+    const runId = 'baseline-' + supersedes;
+    const manifest = { id: 'manifest', version: '1', supersedes };
+    const run = { id: runId, graph, pack, packId: pack.id, mode: 'manual', status: 'running',
+      input: { contract_pins: supersedes ? pins : [], projectId: 'project' }, conflicts: [],
+      nodeStates: Object.fromEntries(graph.nodes.map(node => [node.id, { status: 'completed', artifacts: [], attempts: [] }])) };
+    run.nodeStates[nodeId].status = 'pending';
+    run.nodeStates['scope-route'].outcome = 'small';
+    const candidate = completedArtifact('adlcProductMethods', 'approval_manifest', manifest);
+    run.nodeStates['prepare-g2'] = { status: 'completed', artifacts: candidate.artifacts, attempts: [candidate] };
+    run.nodeStates['requirements-gate'] = { status: 'completed', outcome: 'accept', artifacts: [], attempts: [{ decisionId: 'accepted' }] };
+    const state = await engine.store.read();
+    state.runs[runId] = run;
+    if (supersedes) state.audit.push({ kind: 'contract.merged', projectId: 'project', contractId: 'C1', section: 'product', mergeCommitSha: pins[0].commit });
+    await engine.store.write(state, state.revision);
+    const api = createAdlcHostApi({ engine, runValidationDigest, resolveActor: ({ claimedActor }) => claimedActor });
+    const actor = { ...agent, roles: ['product-owner'] };
+    const request = { id: 'request', version: '1', section: 'product', runId, decisionId: 'accepted',
+      manifest: { id: manifest.id, revisionId: manifest.version }, pullNumber: 5, contract_pins: supersedes ? pins : [] };
+    const handoff = { id: 'handoff', version: '1', acceptedIntent: { id: 'intent', version: '1' }, acceptanceDecisionId: 'accepted',
+      scope: [], nonGoals: [], dependencies: [], outcomeMetric: [], requirements: [{ id: 'R1', problemRef: 'P1' }], status: 'accepted',
+      acceptanceCriteria: [{ id: 'A1', description: 'Test R1', proof: 'BDD', requirementIds: ['R1'] }] };
+    const choice = await engine.recordWorkDecision({ runId, nodeId, actor, category: 'process',
+      question: 'Publish the baseline?', options: [{ id: 'open', label: 'Open PR' }, { id: 'wait', label: 'Wait' }],
+      outcome: 'open', reason: 'G2 approved', evidence: [{ kind: 'manifest', summary: 'Approved candidate',
+        sourceRef: { kind: 'artifact', id: manifest.id, version: manifest.version } }] });
+    const submit = value => api.submitNode({ runId, nodeId, actor, decisionIds: [choice.id],
+      artifacts: [{ id: handoff.id, version: handoff.version, kind: 'requirements_handoff' },
+        { id: value.id, version: value.version, kind: 'contract_publication_request' }],
+      payloads: { requirements_handoff: handoff, contract_publication_request: value } });
+    for (const change of [{ runId: 'other' }, { decisionId: 'other' }, { manifest: { id: manifest.id, revisionId: '2' } }]) {
+      await assert.rejects(submit({ ...request, ...change }), /current G2 approval/);
+    }
+    await assert.rejects(submit({ ...request, contract_pins: supersedes ? [] : pins }), /publication baseline/);
+    assert.throws(() => validateContractPublicationRequest({ ...request, pullNumber: 0 }), /pullNumber/);
+    const firstRequest = { ...request };
+    if (!supersedes) delete firstRequest.contract_pins;
+    const pending = await engine.store.read();
+    pending.runs[runId].nodeStates['requirements-gate'].status = 'pending';
+    await engine.store.write(pending, pending.revision);
+    await assert.rejects(submit(firstRequest), /current G2 approval/);
+    const completed = await engine.store.read();
+    completed.runs[runId].nodeStates['requirements-gate'].status = 'completed';
+    await engine.store.write(completed, completed.revision);
+    await submit(firstRequest);
+    const revisedArtifact = { kind: 'contract_publication_request', id: request.id, version: '2' };
+    const revise = change => api.recordSelfReview({ runId, nodeId, actor, artifactVersion: '2', revisedArtifact,
+      revisedPayload: { ...request, version: '2', ...change } });
+    await assert.rejects(revise({ decisionId: 'other' }), /current G2 approval/);
+    await revise({ pullNumber: 6 });
+    const revised = await engine.getRun(runId);
+    assert.equal(adlcPayload(revised, { ...revisedArtifact, version: '1' }), null);
+    assert.equal(adlcPayload(revised, revisedArtifact).pullNumber, 6);
+  }
+});
+
+test('merge producers match the published graph definitions', () => {
+  assert.deepEqual(designPublication, mergeProducers.find(row => row.packId === 'creative-team'));
+  for (const row of mergeProducers) {
+    const source = row.packId === pack.id ? pack : creativePack;
+    for (const version of row.versions) {
+      const selected = graph(row.graphId, version, source);
+      assert.ok(selected.nodes.find(node => node.id === row.nodeId).produces.includes(row.kind));
+      const gate = selected.nodes.find(node => node.id === row.gateNodeId);
+      assert.ok(gate.candidateNodes.includes(row.candidateNodeId));
+      assert.ok(gate.candidateKinds.includes(row.candidateKind));
+    }
+  }
+  assert.deepEqual(pack.graphs.filter(item =>
+    item.nodes.some(node => node.produces?.includes('contract_publication_request'))).map(item => [item.id, item.version]),
+  [['requirements-baseline', '0.1.2']]);
+});
+
+function designRequest({ api, runId, manifest, audit }, decisionId) {
+  const request = { id: 'publication', version: '1', section: 'design', runId, decisionId, pullNumber: 7,
+    manifest: { id: manifest.id, revisionId: manifest.version }, audit: { id: audit.id, revisionId: audit.version } };
+  const submit = (changes = {}) => api.submitNode({ runId, nodeId: 'publish-design', actor: { ...agent, roles: ['product-designer'] },
+    artifacts: [{ id: request.id, version: request.version, kind: 'design_publication_request' }],
+    payloads: { design_publication_request: { ...request, ...changes } } });
+  return { submit };
+}
+
+for (const route of ['owner', 'director', 'escalation']) {
+  test('G3 publication follows ' + route + ' approval', async () => {
+    const fixture = await readyG3({ automationMode: 'assisted' }, 'in-system');
+    const { api, engine, runId, nodeId } = fixture;
+    const director = { ...agent, roles: ['design-director'] };
+    const args = { runId, nodeId, outcome: 'approve', reason: 'Approve the audited design' };
+    let approval;
+    if (route === 'escalation') {
+      const escalated = await api.decideNode({ ...args, outcome: 'human', actor: director });
+      approval = await api.resolveHumanGate({ ...args, actor: owner, expectedDecisionId: escalated.decision.id });
+    } else {
+      approval = await api.decideNode({ ...args, actor: route === 'owner' ? owner : director });
+    }
+    const { submit } = designRequest(fixture, approval.decision.id);
+    await assert.rejects(submit({ decisionId: 'foreign-decision' }), /current G3 approval/);
+    await assert.rejects(submit({ pullNumber: 0 }), /positive pullNumber/);
+    await submit();
+    assert.equal((await engine.getRun(runId)).nodeStates['publish-design'].status, 'completed');
+  });
+}
+
+test('G3 publication refuses a changed manifest at the approved ID and version', async () => {
+  const fixture = await readyG3({ automationMode: 'manual' });
+  const { api, engine, runId, nodeId, manifest } = fixture;
+  const approval = await api.decideNode({ runId, nodeId, outcome: 'approve', actor: owner, reason: 'Approve audited design' });
+  const changed = { ...manifest, deliverables: [{ key: 'design.json', digest: 'b'.repeat(64) }] };
+  await completePrelude(engine, await engine.getRun(runId), {
+    'prepare-visual-manifest': completedArtifact('creativeArtifacts', 'visual_manifest', changed)
+  });
+  const { submit } = designRequest(fixture, approval.decision.id);
+  await assert.rejects(submit(), /current G3 approval and approved audit/);
+});
+
+test('G3 hold and behavior-change routes bypass design publication', async () => {
+  for (const outcome of ['hold', 'return-to-g2']) {
+    const { api, engine, runId, nodeId } = await readyG3({ automationMode: 'manual' }, 'out-of-system',
+      { auditChanged: outcome === 'return-to-g2' });
+    await api.decideNode({ runId, nodeId, outcome, actor: owner, reason: outcome });
+    assert.ok(!(await engine.getReadyNodes(runId)).some(node => node.id === 'publish-design'));
+  }
+});
+
+test('G3 rejects audit replacement after approval', async () => {
+  const fixture = await readyG3({ automationMode: 'manual' });
+  const { api, engine, runId, nodeId, audit } = fixture;
+  const approval = await api.decideNode({ runId, nodeId, outcome: 'approve', actor: owner, reason: 'Approve audited design' });
+  const replacement = { ...audit, version: '2' };
+  await completePrelude(engine, await engine.getRun(runId), {
+    'design-audit': completedArtifact('creativeArtifacts', 'visual_audit', replacement)
+  });
+  const revised = await engine.getRun(runId);
+  assert.equal(creativePayload(revised, { kind: 'visual_audit', id: audit.id, version: '1' }), null);
+  assert.deepEqual(creativePayload(revised, { kind: 'visual_audit', id: audit.id, version: '2' }), replacement);
+  const { submit } = designRequest({ ...fixture, audit: replacement }, approval.decision.id);
+  await assert.rejects(submit(), /approved audit/);
+});
+
+test('Creative candidate payload follows the latest self-review revision', async () => {
+  const { api, engine, runId, audit } = await readyG3({ automationMode: 'manual' });
+  const actor = { ...agent, roles: ['design-qa-accessibility'] };
+  const nodeId = 'design-audit';
+  const state = await engine.store.read();
+  const run = state.runs[runId];
+  // Enable the generic review path on this fixture to exercise the real wrapper and engine.
+  run.graph.nodes.find(node => node.id === nodeId).review = { supervisorRole: 'design-director' };
+  run.nodeStates[nodeId].status = 'awaiting_self_review';
+  Object.assign(run.nodeStates[nodeId].attempts[0], { actor, selfReviews: [] });
+  await engine.store.write(state, state.revision);
+  const revisedArtifact = { id: audit.id, version: '2', kind: 'visual_audit' };
+  await api.recordSelfReview({ runId, nodeId, actor, artifactVersion: '2', revisedArtifact,
+    revisedPayload: { ...audit, version: '2' } });
+  const revised = await engine.getRun(runId);
+  assert.equal(creativePayload(revised, { ...revisedArtifact, version: '1' }), null);
+  assert.equal(creativePayload(revised, revisedArtifact).version, '2');
 });
