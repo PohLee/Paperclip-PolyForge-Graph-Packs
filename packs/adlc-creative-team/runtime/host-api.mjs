@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 import { readFile, realpath, readdir } from 'node:fs/promises';
 import path from 'node:path';
-import { graphs, productDesignGraphs, adlcHandoffGraphs, automatedVisualVersion } from '../graphs/catalog.mjs';
+import { graphs, productDesignGraphs, adlcHandoffGraphs, automatedVisualVersion, designPublication } from '../graphs/catalog.mjs';
 import { brandGraphs } from '../graphs/brand-catalog.mjs';
 import { compositionGraphs } from '../graphs/composition-catalog.mjs';
 import { inspectLogoSvg } from '../adapters/brand-tools/svg.mjs';
@@ -362,6 +362,11 @@ export function createCreativeHostApi({engine,artifactRootForRun,hasImageProvide
       if(!refs.length) throw new Error(`Evidence ${item.kind} has no versioned source reference`);
     for(const ref of refs) if(!exactRecord(run,ref)) await externalRecord(ref,ref.kind??item.sourceKind??item.kind,{run,input:run.input,actor:{id:item.actorId}});
     }
+    if (automatedVisual(run.graph) && nodeId === designPublication.gateNodeId && outcome === 'approve') {
+      const audit = latestPayload(run, designPublication.auditNodeId, designPublication.auditKind);
+      return [...evidence, { kind: 'approved_visual_audit', subjectRefs: [{ artifactId: audit.id, version: audit.version }],
+        digest: digest(stableJson(audit)) }];
+    }
     return evidence;
   }
 
@@ -463,6 +468,20 @@ export function createCreativeHostApi({engine,artifactRootForRun,hasImageProvide
       for(const artifact of artifacts) {
         const payload=enrichedPayloads[artifact.kind];
         await validateArtifact(run,artifact,payload,actor);
+      }
+      if (automatedVisual(run.graph) && nodeId === designPublication.nodeId) {
+        const request = enrichedPayloads[designPublication.kind];
+        const lineage = createArtifactLineage(run);
+        const manifest = lineage.current({ id: request.manifest.id, version: request.manifest.revisionId },
+          designPublication.candidateNodeId, designPublication.candidateKind, 'Publication must cite the current visual manifest');
+        const audit = lineage.current({ id: request.audit.id, version: request.audit.revisionId },
+          designPublication.auditNodeId, designPublication.auditKind, 'Publication must cite the current visual audit');
+        const gate = run.nodeStates[designPublication.gateNodeId];
+        const approval = gate.attempts.at(-1);
+        const audited = approval?.evidence?.findLast(item => item.kind === 'approved_visual_audit');
+        if (request.runId !== run.id || gate.outcome !== 'approve' || request.decisionId !== approval?.decisionId ||
+            !sameRef(audit.manifestRef, manifest) || !sameRef(audited?.subjectRefs?.[0], audit) ||
+            audited.digest !== digest(stableJson(audit))) throw new Error('Publication must bind the current G3 approval and approved audit');
       }
       if(run.graph.id==='g3-visual-contract') {
         if(run.graph.version===automatedVisualVersion&&nodeId==='prepare-visual-manifest'&&typeof payloads.visual_manifest.behaviorChanged!=='boolean') {
@@ -847,7 +866,7 @@ export function createCreativeHostApi({engine,artifactRootForRun,hasImageProvide
       const evidence=await requireDecisionEvidence(run,nodeId,outcome);
       if(nodeId==='g3'&&actor.kind==='agent') {
         const audit=latestPayload(run,'design-audit','visual_audit');
-        if(!evidence.some(item=>item.subjectRefs?.some(ref=>sameRef(ref,audit)))) {
+        if(!evidence.some(item=>item.kind!=='approved_visual_audit'&&item.subjectRefs?.some(ref=>sameRef(ref,audit)))) {
           throw new Error('Agent G3 approval requires evidence citing the current visual audit');
         }
       }

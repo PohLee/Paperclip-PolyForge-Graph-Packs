@@ -248,5 +248,5 @@ export function createArtifactLineage(run) {
     if(nodeId==='saas-disposition'&&outcome==='ready') submission('saas-independent-review',{saas_design_review:latest('saas-independent-review','saas_design_review')});
     if(nodeId==='system-disposition'&&outcome==='accepted') submission('impact-review',{design_system_review:latest('impact-review','design_system_review')});
   }
-  return {latest,exactRecord,selectedConceptRef,submission,decision};
+  return {latest,exactRecord,current,selectedConceptRef,submission,decision};
 }

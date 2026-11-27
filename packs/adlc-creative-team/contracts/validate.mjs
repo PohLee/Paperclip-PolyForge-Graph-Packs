@@ -8,6 +8,7 @@ const ref = value => object(value) && text(value.id ?? value.artifactId) && text
 const required = {
   interaction_design:['id','version','intentRef','states','scenarioRefs'],
   visual_manifest:['id','version','productContractRef','interactionRef','designBaselineRef','assets','tokens','components','systemScope'],
+  design_publication_request:['id','version'],
   visual_audit:['id','version','manifestRef','findings'],
   context_inventory:['summary','sources'], clarification_record:['questions','knownAnswers'], creative_brief:['objective','audience'],
   product_design_research:['id','version','briefRef','sources','needs','constraints','unknowns'],
@@ -90,6 +91,12 @@ const required = {
   be_contract:['id','version','digest','content'], research_evidence:['id','version','sources','claims'],
 };
 
+export function validateDesignPublicationRequest(payload) {
+  return object(payload) && payload.section === 'design' && text(payload.runId) && text(payload.decisionId) &&
+    [payload.manifest, payload.audit].every(item => text(item?.id) && text(item.revisionId)) &&
+    Number.isSafeInteger(payload.pullNumber) && payload.pullNumber > 0;
+}
+
 export function validateCreativeArtifact(kind, payload) {
   if (!text(kind)) return { valid:false,errors:['kind must be a non-empty string'] };
   if (!object(payload)) return { valid:false,errors:['payload must be an object'] };
@@ -105,6 +112,9 @@ export function validateCreativeArtifact(kind, payload) {
   const keys = required[kind];
   if (!keys) return { valid:false,errors:[`unknown creative artifact kind: ${kind}`] };
   const errors=[];
+  if (kind==='design_publication_request' && !validateDesignPublicationRequest(payload)) {
+    errors.push('Design publication needs section design, runId, decisionId, manifest and audit revisions, and a positive pullNumber');
+  }
   if (kind==='interaction_design' && (!Array.isArray(payload.suppliedDesigns) ||
       payload.suppliedDesigns.some(item => !ref(item?.designRef) || !['reference','must-follow'].includes(item.use)))) {
     errors.push('suppliedDesigns must classify each versioned design as reference or must-follow');

@@ -4,7 +4,7 @@ import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { canonicalDigest, validateContractPublicationRequest } from '../packs/adlc/product-method-contracts.mjs';
-import { pack, adlcProjectConfigSchema, assessDeterministicRisk, metricDefinitions } from '../packs/adlc/index.mjs';
+import { pack, mergeProducers, adlcProjectConfigSchema, assessDeterministicRisk, metricDefinitions } from '../packs/adlc/index.mjs';
 import { pack as creativePack } from '../packs/adlc-creative-team/index.mjs';
 import { createAdlcHostApi } from '../packs/adlc/runtime/host-api.mjs';
 import { canAgentApproveVisual, createCreativeHostApi, creativeRequiredServicesByGraph } from '../packs/adlc-creative-team/runtime/host-api.mjs';
@@ -263,7 +263,7 @@ async function readyG3(project, systemScope = 'out-of-system', options = {}) {
     'prepare-visual-manifest': completedArtifact('creativeArtifacts', 'visual_manifest', manifest),
     'design-audit': completedArtifact('creativeArtifacts', 'visual_audit', audit)
   });
-  return { api, engine, runId: run.id, nodeId: 'g3' };
+  return { api, engine, runId: run.id, nodeId: 'g3', manifest, audit };
 }
 
 test('real assisted G3 approval requires current audit evidence and checks the project ceiling', async () => {
@@ -450,4 +450,71 @@ test('G2 publication validates the request and its exact approval on submission 
     await assert.rejects(revise({ decisionId: 'other' }), /current G2 approval/);
     await revise({ pullNumber: 6 });
   }
+});
+
+test('merge producers match the published graph definitions', () => {
+  for (const row of mergeProducers) {
+    const source = row.packId === pack.id ? pack : creativePack;
+    for (const version of row.versions) {
+      const selected = graph(row.graphId, version, source);
+      assert.ok(selected.nodes.find(node => node.id === row.nodeId).produces.includes(row.kind));
+      const gate = selected.nodes.find(node => node.id === row.gateNodeId);
+      assert.ok(gate.candidateNodes.includes(row.candidateNodeId));
+      assert.ok(gate.candidateKinds.includes(row.candidateKind));
+    }
+  }
+  assert.deepEqual(pack.graphs.filter(item =>
+    item.nodes.some(node => node.produces?.includes('contract_publication_request'))).map(item => [item.id, item.version]),
+  [['requirements-baseline', '0.1.2']]);
+});
+
+function designRequest({ api, runId, manifest, audit }, decisionId) {
+  const request = { id: 'publication', version: '1', section: 'design', runId, decisionId, pullNumber: 7,
+    manifest: { id: manifest.id, revisionId: manifest.version }, audit: { id: audit.id, revisionId: audit.version } };
+  const submit = (changes = {}) => api.submitNode({ runId, nodeId: 'publish-design', actor: { ...agent, roles: ['product-designer'] },
+    artifacts: [{ id: request.id, version: request.version, kind: 'design_publication_request' }],
+    payloads: { design_publication_request: { ...request, ...changes } } });
+  return { submit };
+}
+
+for (const route of ['owner', 'director', 'escalation']) {
+  test('G3 publication follows ' + route + ' approval', async () => {
+    const fixture = await readyG3({ automationMode: 'assisted' }, 'in-system');
+    const { api, engine, runId, nodeId } = fixture;
+    const director = { ...agent, roles: ['design-director'] };
+    const args = { runId, nodeId, outcome: 'approve', reason: 'Approve the audited design' };
+    let approval;
+    if (route === 'escalation') {
+      const escalated = await api.decideNode({ ...args, outcome: 'human', actor: director });
+      approval = await api.resolveHumanGate({ ...args, actor: owner, expectedDecisionId: escalated.decision.id });
+    } else {
+      approval = await api.decideNode({ ...args, actor: route === 'owner' ? owner : director });
+    }
+    const { submit } = designRequest(fixture, approval.decision.id);
+    await assert.rejects(submit({ decisionId: 'foreign-decision' }), /current G3 approval/);
+    await assert.rejects(submit({ pullNumber: 0 }), /positive pullNumber/);
+    await submit();
+    assert.equal((await engine.getRun(runId)).nodeStates['publish-design'].status, 'completed');
+  });
+}
+
+test('G3 hold and behavior-change routes bypass design publication', async () => {
+  for (const outcome of ['hold', 'return-to-g2']) {
+    const { api, engine, runId, nodeId } = await readyG3({ automationMode: 'manual' }, 'out-of-system',
+      { auditChanged: outcome === 'return-to-g2' });
+    await api.decideNode({ runId, nodeId, outcome, actor: owner, reason: outcome });
+    assert.ok(!(await engine.getReadyNodes(runId)).some(node => node.id === 'publish-design'));
+  }
+});
+
+test('G3 rejects audit replacement after approval', async () => {
+  const fixture = await readyG3({ automationMode: 'manual' });
+  const { api, engine, runId, nodeId, audit } = fixture;
+  const approval = await api.decideNode({ runId, nodeId, outcome: 'approve', actor: owner, reason: 'Approve audited design' });
+  const replacement = { ...audit, version: '2' };
+  await completePrelude(engine, await engine.getRun(runId), {
+    'design-audit': completedArtifact('creativeArtifacts', 'visual_audit', replacement)
+  });
+  const { submit } = designRequest({ ...fixture, audit: replacement }, approval.decision.id);
+  await assert.rejects(submit(), /approved audit/);
 });
