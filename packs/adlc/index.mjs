@@ -40,6 +40,7 @@ for (const role of ['cpo', 'external-product-analyst', 'product-manager']) roleS
 for (const role of ['cpo', 'product-manager']) roleSkills[role].push('feature-investment-advisor');
 for (const role of ['product-owner', 'cpo', 'product-manager']) roleSkills[role].push('backlog-github-projects', 'target-product-workflow');
 roleSkills['internal-product-analyst'].push('target-product-workflow');
+for (const role of ['cto-caio', 'principal-engineer']) roleSkills[role].push('backlog-github-projects');
 for (const skillsForRole of Object.values(roleSkills)) skillsForRole.push('temporary-agent-snapshot');
 const skillIds = [...new Set(Object.values(roleSkills).flat())];
 if (skillIds.length !== Object.keys(skillCatalog).length || skillIds.some(id => !skillCatalog[id])) {
@@ -67,7 +68,7 @@ function loadRole(spec) {
 }
 
 const roles = Object.fromEntries(roleCatalog.map(spec => [spec.id, loadRole(spec)]));
-const packVersion = '0.3.15';
+const packVersion = '0.3.16';
 const graphs = [lifecycleGraphs[0], lifecycleGraphs[1], ...engineeringGraphs, ...lifecycleGraphs.slice(2), ...architectureDeliveryGraphs, ...designAssuranceGraphs, ...createWorkflowCompositionGraphs(packVersion), ...targetWorkflowGraphs, ...targetTechnicalGraphs];
 const operatingPolicies = readText(resolve(root, 'OPERATING_POLICIES.md'));
 const evidenceContracts = readText(resolve(root, 'docs/EVIDENCE_CONTRACTS.md'));
@@ -97,7 +98,7 @@ export const pack = {
       { id: 'unresolved-reviews', label: 'Unresolved severe reviews', source: 'reviews.severeOpen' }
     ],
     views: [
-      { id: 'delivery', label: 'Delivery work', kind: 'run-list', graphIds: ['request-triage', 'product-discovery', 'product-experiment', 'requirements-baseline', 'technical-design', 'implementation', 'bug-fast-lane', 'small-change', 'verification', 'design-drift', 'system-architecture', 'code-delivery', 'system-architecture-workflow', 'architecture-review-composed', 'code-delivery-workflow'] },
+      { id: 'delivery', label: 'Delivery work', kind: 'run-list', graphIds: ['request-triage', 'product-discovery', 'product-experiment', 'requirements-baseline', 'technical-design', 'implementation', 'bug-fast-lane', 'architecture-improvement', 'retro-correct', 'small-change', 'verification', 'design-drift', 'system-architecture', 'code-delivery', 'system-architecture-workflow', 'architecture-review-composed', 'code-delivery-workflow'] },
       { id: 'product-learning', label: 'Product learning', kind: 'run-list', graphIds: ['product-experiment', 'competitive-watch', 'external-intel-rerank'] },
       { id: 'release', label: 'Release and observation', kind: 'run-list', graphIds: ['release-process', 'release-observation', 'production-monitoring'] },
       { id: 'decisions', label: 'Product decisions and history', kind: 'decision-history' }
@@ -118,6 +119,8 @@ export const pack = {
     'request-triage': ['product-owner', 'cpo', 'human-owner'],
     'system-architecture': ['principal-engineer', 'cto-caio', 'human-owner'],
     'code-delivery': ['principal-engineer', 'cto-caio', 'human-owner'],
+    'architecture-improvement': ['principal-engineer', 'human-owner'],
+    'retro-correct': ['principal-engineer', 'human-owner'],
     'technical-design': ['principal-engineer', 'cto-caio', 'human-owner'],
     'design-drift': ['principal-engineer', 'cto-caio', 'human-owner'],
     'product-discovery': ['product-owner', 'cpo', 'human-owner'],
@@ -221,7 +224,7 @@ export {
   validateRequirementsHandoff, validateCompetitiveDiff, validateCompetitiveRoute, validateInvestmentCase,
   validateApprovalManifest, validateContractLock, validateContractIndexEntry, validateCompletionLedger,
   validateReviewFindings, validateVerificationManifest, judgeVerificationManifest, validateReturnRequest,
-  contractPathFence, checkContractPathFence, adlcProjectConfigSchema, validateSeatDeclaration,
+  contractPathFence, checkContractPathFence, adlcProjectConfigSchema, assessDeterministicRisk, metricDefinitions, validateSeatDeclaration,
   resolveSeatOrder, checkSeatConstraints
 } from './product-method-contracts.mjs';
 export { effectivePriority, dedupeKey, routeIssue, grillSla, validateIntelTrigger, validateLegalSignal } from './backlog.mjs';

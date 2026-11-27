@@ -112,7 +112,7 @@ test('WP2.5 pre-G2 starts from intent and visual behavior changes have a G2 retu
   assert.equal(result.valid, false);
   const visual = find(creative, 'g3-visual-contract', '0.1.0');
   assert.ok(visual.edges.some(edge => edge.from === 'g3' && edge.when === 'return-to-g2'));
-  assert.ok(creative.decisionRules.filter(rule => rule.type === 'g3-visual-approval').every(rule => rule.requiresHuman));
+  assert.ok(creative.decisionRules.find(rule => rule.type === 'g3-visual-approval' && rule.mode === 'manual').requiresHuman);
 });
 
 test('seat nodes declare the exact dispatch constraints', () => {

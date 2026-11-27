@@ -1,6 +1,6 @@
 # ADLC Creative Team Pack
 
-Standalone, versioned Pack for design and creative workflows. Pack ID `creative-team`, version `0.3.4`, supplies nineteen legacy DAGs, two opt-in contracted workflows and two ADLC design handoff workflows, 14 role definitions, 26 skills, evidence and artifact contracts, offline interview/gallery helpers, brand tools, and a trusted host wrapper that enforces pack-specific checks against Core run state and real files.
+Standalone, versioned Pack for design and creative workflows. Pack ID `creative-team`, version `0.3.5`, supplies nineteen legacy DAGs, two opt-in contracted workflows and two ADLC design handoff workflows, 14 role definitions, 26 skills, evidence and artifact contracts, offline interview/gallery helpers, brand tools, and a trusted host wrapper that enforces pack-specific checks against Core run state and real files.
 
 The pack loads and registers locally. It does not install agents, activate itself, generate images, connect to browser/Figma/BE services, publish content, or register an ADLC bridge. A host must provide authenticated identity, capability dispatch, immutable artifact storage, and the trusted evidence services described in [Core integration](docs/integration.md).
 
@@ -82,3 +82,5 @@ The brand stack selectively adapts four reviewed repositories. [Brand stack inte
 Run pre-g2-interaction@0.1.0 from draft product intent. The versioned interaction_design output records the intent reference, observable states, BDD scenario references and supplied designs classified as reference or must-follow. The PM uses it as the interaction-design issue document in the G2 manifest.
 
 After G2, run g3-visual-contract@0.1.0. Its visual_manifest pins the product contract, interaction revision, design-system baseline, token and component changes, asset versions and SHA-256 digests, and system scope. Include at least one publication deliverable with a key and a bare lowercase SHA-256 digest. An independent visual_audit references the exact manifest, includes its canonical JSON SHA-256 as manifestDigest, and records behavior changes and findings. W2 uses human owner approval for G3, including all out-of-system changes. Route behavior changes back to the PM to revise BDD and repeat G2. Publish approved visuals under the contract design section through the merge host.
+
+Pin `g3-visual-contract@0.1.1` for mode-aware G3. The design director can approve in assisted mode or explicitly enabled full-auto mode when the exact manifest is in-system, behavior is unchanged, and the audit has zero P0/P1 findings. Manual runs and out-of-system manifests go to the human owner. Behavior changes return to G2. The host reads project settings from its trusted project configuration.

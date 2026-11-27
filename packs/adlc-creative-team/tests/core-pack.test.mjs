@@ -19,7 +19,7 @@ const engineWithPack = async () => {
 
 test('the standalone pack registers its legacy and contracted DAGs in Core and stays serializable', async () => {
   const engine = await engineWithPack();
-  assert.equal(pack.graphs.length,23);
+  assert.equal(pack.graphs.length,24);
   assert.doesNotThrow(()=>JSON.stringify(pack));
   assert.equal((await engine.getPack?.('creative-team',pack.version)) ?? 'registered','registered');
   for (const graph of pack.graphs) {

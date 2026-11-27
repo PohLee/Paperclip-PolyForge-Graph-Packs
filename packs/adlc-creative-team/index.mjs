@@ -48,10 +48,13 @@ const decisionRules = Object.values(roles).flatMap(role => role.decisionModel.ru
     continueWhen:policy.continueWhen,escalateWhen:policy.escalateWhen,
     source:`roles/${role.id}/decision_model.md`,sourceDigest:role.documentDigests.decision_model
   }))));
-// W2 uses the owner gate for every visual approval. Conditional automation is W4.
+// The trusted Creative host enforces version and audit requirements for agent approval.
 for (const mode of ['manual', 'assisted', 'autonomous']) {
   decisionRules.push({ type: 'g3-visual-approval', mode, allowedRoles: ['design-director', 'human-owner'],
     allowedKinds: ['human'], requiresHuman: true, requiredEvidence: ['visual_manifest', 'visual_audit'] });
+  decisionRules.push({ type: 'g3-visual-auto-approval', mode, allowedRoles: ['design-director', 'human-owner'],
+    allowedKinds: mode === 'manual' ? ['human'] : ['human', 'agent'], requiresHuman: mode === 'manual',
+    requiredEvidence: ['visual_manifest', 'visual_audit'] });
 }
 const graphDecisionNodes = allGraphs.flatMap(item => item.nodes.filter(node => node.type === 'decision').map(node => ({...node,graphId:item.id})));
 for (const node of graphDecisionNodes) for (const mode of ['manual','assisted','autonomous']) {
@@ -105,13 +108,13 @@ export function resolveOrganization(activePacks=[]) {
 }
 
 export const pack = Object.freeze({
-  id:'creative-team',version:'0.3.4',schemaVersion:1,
+  id:'creative-team',version:'0.3.5',schemaVersion:1,
   compatibility:{coreRange:'>=0.8.9 <0.9.0',contracts:{graph:1,decision:1,evidence:1},requiredCapabilities:{'workflow-composition':'^1.0.0'}},
   graphStartRoles:{'pre-g2-interaction':['product-designer','interaction-designer','human-owner'],'g3-visual-contract':['product-designer','design-director','human-owner'],'brand-foundation-contract':['human-owner'],'brand-foundation-composed':['human-owner']},
   organization,graphs:allGraphs,roles,skills,decisionRules,policyDocuments,policyDocumentDigests,methodReferences,brandMethods,runtimeRequirements,
   policies:{decisionTraceRequired:false,artifactValidation:'host-callable-pack-validator',review:{independentExecutionRequired:true},
     conceptSprint:{minCount:3,maxCount:5,completionRequiresRealImages:true,oneGallery:true}},
-  release:{digest:'sha256:150770cf4905110fb43eb8c2dad2f53aaedf6c080edb4078b5cd64454efc2618',builtAt:'2026-11-18T00:00:00.000Z',status:'candidate'},
+  release:{digest:'sha256:ab34022754b3e93632047c16ce5966eb1c13c189430d99b5cdf27813cb80b6b5',builtAt:'2026-11-18T00:00:00.000Z',status:'candidate'},
 });
 
 export function loadPack() { return pack; }

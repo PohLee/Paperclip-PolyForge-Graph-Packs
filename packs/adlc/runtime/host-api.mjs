@@ -13,6 +13,9 @@ import {
   technicalValidators, technicalVersions, validateTechnicalInputs
 } from './technical-workflow.mjs';
 
+import { architectureDesignVersion, automatedVerificationVersion, retrospectiveSources } from '../target-technical-graphs.mjs';
+import { assessW4ImplementationRisk, automationMode, canAgentApproveMerge, mergeEvidenceComplete } from './technical-workflow.mjs';
+
 import { assessSmallChangeAdmission, inspectSmallChangeSubmission } from './small-change.mjs';
 
 const validators=Object.freeze({
@@ -67,7 +70,27 @@ export function createAdlcHostApi({engine,resolveActor,runValidationDigest,servi
     if(typeof digest!=='string'||!digest.trim()) throw new Error('Trusted runValidationDigest returned an invalid digest');
     return digest;
   };
-  const technicalRun = run => technicalVersions[run.graph.id] === run.graph.version;
+  const automatedMerge = run => run.graph.id === 'verification' && run.graph.version === automatedVerificationVersion;
+  const architectureDesign = run => run.graph.id === 'technical-design' && run.graph.version === architectureDesignVersion;
+  const improvement = run => run.graph.id === 'architecture-improvement' && run.graph.version === '0.1.0';
+  const retrospective = run => run.graph.id === 'retro-correct' && run.graph.version === '0.1.0';
+  const technicalRun = run => automatedMerge(run) || architectureDesign(run) || improvement(run) || retrospective(run) ||
+    technicalVersions[run.graph.id] === run.graph.version;
+  const projectConfig = async ({ input }) => {
+    if (typeof input?.projectId !== 'string' || !input.projectId.trim()) {
+      throw new Error('verification@0.1.9 requires projectId');
+    }
+    return await services?.getProjectConfig?.(input.projectId) ?? {};
+  };
+  async function mergeContext(run, modelRisk, snapshot, project) {
+    if (!automatedMerge(run)) return assessImplementationRisk(modelRisk, snapshot);
+    return {
+      ...assessW4ImplementationRisk(modelRisk, snapshot, project),
+      authorAgentId: snapshot.authorAgentId ?? null,
+      evidenceComplete: mergeEvidenceComplete(latestPayload(run, 'verify-head', 'verification_manifest'),
+        latestPayload(run, 'review-head', 'pr_reviews'), run.input.pr_head.headSha)
+    };
+  }
   async function inspectPull(run) {
     await engine.assertCurrentContractPins?.(run.id);
     const snapshot = await services?.inspectImplementationPull?.({ run, ...run.input.pr_head });
@@ -117,25 +140,109 @@ export function createAdlcHostApi({engine,resolveActor,runValidationDigest,servi
         if (outcome === 'pass') equal(read('comprehension-review', 'implementation_egm')?.passed, true);
         if (outcome === 'rework' && run.nodeStates[nodeId].reworkCount >= 2) throw new Error('Escalate nonconvergent implementation EGM');
         break;
+      case 'authorize-tech-debt':
+        if (actor.kind !== 'agent' || !actor.roles.includes('cto')) throw new Error('Architecture authorization requires the CTO');
+        break;
+      case 'retro-route': {
+        const corrections = read('write-retro-report', 'retro_report')?.corrections ?? [];
+        equal(outcome, corrections.some(item => item.scope !== 'ordinary') ? 'owner' :
+          corrections.length ? 'correct' : 'close');
+        break;
+      }
+      case 'retro-governance':
+        if (actor.kind !== 'human' || !actor.roles.includes('human-owner')) throw new Error('Governance requires the human owner');
+        if (outcome === 'acknowledge-and-correct' &&
+          !read('write-retro-report', 'retro_report')?.corrections.some(item => item.scope === 'ordinary')) {
+          throw new Error('Only ordinary corrections can proceed to a correction PR');
+        }
+        break;
       case 'g4':
         if (outcome === 'accept' && (actor.kind !== 'agent' || !actor.roles.includes('cto'))) throw new Error('G4 requires the CTO');
         break;
       case 'g5':
+        if (automatedMerge(run) && outcome === 'hold' &&
+          !(actor.kind === 'human' && actor.roles.includes('human-owner'))) {
+          throw new Error('Refer G5 to the human owner');
+        }
         if (outcome === 'accept') {
-          if (actor.kind !== 'human' || !actor.roles.includes('human-owner')) throw new Error('G5 requires a human owner');
+          if (!automatedMerge(run) && (actor.kind !== 'human' || !actor.roles.includes('human-owner'))) throw new Error('G5 requires a human owner');
+          if (automatedMerge(run)) {
+            const pr = run.input.pr_head;
+            const verification = read('verify-head', 'verification_manifest');
+            const mergeEvidence = evidence.filter(item => item.kind === 'merge_evidence');
+            if (!verification || mergeEvidence.length !== 1 ||
+              ![{ id: `pr:${pr.repository}#${pr.pullNumber}`, version: pr.headSha }, verification].every(subject =>
+                mergeEvidence[0].subjectRefs?.some(ref => ref.artifactId === subject.id && ref.version === subject.version))) {
+              throw new Error('G5 approval must bind the PR head and verification manifest');
+            }
+          }
           const snapshot = await inspectPull(run);
           const context = read('prepare-g5', 'merge_context');
-          if (!context || stableJson(context.risk) !== stableJson(assessImplementationRisk(context.modelRisk, snapshot))) {
+          const project = automatedMerge(run) ? await projectConfig(run) : {};
+          const current = context && await mergeContext(run, context.modelRisk, snapshot, project);
+          if (!context || stableJson(context.risk) !== stableJson(current)) {
             throw new Error('G5 risk changed; prepare new merge evidence');
+          }
+          if (automatedMerge(run) && !(actor.kind === 'human' && actor.roles.includes('human-owner')) &&
+            !canAgentApproveMerge(actor, automationMode(run.mode, project), current)) {
+            throw new Error('G5 requires a human owner for this PR');
           }
         }
         break;
     }
   }
-  async function validateTechnicalSubmission(run, nodeId, payloads) {
+  async function validateTechnicalSubmission(run, nodeId, payloads, actor) {
     if (!technicalRun(run)) return;
     const { contract_pins: pins, pr_head: pr, verification_scope: scope } = run.input;
     const read = (node, kind) => latestPayload(run, node, kind);
+    const authorization = payloads.architecture_authorization;
+    if (improvement(run) && authorization && !read('select-candidates', 'tech_debt_items')?.items.some(item =>
+      item.id === authorization.itemId)) throw new Error('CTO authorization must cite a selected backlog Item');
+    if (architectureDesign(run) && payloads.technical_specs) {
+      const specs = payloads.technical_specs.specs;
+      const { invariantIds, regressionStandards } = run.input.architecture_authorization;
+      if (!invariantIds.every(id => specs.some(spec => spec.invariantIds.includes(id))) ||
+        !regressionStandards.every(id => specs.some(spec => spec.bddScenarioIds.includes(id)))) {
+        throw new Error('Technical specs must cover authorized invariants and regression standards');
+      }
+    }
+    if (retrospective(run)) {
+      const attribution = payloads.retro_attribution;
+      const frozen = payloads.retro_evidence;
+      if (frozen && retrospectiveSources.some(source => stableJson(frozen[source]) !== stableJson(run.input.retro_evidence[source]))) {
+        throw new Error('Retro evidence must preserve every frozen input');
+      }
+      if (attribution) {
+        const profile = await services?.getExecutionModelProfile?.(actor.executionId);
+        const priorExecution = run.nodeStates['attribute-a']?.attempts.at(-1)?.actor?.executionId;
+        const prior = nodeId === 'attribute-b' && await services?.getExecutionModelProfile?.(priorExecution);
+        if (!profile?.model || profile.id !== attribution.modelProfileId ||
+          (nodeId === 'attribute-b' && (!prior?.model || prior.model === profile.model ||
+            priorExecution === actor.executionId))) {
+          throw new Error('Attribution requires distinct authenticated model profiles');
+        }
+      }
+      if (payloads.correction_pr) {
+        const report = read('write-retro-report', 'retro_report');
+        const pr = payloads.correction_pr;
+        const ordinary = report?.corrections.filter(item => item.scope === 'ordinary') ?? [];
+        const checkIds = new Set(pr.checks.map(check => check.correctionId));
+        if (checkIds.size !== ordinary.length || checkIds.size !== pr.checks.length ||
+          ordinary.some(item => !checkIds.has(item.id))) {
+          throw new Error('Correction PR requires one historical proof per ordinary correction and excludes governance');
+        }
+        const observed = await services?.inspectCorrectionPull?.({ run, repository: pr.repository,
+          pullNumber: pr.pullNumber, headSha: pr.headSha });
+        if (observed?.headSha !== pr.headSha || observed.touchesGovernance !== false) {
+          throw new Error('Correction PR inspection must confirm the exact head excludes protected governance changes');
+        }
+        if (!pr.checks.every(check => observed.historicalChecks?.some(proof =>
+          proof.correctionId === check.correctionId && proof.historicalErrorRef === check.historicalErrorRef &&
+          proof.failureEvidenceRef === check.failureEvidenceRef && proof.result === 'fail'))) {
+          throw new Error('Trusted historical replay must confirm that each new check catches its cited error');
+        }
+      }
+    }
     for (const kind of ['implementation_pr', 'technical_publication_request', 'implementation_merge_request', 'defect_fix_proof']) {
       if (payloads[kind] && !samePins(payloads[kind].contract_pins, pins)) throw new Error('Record must cite run contract_pins');
     }
@@ -177,7 +284,7 @@ export function createAdlcHostApi({engine,resolveActor,runValidationDigest,servi
       const context = payloads.merge_context;
       const head = payloads.merge_pr_head;
       if (head.id !== `pr:${pr.repository}#${pr.pullNumber}` || head.version !== pr.headSha) throw new Error('G5 PR artifact must identify the exact head');
-      const risk = assessImplementationRisk(context.modelRisk, await inspectPull(run));
+      const risk = await mergeContext(run, context.modelRisk, await inspectPull(run), automatedMerge(run) ? await projectConfig(run) : {});
       payloads.merge_context = { ...context, ...risk, risk };
     }
     if (nodeId === 'request-merge') {
@@ -188,6 +295,7 @@ export function createAdlcHostApi({engine,resolveActor,runValidationDigest,servi
       if (request.runId !== run.id || request.decisionId !== decisionId || request.repository !== pr.repository ||
         request.pullNumber !== pr.pullNumber || request.headSha !== pr.headSha ||
         request.manifest?.id !== verification.id || request.manifest?.revisionId !== verification.version ||
+        (automatedMerge(run) && (request.authorAgentId !== context.authorAgentId || request.evidenceComplete !== context.evidenceComplete)) ||
         request.riskLevel !== context.riskLevel || stableJson(request.neverAutoMerge) !== stableJson(context.neverAutoMerge)) {
         throw new Error('Merge request must preserve the exact G5 authorization');
       }
@@ -316,7 +424,9 @@ export function createAdlcHostApi({engine,resolveActor,runValidationDigest,servi
       const graph = pack.graphs.find(item => item.id === args.graphId &&
         (args.graphVersion === undefined || item.version === args.graphVersion));
       if (!graph) throw new Error('Graph not found in pinned Pack');
-      if (technicalRun({ graph })) {
+      const target = { graph };
+      if (automatedMerge(target)) request.mode = automationMode(args.mode, await projectConfig(args));
+      if (automatedMerge(target) || architectureDesign(target) || technicalVersions[graph.id] === graph.version) {
         validateTechnicalInputs(args.graphId, args.input);
         if (args.graphId === 'implementation') {
           const receipt = args.input.contract_merge_receipt;
@@ -325,6 +435,28 @@ export function createAdlcHostApi({engine,resolveActor,runValidationDigest,servi
             event.contractId === receipt.contractId && event.mergeCommitSha === receipt.mergeCommitSha &&
             event.supersedes === receipt.supersedes);
           if (!committed) throw new Error('Implementation requires a recorded technical contract merge event');
+        }
+      }
+      if (improvement(target) || retrospective(target)) {
+        if (args.mode && args.mode !== 'manual') throw new Error('Improvement and retro require a manual start');
+        if (!actor.roles.includes('principal-engineer') && !(actor.kind === 'human' && actor.roles.includes('human-owner'))) {
+          throw new Error('Improvement and retro require the PE or owner');
+        }
+        if (retrospective(target)) technicalValidators.retro_evidence(args.input?.retro_evidence);
+      }
+      if (architectureDesign(target)) {
+        const authorized = technicalValidators.architecture_authorization(args.input.architecture_authorization);
+        const source = await engine.getRun(authorized.runId);
+        const current = source && latestPayload(source, 'prioritize-tech-debt', 'architecture_authorization');
+        const decisions = source ? await engine.listDecisions({ runId: source.id }) : [];
+        const decision = decisions.find(row => row.id === authorized.decisionId);
+        if (source?.packId !== 'adlc' || !improvement(source) || source.input.projectId !== args.input.projectId ||
+          !current || !decision || decision.status !== 'decided' || decision.outcome !== 'accept' ||
+          decision.actor?.kind !== 'agent' || !decision.actor.roles.includes('cto') ||
+          source.nodeStates['authorize-tech-debt']?.attempts.at(-1)?.decisionId !== decision.id ||
+          decisions.some(row => row.supersedes === decision.id) ||
+          stableJson({ ...current, runId: source.id, decisionId: decision.id }) !== stableJson(authorized)) {
+          throw new Error('G-T1 requires current, same-project CTO architecture authorization');
         }
       }
       if (args.graphId === 'external-intel-rerank') validateIntelTrigger(args.input?.intel_trigger);
@@ -354,7 +486,7 @@ export function createAdlcHostApi({engine,resolveActor,runValidationDigest,servi
         productMethods[artifact.kind]=validateArtifact(artifact.kind,payload);
       }
       for(const kind of Object.keys(payloads)) if(validators[kind]&&!artifacts.some(item=>item.kind===kind)) throw new Error(`${kind} payload has no matching artifact envelope`);
-      await validateTechnicalSubmission(run, nodeId, productMethods);
+      await validateTechnicalSubmission(run, nodeId, productMethods, actor);
       const submissionReview = run.graph.hostAdmission?.reviewedNodeId === nodeId
         ? await inspectSmallChangeSubmission(run, artifacts, services?.inspectSmallChange)
         : undefined;
@@ -365,9 +497,18 @@ export function createAdlcHostApi({engine,resolveActor,runValidationDigest,servi
       const run=await engine.getRun(runId);
       if(!run||run.packId!=='adlc') throw new Error('ADLC run not found');
       actor=await trustedActor(actor,{operation:'decideNode',run,nodeId,outcome});
+      if (automatedMerge(run) && nodeId === 'g5' && actor.kind === 'agent' && outcome !== 'human') automationMode(run.mode, await projectConfig(run));
       validateDecisionRoute(run,nodeId,outcome);
       await validateTechnicalRoute(run,nodeId,outcome,actor,rest.evidence);
       const expectedRunDigest=snapshotDigest(run);
+      if (automatedMerge(run) && nodeId === 'g5' && outcome === 'accept') {
+        const { modelRisk } = latestPayload(run, 'prepare-g5', 'merge_context');
+        const pr = run.input.pr_head;
+        rest.evidence = [...rest.evidence.filter(item => item.kind !== 'implementation-risk'), {
+          kind: 'implementation-risk', riskLevel: modelRisk,
+          subjectRefs: [{ artifactId: `pr:${pr.repository}#${pr.pullNumber}`, version: pr.headSha }]
+        }];
+      }
       return engine.decideNode({runId,nodeId,actor,outcome,...rest,expectedRunDigest});
     },
     async resolveHumanGate({runId,nodeId,actor,outcome,...rest}) {
@@ -396,7 +537,7 @@ export function createAdlcHostApi({engine,resolveActor,runValidationDigest,servi
           if(!revisedPayload||revisedPayload.id!==revisedArtifact.id||revisedPayload.version!==revisedArtifact.version) throw new Error(`Revised artifact envelope identity differs from ${revisedArtifact.kind} payload`);
           const validated=validateArtifact(revisedArtifact.kind,revisedPayload);
           const methods = {...(attempt.output?.adlcProductMethods??{}), [revisedArtifact.kind]: validated};
-          await validateTechnicalSubmission(run, nodeId, methods);
+          await validateTechnicalSubmission(run, nodeId, methods, actor);
           revisedOutput={...attempt.output,adlcProductMethods:methods};
         } else if(revisedPayload!==undefined) throw new Error(`No ADLC product-method validator for revised artifact kind ${revisedArtifact.kind}`);
       } else if(revisedPayload!==undefined) throw new Error('revisedPayload requires a revisedArtifact envelope');
