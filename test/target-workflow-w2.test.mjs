@@ -117,6 +117,8 @@ test('WP2.5 pre-G2 starts from intent and visual behavior changes have a G2 retu
 
 test('seat nodes declare the exact dispatch constraints', () => {
   const graph = find(adlc, 'requirements-baseline', '0.1.2');
+  assert.ok(productSeats.find(declaration => declaration.name === 'pm-author'));
+  assert.equal(graph.nodes.find(node => node.id === 'draft-requirements').seat?.name, 'pm-author');
   for (const [id, seat] of Object.entries({
     'candidate-a': 'candidate-a', 'candidate-b': 'candidate-b', judge: 'judge',
     'draft-requirements': 'pm-author', 'challenge-requirements': 'goldfish'
