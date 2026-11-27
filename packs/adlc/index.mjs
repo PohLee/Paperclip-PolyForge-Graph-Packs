@@ -3,6 +3,7 @@ import { fileURLToPath } from 'node:url';
 import { resolve } from 'node:path';
 import { createHash } from 'node:crypto';
 import { engineeringGraphs } from './engineering-graphs.mjs';
+import { targetTechnicalGraphs, technicalDecisionRules, technicalSeats } from './target-technical-graphs.mjs';
 import { targetWorkflowGraphs, productSeats } from './target-workflow-graphs.mjs';
 import { lifecycleGraphs } from './lifecycle-graphs.mjs';
 import { architectureDeliveryGraphs } from './architecture-delivery-graphs.mjs';
@@ -66,8 +67,8 @@ function loadRole(spec) {
 }
 
 const roles = Object.fromEntries(roleCatalog.map(spec => [spec.id, loadRole(spec)]));
-const packVersion = '0.3.14';
-const graphs = [lifecycleGraphs[0], lifecycleGraphs[1], ...engineeringGraphs, ...lifecycleGraphs.slice(2), ...architectureDeliveryGraphs, ...designAssuranceGraphs, ...createWorkflowCompositionGraphs(packVersion), ...targetWorkflowGraphs];
+const packVersion = '0.3.15';
+const graphs = [lifecycleGraphs[0], lifecycleGraphs[1], ...engineeringGraphs, ...lifecycleGraphs.slice(2), ...architectureDeliveryGraphs, ...designAssuranceGraphs, ...createWorkflowCompositionGraphs(packVersion), ...targetWorkflowGraphs, ...targetTechnicalGraphs];
 const operatingPolicies = readText(resolve(root, 'OPERATING_POLICIES.md'));
 const evidenceContracts = readText(resolve(root, 'docs/EVIDENCE_CONTRACTS.md'));
 const decisionRules = Object.values(roles).flatMap(role => role.decisionModel.rules.flatMap(rule =>
@@ -96,7 +97,7 @@ export const pack = {
       { id: 'unresolved-reviews', label: 'Unresolved severe reviews', source: 'reviews.severeOpen' }
     ],
     views: [
-      { id: 'delivery', label: 'Delivery work', kind: 'run-list', graphIds: ['request-triage', 'product-discovery', 'product-experiment', 'requirements-baseline', 'technical-design', 'implementation', 'small-change', 'verification', 'design-drift', 'system-architecture', 'code-delivery', 'system-architecture-workflow', 'architecture-review-composed', 'code-delivery-workflow'] },
+      { id: 'delivery', label: 'Delivery work', kind: 'run-list', graphIds: ['request-triage', 'product-discovery', 'product-experiment', 'requirements-baseline', 'technical-design', 'implementation', 'bug-fast-lane', 'small-change', 'verification', 'design-drift', 'system-architecture', 'code-delivery', 'system-architecture-workflow', 'architecture-review-composed', 'code-delivery-workflow'] },
       { id: 'product-learning', label: 'Product learning', kind: 'run-list', graphIds: ['product-experiment', 'competitive-watch', 'external-intel-rerank'] },
       { id: 'release', label: 'Release and observation', kind: 'run-list', graphIds: ['release-process', 'release-observation', 'production-monitoring'] },
       { id: 'decisions', label: 'Product decisions and history', kind: 'decision-history' }
@@ -112,7 +113,7 @@ export const pack = {
     { graphId: 'product-experiment', nodeId: 'experiment-gate', validator: 'validateExperimentRoute' },
     { graphId: 'competitive-watch', nodeId: 'watch-route', validator: 'validateCompetitiveRoute' }
   ],
-  graphs, roles, skills, decisionRules, productSeats,
+  graphs, roles: { ...roles, cto: { ...roles['cto-caio'], id: 'cto' } }, skills, decisionRules: [...decisionRules, ...technicalDecisionRules], productSeats, technicalSeats,
   graphStartRoles: {
     'request-triage': ['product-owner', 'cpo', 'human-owner'],
     'system-architecture': ['principal-engineer', 'cto-caio', 'human-owner'],
@@ -125,6 +126,7 @@ export const pack = {
     'external-intel-rerank': ['external-product-analyst', 'product-manager', 'cpo', 'human-owner'],
     'competitive-watch': ['external-product-analyst', 'product-manager', 'cpo', 'human-owner'],
     'small-change': ['human-owner'],
+    'bug-fast-lane': ['product-owner', 'principal-engineer', 'human-owner'],
     implementation: ['product-owner', 'principal-engineer', 'cto-caio', 'human-owner'],
     verification: ['product-owner', 'cpo', 'cto-caio', 'human-owner'],
     'release-process': ['product-owner', 'cto-caio', 'human-owner'],

@@ -19,10 +19,11 @@ test('published pack registers with the core validator and has the lifecycle inv
     'release-process', 'release-observation', 'production-monitoring', 'requirements-baseline', 'product-experiment', 'competitive-watch',
     'system-architecture', 'code-delivery', 'technical-design', 'design-drift',
     'system-architecture-workflow', 'code-delivery-workflow', 'architecture-review-composed',
-    'request-triage', 'product-discovery', 'external-intel-rerank', 'requirements-baseline'
+    'request-triage', 'product-discovery', 'external-intel-rerank', 'requirements-baseline',
+    'technical-design', 'implementation', 'verification', 'code-delivery', 'bug-fast-lane'
   ]);
-  assert.equal(Object.keys(pack.roles).length, 10);
-  assert.equal(new Set(pack.graphs.map(graph => `${graph.id}@${graph.version}`)).size, 22);
+  assert.equal(Object.keys(pack.roles).length, 11);
+  assert.equal(new Set(pack.graphs.map(graph => `${graph.id}@${graph.version}`)).size, 27);
 });
 
 test('every Graph appears in a company dashboard run view', () => {
@@ -31,7 +32,7 @@ test('every Graph appears in a company dashboard run view', () => {
 });
 
 test('every task role and supervisor maps to a documented blueprint', () => {
-  const ids = new Set(roleCatalog.map(role => role.id));
+  const ids = new Set([...roleCatalog.map(role => role.id), 'cto']);
   for (const graph of pack.graphs) for (const node of graph.nodes) {
     if (node.role) assert.ok(ids.has(node.role), `${graph.id}/${node.id} uses unknown role ${node.role}`);
     if (node.review) {
@@ -50,45 +51,46 @@ test('every task role and supervisor maps to a documented blueprint', () => {
       assert.match(role.documentDigests[name], /^[a-f0-9]{64}$/);
     }
     assert.ok(role.skills.length > 0);
-    assert.ok(roleResponsibilities[role.id]?.length >= 2);
-    for (const duty of roleResponsibilities[role.id]) assert.ok(role.documents.instruction.includes(duty));
+    const duties = roleResponsibilities[role.id === 'cto' ? 'cto-caio' : role.id];
+    assert.ok(duties?.length >= 2);
+    for (const duty of duties) assert.ok(role.documents.instruction.includes(duty));
     for (const skillId of role.skills) assert.ok(pack.skills[skillId]?.content.length > 100);
   }
 });
 
 test('ADLC department heads report to the company CEO without changing review escalation', () => {
   const reportsTo = {
-    cpo: 'ceo', 'cto-caio': 'ceo',
+    cpo: 'ceo', 'cto-caio': 'ceo', cto: 'ceo',
     'internal-product-analyst': 'cpo', 'external-product-analyst': 'cpo',
     'product-manager': 'cpo', 'product-owner': 'cpo',
     'principal-engineer': 'cto-caio', 'lead-engineer': 'cto-caio',
     'qa-engineer': 'cto-caio', 'security-engineer': 'cto-caio'
   };
   const reviewEscalation = {
-    cpo: 'human-owner', 'cto-caio': 'human-owner',
+    cpo: 'human-owner', 'cto-caio': 'human-owner', cto: 'human-owner',
     'internal-product-analyst': 'product-manager', 'external-product-analyst': 'product-manager',
     'product-manager': 'cpo', 'product-owner': 'cpo',
     'principal-engineer': 'cto-caio', 'lead-engineer': 'principal-engineer',
     'qa-engineer': 'cto-caio', 'security-engineer': 'cto-caio'
   };
-  assert.equal(pack.version, '0.3.14');
+  assert.equal(pack.version, '0.3.15');
   assert.deepEqual(Object.fromEntries(Object.values(pack.roles).map(role => [role.id, role.reportsToRole])), reportsTo);
   assert.deepEqual(Object.fromEntries(Object.values(pack.roles).map(role => [role.id, role.supervisorRole])), reviewEscalation);
-  assert.equal(Object.values(pack.roles).filter(role => role.reportsToRole === 'ceo').length, 2);
+  assert.equal(Object.values(pack.roles).filter(role => role.reportsToRole === 'ceo').length, 3);
   assert.equal(Object.values(pack.roles).filter(role => role.reportsToRole !== 'ceo').length, 8);
   for (const role of Object.values(pack.roles)) {
     assert.match(role.documents.role, /## Organization\n\nReports to /);
     assert.match(role.documents.role, /## Artifact review\n\nDefault review escalation role:/);
     assert.match(role.documents.instruction, /organizational reporting line.*Graph node/s);
   }
-  assert.deepEqual(pack.graphs.filter(graph => graph.id !== 'small-change').map(graph => graph.version), ['0.2.1', '0.2.2', '0.1.7', '0.1.7', '0.1.0', '0.1.0', '0.1.0', '0.1.1', '0.1.0', '0.1.0', '0.1.1', '0.1.0', '0.1.0', '0.1.0', '1.0.1', '1.0.0', '1.0.1', '0.2.2', '0.2.3', '0.1.0', '0.1.2']);
+  assert.deepEqual(pack.graphs.filter(graph => graph.id !== 'small-change').map(graph => graph.version), ['0.2.1', '0.2.2', '0.1.7', '0.1.7', '0.1.0', '0.1.0', '0.1.0', '0.1.1', '0.1.0', '0.1.0', '0.1.1', '0.1.0', '0.1.0', '0.1.0', '1.0.1', '1.0.0', '1.0.1', '0.2.2', '0.2.3', '0.1.0', '0.1.2', '0.1.1', '0.1.8', '0.1.8', '0.1.1', '0.1.0']);
   assert.equal(pack.policies.cpoCtoConflict.protocolVersion, 2);
 });
 
 test('Markdown decision models expose the standard modes and the isolated pilot review rule', () => {
   const modes = ['manual', 'assisted', 'autonomous'];
   const pilotType = 'small-change-independent-review';
-  const standardRules = pack.decisionRules.filter(rule => rule.type !== pilotType);
+  const standardRules = pack.decisionRules.filter(rule => rule.type !== pilotType && rule.source);
   const types = new Set(standardRules.map(rule => rule.type));
   for (const type of types) for (const mode of modes) {
     const matches = pack.decisionRules.filter(rule => rule.type === type && rule.mode === mode);

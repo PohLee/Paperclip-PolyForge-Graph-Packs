@@ -1,3 +1,4 @@
+import { pack } from '../index.mjs';
 import {
   validateRequestBrief, validateEvidenceLedger, validateExperimentRecord, validateExperimentRoute,
   validateRequirementsHandoff, validateCompetitiveDiff, validateCompetitiveRoute, validateInvestmentCase,
@@ -7,9 +8,15 @@ import {
 import { validateGrillRecord, validateIntelTrigger, validateLegalSignal } from '../backlog.mjs';
 import { egmConverged, validateEgmReport } from '../product-review.mjs';
 
+import {
+  assertCurrentPull, assertVerificationRoute, assessImplementationRisk, reviewPasses, samePins,
+  technicalValidators, technicalVersions, validateTechnicalInputs
+} from './technical-workflow.mjs';
+
 import { assessSmallChangeAdmission, inspectSmallChangeSubmission } from './small-change.mjs';
 
 const validators=Object.freeze({
+  ...technicalValidators,
   grill_record:validateGrillRecord,
   intel_snapshot: snapshot => {
     if (!Array.isArray(snapshot.signals)) throw new Error('Intel snapshot needs a signals array');
@@ -60,6 +67,153 @@ export function createAdlcHostApi({engine,resolveActor,runValidationDigest,servi
     if(typeof digest!=='string'||!digest.trim()) throw new Error('Trusted runValidationDigest returned an invalid digest');
     return digest;
   };
+  const technicalRun = run => technicalVersions[run.graph.id] === run.graph.version;
+  async function inspectPull(run) {
+    await engine.assertCurrentContractPins?.(run.id);
+    const snapshot = await services?.inspectImplementationPull?.({ run, ...run.input.pr_head });
+    assertCurrentPull(run, snapshot);
+    return snapshot;
+  }
+  async function validateTechnicalRoute(run, nodeId, outcome, actor, evidence = []) {
+    if (!technicalRun(run)) return;
+    const read = (node, kind) => latestPayload(run, node, kind);
+    const equal = (actual, expected) => {
+      if (actual !== expected) throw new Error('Decision route must match validated technical evidence');
+    };
+    if (outcome === 'human') return;
+    switch (nodeId) {
+      case 'prd-route': equal(outcome, read('review-prd', 'prd_technical_review')?.outcome); break;
+      case 'clarification':
+      case 'amendment': equal(outcome, read(nodeId + '-request', 'return_request')?.resolution); break;
+      case 'spike-route': equal(outcome, read('inspect-spike', 'spike_plan')?.required ? 'required' : 'skip'); break;
+      case 'spike-result': equal(outcome, read('run-spike', 'spike_conclusion')?.outcome); break;
+      case 'ticket-route': {
+        const ledger = read('build-tickets', 'completion_ledger');
+        const ready = ledger && ['notDone', 'blocked', 'unverified', 'skipped'].every(group => !ledger[group].length);
+        equal(outcome, ready ? 'integrate' : 'amend');
+        break;
+      }
+      case 'bug-triage-route': equal(outcome, read('triage-bug', 'bug_triage')?.outcome); break;
+      case 'modernize-route': equal(outcome, read('modernize', 'modernize_report')?.outcome); break;
+      case 'review-route': {
+        const report = read('review-head', 'pr_reviews');
+        if (!report || report.headSha !== run.input.pr_head.headSha) throw new Error('Missing current PR review');
+        if (outcome === 'pass' && !reviewPasses(report)) throw new Error('Blocking reviews must pass');
+        if (outcome === 'rework' && run.nodeStates[nodeId].reworkCount >= 2) throw new Error('Escalate after three review rounds');
+        break;
+      }
+      case 'acceptance-gate':
+      case 'verification-exception': {
+        const manifest = read('verify-head', 'verification_manifest');
+        const exception = nodeId === 'verification-exception';
+        assertVerificationRoute(manifest, outcome, exception);
+        if (exception && outcome === 'accept' && (actor.kind !== 'human' || !actor.roles.includes('human-owner') ||
+          !evidence.some(item => item.kind === 'acceptance_exception' && item.reason && item.risk))) {
+          throw new Error('Verification exception requires owner evidence with reason and risk');
+        }
+        break;
+      }
+      case 'egm-route':
+        if (outcome === 'pass') equal(read('comprehension-review', 'implementation_egm')?.passed, true);
+        if (outcome === 'rework' && run.nodeStates[nodeId].reworkCount >= 2) throw new Error('Escalate nonconvergent implementation EGM');
+        break;
+      case 'g4':
+        if (outcome === 'accept' && (actor.kind !== 'agent' || !actor.roles.includes('cto'))) throw new Error('G4 requires the CTO');
+        break;
+      case 'g5':
+        if (outcome === 'accept') {
+          if (actor.kind !== 'human' || !actor.roles.includes('human-owner')) throw new Error('G5 requires a human owner');
+          const snapshot = await inspectPull(run);
+          const context = read('prepare-g5', 'merge_context');
+          if (!context || stableJson(context.risk) !== stableJson(assessImplementationRisk(context.modelRisk, snapshot))) {
+            throw new Error('G5 risk changed; prepare new merge evidence');
+          }
+        }
+        break;
+    }
+  }
+  async function validateTechnicalSubmission(run, nodeId, payloads) {
+    if (!technicalRun(run)) return;
+    const { contract_pins: pins, pr_head: pr, verification_scope: scope } = run.input;
+    const read = (node, kind) => latestPayload(run, node, kind);
+    for (const kind of ['implementation_pr', 'technical_publication_request', 'implementation_merge_request', 'defect_fix_proof']) {
+      if (payloads[kind] && !samePins(payloads[kind].contract_pins, pins)) throw new Error('Record must cite run contract_pins');
+    }
+    for (const ticket of payloads.technical_tickets?.tickets ?? []) {
+      if (!samePins(ticket.contract_pins, pins)) throw new Error('Ticket must cite run contract_pins');
+    }
+    if (payloads.return_request) {
+      const expected = nodeId === 'amendment-request' ? 'spec-amendment-request' : 'clarification-request';
+      if (payloads.return_request.kind !== expected) throw new Error('Incorrect return-request type');
+    }
+    if (payloads.implementation_egm) {
+      const spec = read('draft-technical-design', 'technical_specs');
+      if (payloads.implementation_egm.specVersion !== spec?.version) throw new Error('EGM must cite the current spec revision');
+    }
+    if (payloads.technical_approval_manifest) {
+      const review = read('comprehension-review', 'implementation_egm');
+      const approved = payloads.technical_approval_manifest;
+      if (!review?.passed || stableJson(approved.deliverables) !== stableJson(review.deliverables)) {
+        throw new Error('G4 manifest must match reviewed technical deliverables');
+      }
+    }
+    if (nodeId === 'build-tickets') {
+      const plan = read('plan-tickets', 'technical_tickets');
+      const ledger = payloads.completion_ledger;
+      const ticketIds = ['done', 'notDone', 'skipped', 'blocked', 'unverified']
+        .flatMap(group => ledger[group].map(row => row.ticketId));
+      if (!plan || ticketIds.length !== plan.tickets.length || new Set(ticketIds).size !== ticketIds.length ||
+        !plan.tickets.every(ticket => ticketIds.includes(ticket.id))) throw new Error('Ledger must cover every planned ticket exactly once');
+      if (ledger.done.some(row => !row.worktree || !row.redCommit || !row.greenCommit || !row.selfReviewRef)) {
+        throw new Error('Completed tickets require worktree, red and green commits, and self-review evidence');
+      }
+    }
+    const manifest = payloads.verification_manifest;
+    if (manifest && (manifest.checkoutSha !== pr.headSha ||
+      stableJson(manifest.expectedScenarios) !== stableJson(scope.expectedScenarios) ||
+      stableJson(manifest.dimensions) !== stableJson(scope.dimensions))) throw new Error('Verification must use exact head and approved scope');
+    if (payloads.pr_reviews && payloads.pr_reviews.headSha !== pr.headSha) throw new Error('Review must match PR head');
+    if (nodeId === 'prepare-g5') {
+      const context = payloads.merge_context;
+      const head = payloads.merge_pr_head;
+      if (head.id !== `pr:${pr.repository}#${pr.pullNumber}` || head.version !== pr.headSha) throw new Error('G5 PR artifact must identify the exact head');
+      const risk = assessImplementationRisk(context.modelRisk, await inspectPull(run));
+      payloads.merge_context = { ...context, ...risk, risk };
+    }
+    if (nodeId === 'request-merge') {
+      const request = payloads.implementation_merge_request;
+      const context = read('prepare-g5', 'merge_context');
+      const verification = read('verify-head', 'verification_manifest');
+      const decisionId = run.nodeStates.g5.attempts.at(-1)?.decisionId;
+      if (request.runId !== run.id || request.decisionId !== decisionId || request.repository !== pr.repository ||
+        request.pullNumber !== pr.pullNumber || request.headSha !== pr.headSha ||
+        request.manifest?.id !== verification.id || request.manifest?.revisionId !== verification.version ||
+        request.riskLevel !== context.riskLevel || stableJson(request.neverAutoMerge) !== stableJson(context.neverAutoMerge)) {
+        throw new Error('Merge request must preserve the exact G5 authorization');
+      }
+    }
+    if (nodeId === 'publish-technical') {
+      const approved = read('prepare-g4', 'technical_approval_manifest');
+      const request = payloads.technical_publication_request;
+      if (request.section !== 'technical' || request.runId !== run.id ||
+        request.decisionId !== run.nodeStates.g4.attempts.at(-1)?.decisionId ||
+        request.manifest?.id !== approved.id || request.manifest?.revisionId !== approved.version ||
+        !Number.isSafeInteger(request.pullNumber) || request.pullNumber < 1) throw new Error('Publication must bind current G4 approval');
+    }
+    if (nodeId === 'collect-delivery-evidence') {
+      const request = run.input.implementation_merge_request;
+      const source = await engine.getRun(request.runId);
+      const receipt = source?.implementationMerges?.find(row => row.repository === request.repository &&
+        row.pullNumber === request.pullNumber && row.decisionId === request.decisionId &&
+        row.headSha === request.headSha && row.manifestId === request.manifest?.id &&
+        row.revisionId === request.manifest?.revisionId);
+      if (!receipt || source.input.projectId !== run.input.projectId ||
+        !samePins(source.input.contract_pins, pins) ||
+        stableJson(payloads.implementation_merge_observation.receipt) !== stableJson(receipt)) {
+        throw new Error('Observed Core merge receipt required');
+      }
+    }
+  }
   function validateDecisionRoute(run,nodeId,outcome) {
     if(outcome==='human') return;
     const grillSource = {
@@ -159,6 +313,20 @@ export function createAdlcHostApi({engine,resolveActor,runValidationDigest,servi
       if(args.packId!=='adlc') throw new Error('ADLC packId is required');
       const actor=await trustedActor(args.actor,{operation:'startRun',graphId:args.graphId});
       const { admission: _callerAdmission, ...request } = args;
+      const graph = pack.graphs.find(item => item.id === args.graphId &&
+        (args.graphVersion === undefined || item.version === args.graphVersion));
+      if (!graph) throw new Error('Graph not found in pinned Pack');
+      if (technicalRun({ graph })) {
+        validateTechnicalInputs(args.graphId, args.input);
+        if (args.graphId === 'implementation') {
+          const receipt = args.input.contract_merge_receipt;
+          const committed = (await engine.getAudit()).some(event => event.kind === 'contract.merged' &&
+            event.projectId === args.input.projectId && event.section === receipt.section &&
+            event.contractId === receipt.contractId && event.mergeCommitSha === receipt.mergeCommitSha &&
+            event.supersedes === receipt.supersedes);
+          if (!committed) throw new Error('Implementation requires a recorded technical contract merge event');
+        }
+      }
       if (args.graphId === 'external-intel-rerank') validateIntelTrigger(args.input?.intel_trigger);
       if (args.graphId !== 'small-change') return engine.startRun({ ...request, actor });
       if (actor.kind !== 'human' || !actor.roles.includes('human-owner')) throw new Error('Small-change admission requires a human owner');
@@ -186,6 +354,7 @@ export function createAdlcHostApi({engine,resolveActor,runValidationDigest,servi
         productMethods[artifact.kind]=validateArtifact(artifact.kind,payload);
       }
       for(const kind of Object.keys(payloads)) if(validators[kind]&&!artifacts.some(item=>item.kind===kind)) throw new Error(`${kind} payload has no matching artifact envelope`);
+      await validateTechnicalSubmission(run, nodeId, productMethods);
       const submissionReview = run.graph.hostAdmission?.reviewedNodeId === nodeId
         ? await inspectSmallChangeSubmission(run, artifacts, services?.inspectSmallChange)
         : undefined;
@@ -197,6 +366,7 @@ export function createAdlcHostApi({engine,resolveActor,runValidationDigest,servi
       if(!run||run.packId!=='adlc') throw new Error('ADLC run not found');
       actor=await trustedActor(actor,{operation:'decideNode',run,nodeId,outcome});
       validateDecisionRoute(run,nodeId,outcome);
+      await validateTechnicalRoute(run,nodeId,outcome,actor,rest.evidence);
       const expectedRunDigest=snapshotDigest(run);
       return engine.decideNode({runId,nodeId,actor,outcome,...rest,expectedRunDigest});
     },
@@ -205,6 +375,7 @@ export function createAdlcHostApi({engine,resolveActor,runValidationDigest,servi
       if(!run||run.packId!=='adlc') throw new Error('ADLC run not found');
       actor=await trustedActor(actor,{operation:'resolveHumanGate',run,nodeId,outcome});
       validateDecisionRoute(run,nodeId,outcome);
+      await validateTechnicalRoute(run,nodeId,outcome,actor,rest.evidence);
       const expectedRunDigest=snapshotDigest(run);
       return engine.resolveHumanGate({runId,nodeId,actor,outcome,...rest,expectedRunDigest});
     },
@@ -224,7 +395,9 @@ export function createAdlcHostApi({engine,resolveActor,runValidationDigest,servi
         if(validators[revisedArtifact.kind]) {
           if(!revisedPayload||revisedPayload.id!==revisedArtifact.id||revisedPayload.version!==revisedArtifact.version) throw new Error(`Revised artifact envelope identity differs from ${revisedArtifact.kind} payload`);
           const validated=validateArtifact(revisedArtifact.kind,revisedPayload);
-          revisedOutput={...attempt.output,adlcProductMethods:{...(attempt.output?.adlcProductMethods??{}),[revisedArtifact.kind]:validated}};
+          const methods = {...(attempt.output?.adlcProductMethods??{}), [revisedArtifact.kind]: validated};
+          await validateTechnicalSubmission(run, nodeId, methods);
+          revisedOutput={...attempt.output,adlcProductMethods:methods};
         } else if(revisedPayload!==undefined) throw new Error(`No ADLC product-method validator for revised artifact kind ${revisedArtifact.kind}`);
       } else if(revisedPayload!==undefined) throw new Error('revisedPayload requires a revisedArtifact envelope');
       const expectedRunDigest=snapshotDigest(run);
