@@ -7,7 +7,7 @@ import { pack as creative } from '../packs/adlc-creative-team/index.mjs';
 import { installedPacks, installedReleasePaths } from '../catalog.mjs';
 
 test('pack payload digests match LF release values', () => {
-  for (const [pack, expected] of [[adlc,'967a232ffeeed5c8bcd864dd5479c994e7c7c50ad34889af1d60ee3fb4ee7a7e'],[marketing,'b04b6bc0e46b2f7480a0d62c21a5ed98b33a63f88f48cc8ef3ccf2421e2c2568'],[creative,'ab34022754b3e93632047c16ce5966eb1c13c189430d99b5cdf27813cb80b6b5']]) {
+  for (const [pack, expected] of [[adlc,'073694277061dafca9b8cd884f219a9c0c009bf52af8f2c948b41a236ff68be6'],[marketing,'b04b6bc0e46b2f7480a0d62c21a5ed98b33a63f88f48cc8ef3ccf2421e2c2568'],[creative,'40b91a244cd3355cf1b3c4c620ba791107c6d9fe9a5b4167171fb38815085b14']]) {
     const { release, ...payload } = pack;
     assert.equal(createHash('sha256').update(JSON.stringify(payload)).digest('hex'), expected);
   }

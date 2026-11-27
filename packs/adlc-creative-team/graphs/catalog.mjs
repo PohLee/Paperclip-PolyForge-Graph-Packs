@@ -1,6 +1,6 @@
-import { mergeProducers } from '../../adlc/merge-producers.mjs';
+import { designPublication } from './design-publication.mjs';
 
-export const designPublication = mergeProducers.find(row => row.packId === 'creative-team');
+export { designPublication };
 
 const task = (id, role, purpose, extra = {}) => ({ id, type: 'task', role, purpose, ...extra });
 const decision = (id, role, decisionType, outcomes, extra = {}) => ({ id, type: 'decision', role, decisionType, outcomes, ...extra });

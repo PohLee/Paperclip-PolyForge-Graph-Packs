@@ -5,6 +5,7 @@ import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { canonicalDigest, validateContractPublicationRequest } from '../packs/adlc/product-method-contracts.mjs';
 import { pack, mergeProducers, adlcProjectConfigSchema, assessDeterministicRisk, metricDefinitions } from '../packs/adlc/index.mjs';
+import { designPublication } from '../packs/adlc-creative-team/graphs/design-publication.mjs';
 import { pack as creativePack } from '../packs/adlc-creative-team/index.mjs';
 import { createAdlcHostApi, candidatePayload as adlcPayload } from '../packs/adlc/runtime/host-api.mjs';
 import { candidatePayload as creativePayload, canAgentApproveVisual, createCreativeHostApi, creativeRequiredServicesByGraph } from '../packs/adlc-creative-team/runtime/host-api.mjs';
@@ -456,6 +457,7 @@ test('G2 publication validates the request and its exact approval on submission 
 });
 
 test('merge producers match the published graph definitions', () => {
+  assert.deepEqual(designPublication, mergeProducers.find(row => row.packId === 'creative-team'));
   for (const row of mergeProducers) {
     const source = row.packId === pack.id ? pack : creativePack;
     for (const version of row.versions) {

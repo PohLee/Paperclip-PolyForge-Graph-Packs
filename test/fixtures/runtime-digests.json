@@ -116,9 +116,10 @@
   },
   "adlc@0.3.16": {
     "packs/adlc/backlog.mjs": "620f33f5bf6a5f77bb180b06e4e8d763f3d0623b736c2c9626b8f589d308e4dc",
-    "packs/adlc/product-method-contracts.mjs": "08cbdb86a2afb25e89b275a0e0628ffeccc0fa57f949a507e97fdf4d4550caa3",
+    "packs/adlc/merge-producers.mjs": "06dd8b5126b9b2191c81622c6d2a9b70e1ac27696e3316c73d386a1814881395",
+    "packs/adlc/product-method-contracts.mjs": "403fdab46c2ac98da720018917924e8413a9898824fcff3bddfd94be79550fd5",
     "packs/adlc/product-review.mjs": "6add371e7d69fe7a49c93d3953d944a4961564bd0daf19bfdbfb08715c06131c",
-    "packs/adlc/runtime/host-api.mjs": "d98ada05ae3437a9403453a64d7638e2bbdbaac493ecdb503b5614b4d99415ea",
+    "packs/adlc/runtime/host-api.mjs": "abc4e10695116b42b6c12b37df0c5171c52ca08e5a7618363a18fc387d994741",
     "packs/adlc/runtime/small-change.mjs": "e9ec2b3240b0a6e58b1bf39c83b868a3c2f2b398fcb4142ad850457bb4a701b8",
     "packs/adlc/runtime/technical-workflow.mjs": "091bfb830724c089baecfc15248fe6b183d8d857da4d44ba25910c88b0e301eb"
   },
@@ -129,8 +130,9 @@
     "packs/adlc-creative-team/adapters/concept-gallery/index.mjs": "c8aec5405937dd4c1c5395e9452c8bfdfafb6905eb0b0ef24c0b8080684f02d8",
     "packs/adlc-creative-team/adapters/image-provider/index.mjs": "da70d95a41e4c25dba1458f050fca469deba20fa803624bc9f4bf24b30b9a7f2",
     "packs/adlc-creative-team/adapters/interview/index.mjs": "068aef77e86ae871a880e1ad12f8080434160754f7e61b565f5995c1a61875e3",
-    "packs/adlc-creative-team/contracts/validate.mjs": "b4c4890a1db2aba468bcb379bf0959d319f71f7cdb46823ee668763296c7e7c2",
-    "packs/adlc-creative-team/runtime/artifact-lineage.mjs": "2eb667b1c5e1076cfc7b984acc5c10af0827ea6cf58fa19aebd88cef09821ee9",
-    "packs/adlc-creative-team/runtime/host-api.mjs": "2f040b1b65abccd9314ee5f2ed0d5be6c0881d4abc8cb17ccc003e2adb5d7909"
+    "packs/adlc-creative-team/contracts/validate.mjs": "642b23730df86e6ff3c286a4989d908c4e9e10cbd60c69095be2215ddadb2963",
+    "packs/adlc-creative-team/graphs/design-publication.mjs": "7a017cfb1e084fcb739bfe123f5af539da9922cd837468e211a716a022ba32f5",
+    "packs/adlc-creative-team/runtime/artifact-lineage.mjs": "f2bb7662e17bd796d8f7cfa0c9572e2eed734a874fe73b11ba7312251e8f26af",
+    "packs/adlc-creative-team/runtime/host-api.mjs": "934676d4d2d3189bdf3ffbf18ce1fe615f10e1ce91f0e3f0696176b4d88b648f"
   }
 }

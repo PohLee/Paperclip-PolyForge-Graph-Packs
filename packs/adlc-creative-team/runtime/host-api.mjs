@@ -1,5 +1,4 @@
 import { createHash } from 'node:crypto';
-import { currentAttemptPayload } from '../../adlc/merge-producers.mjs';
 import { readFile, realpath, readdir } from 'node:fs/promises';
 import path from 'node:path';
 import { graphs, productDesignGraphs, adlcHandoffGraphs, automatedVisualVersion, designPublication } from '../graphs/catalog.mjs';
@@ -85,7 +84,15 @@ async function insideRoot(root, relative) {
 }
 
 export function candidatePayload(run, ref) {
-  return currentAttemptPayload(run, ref, 'creativeArtifacts');
+  const states = ref.nodeId ? [run.nodeStates[ref.nodeId]] : Object.values(run.nodeStates);
+  const payloads = states.flatMap(state => {
+    const attempt = state?.attempts?.at(-1);
+    const artifact = state?.artifacts?.find(item => sameRef(item, ref) && (!ref.kind || item.kind === ref.kind));
+    if (!artifact || !attempt?.artifacts?.some(item => item.kind === artifact.kind && sameRef(item, ref))) return [];
+    const payload = attempt.output?.creativeArtifacts?.[artifact.kind];
+    return sameRef(payload, ref) ? [payload] : [];
+  });
+  return payloads.length === 1 ? payloads[0] : null;
 }
 
 export function createCreativeHostApi({engine,artifactRootForRun,hasImageProvider,decodeImage,loadExternalArtifact,getArtifactProvenance,resolveDecisionEvidence,resolveActor,authorizeBrandSelection,loadBrandContext,runValidationDigest,services={}}={}) {
