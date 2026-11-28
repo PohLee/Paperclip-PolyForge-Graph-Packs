@@ -257,7 +257,26 @@ test('vendor constraints apply to dispatch and fallback candidates', () => {
 test('project schema declares project-owned settings and safe defaults', () => {
   const { properties } = adlc.adlcProjectConfigSchema;
   assert.equal(properties.contractsRoot.default, 'knowledge/contracts');
-  assert.equal(properties.backlog.properties.provider.const, 'github-projects');
+  const [github, jira] = properties.backlog.oneOf;
+  assert.equal(github.properties.provider.const, 'github-projects');
+  assert.deepEqual(github.required, ['provider', 'owner', 'projectNumber', 'fields']);
+  assert.deepEqual(github.properties.fields.required,
+    ['agentPriority', 'humanPriority', 'sourceEventId', 'signalCount', 'distinctUsers']);
+  assert.equal(jira.properties.provider.const, 'jira');
+  assert.deepEqual(jira.required, ['provider', 'site', 'projectKey', 'issueType']);
+  assert.equal(jira.additionalProperties, false);
+  assert.equal(jira.properties.site.pattern, '^[a-z0-9.-]+$');
+  assert.equal(jira.properties.projectKey.pattern, '^[A-Z][A-Z0-9_]+$');
+  assert.deepEqual(jira.properties.issueType, { type: 'string', minLength: 1 });
+  const { fields } = jira.properties;
+  assert.deepEqual(fields.required, []);
+  assert.equal(fields.additionalProperties, false);
+  assert.deepEqual(fields.dependentRequired, { agentPriority: ['humanPriority'], humanPriority: ['agentPriority'] });
+  const jiraFieldNames = ['agentPriority', 'humanPriority', 'sourceEventId', 'signalCount', 'distinctUsers', 'itemType'];
+  assert.deepEqual(Object.keys(fields.properties), jiraFieldNames);
+  for (const field of jiraFieldNames) {
+    assert.deepEqual(fields.properties[field], { type: 'string', pattern: '^customfield_[0-9]+$' });
+  }
   assert.deepEqual(properties.automationMode.enum, ['manual', 'assisted', 'full-auto']);
   assert.equal(properties.neverAutoMerge.additionalProperties.default, true);
   assert.equal(Object.hasOwn(adlc.pack, 'adlcProjectConfigSchema'), false);

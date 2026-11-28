@@ -38,9 +38,9 @@ for (const role of ['product-owner', 'product-manager']) roleSkills[role].push('
 for (const role of ['cpo', 'internal-product-analyst', 'external-product-analyst', 'product-manager', 'product-owner']) roleSkills[role].push('autonomous-investigation');
 for (const role of ['cpo', 'external-product-analyst', 'product-manager']) roleSkills[role].push('epic-hypothesis-probe', 'competitive-intel-watch');
 for (const role of ['cpo', 'product-manager']) roleSkills[role].push('feature-investment-advisor');
-for (const role of ['product-owner', 'cpo', 'product-manager']) roleSkills[role].push('backlog-github-projects', 'target-product-workflow');
+for (const role of ['product-owner', 'cpo', 'product-manager']) roleSkills[role].push('backlog-github-projects', 'backlog-jira', 'target-product-workflow');
 roleSkills['internal-product-analyst'].push('target-product-workflow');
-for (const role of ['cto-caio', 'principal-engineer']) roleSkills[role].push('backlog-github-projects');
+for (const role of ['cto-caio', 'principal-engineer']) roleSkills[role].push('backlog-github-projects', 'backlog-jira');
 for (const skillsForRole of Object.values(roleSkills)) skillsForRole.push('temporary-agent-snapshot');
 const skillIds = [...new Set(Object.values(roleSkills).flat())];
 if (skillIds.length !== Object.keys(skillCatalog).length || skillIds.some(id => !skillCatalog[id])) {
@@ -68,7 +68,7 @@ function loadRole(spec) {
 }
 
 const roles = Object.fromEntries(roleCatalog.map(spec => [spec.id, loadRole(spec)]));
-const packVersion = '0.3.17';
+const packVersion = '0.3.18';
 const graphs = [lifecycleGraphs[0], lifecycleGraphs[1], ...engineeringGraphs, ...lifecycleGraphs.slice(2), ...architectureDeliveryGraphs, ...designAssuranceGraphs, ...createWorkflowCompositionGraphs(packVersion), ...targetWorkflowGraphs, ...targetTechnicalGraphs];
 const operatingPolicies = readText(resolve(root, 'OPERATING_POLICIES.md'));
 const evidenceContracts = readText(resolve(root, 'docs/EVIDENCE_CONTRACTS.md'));
@@ -230,5 +230,8 @@ export {
   resolveSeatOrder, checkSeatConstraints
 } from './product-method-contracts.mjs';
 export { effectivePriority, dedupeKey, routeIssue, grillSla, validateIntelTrigger, validateLegalSignal } from './backlog.mjs';
+export { jiraBacklogPlan, jiraSourceLabel, jiraDedupeJql, jiraSourceEventMatches } from './backlog.mjs';
+export { jiraPriorityName, jiraPriorityLevel } from './backlog.mjs';
+export { jiraSignalsBlock, parseJiraSignalsBlock, replaceJiraSignalsBlock } from './backlog.mjs';
 
 export { mergeProducers } from './merge-producers.mjs';
