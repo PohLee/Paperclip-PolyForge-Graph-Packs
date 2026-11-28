@@ -32,7 +32,7 @@ export function jiraBacklogPlan(config) {
       Object.entries(fields).some(([key, value]) =>
         !Object.hasOwn(jiraFieldProperties, key) || typeof value !== 'string' || !jiraFieldIdPattern.test(value)) ||
       Object.hasOwn(fields, 'agentPriority') !== Object.hasOwn(fields, 'humanPriority') ||
-      (Object.hasOwn(fields, 'agentPriority') && fields.agentPriority === fields.humanPriority)) {
+      new Set(Object.values(fields)).size !== Object.values(fields).length) {
     throw new Error('Invalid Jira backlog field mapping');
   }
 
@@ -55,9 +55,9 @@ export function jiraDedupeJql({ projectKey, sourceEventId }) {
 }
 
 export function jiraSourceEventMatches(issueValue, sourceEventId) {
+  const expectedId = dedupeKey(sourceEventId);
   if (typeof issueValue !== 'string') return false;
-  const storedId = issueValue.trim();
-  return storedId !== '' && storedId === dedupeKey(sourceEventId);
+  return issueValue.trim() === expectedId;
 }
 
 const jiraPriorityNames = new Map([['P0', 'Highest'], ['P1', 'High'], ['P2', 'Medium'], ['P3', 'Low']]);
@@ -88,7 +88,7 @@ export function jiraSignalsBlock({ signalCount, distinctUsers }) {
 export function parseJiraSignalsBlock(description) {
   if (typeof description !== 'string') return null;
   const match = jiraSignalsPattern.exec(description);
-  if (!match) return null;
+  if (!match || jiraSignalsHeaderPattern.test(description.slice(0, match.index))) return null;
 
   const signalCount = Number(match.groups.signalCount);
   const distinctUsers = Number(match.groups.distinctUsers);
@@ -103,7 +103,7 @@ export function replaceJiraSignalsBlock(description, counts) {
   if (description == null || description === '') return block;
   if (typeof description !== 'string') throw new Error('Jira description must be text');
   const match = jiraSignalsPattern.exec(description);
-  if (match && !jiraSignalsHeaderPattern.test(description.slice(0, match.index)) && parseJiraSignalsBlock(description)) {
+  if (match && parseJiraSignalsBlock(description)) {
     return description.replace(jiraSignalsPattern, (_match, prefix, newline) => prefix + block.replaceAll('\n', newline));
   }
   if (jiraSignalsHeaderPattern.test(description)) throw new Error('Malformed Jira signals block');

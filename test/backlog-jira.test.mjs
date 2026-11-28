@@ -43,6 +43,27 @@ test('Jira requires distinct custom priority field IDs', () => {
   assert.throws(() => adlc.jiraBacklogPlan({ ...config, fields }), /Jira backlog field mapping/);
 });
 
+test('Jira rejects any shared custom field ID across data', () => {
+  const fields = { agentPriority: 'customfield_101', humanPriority: 'customfield_102', itemType: 'customfield_102' };
+  assert.throws(() => adlc.jiraBacklogPlan({ ...config, fields }), /Jira backlog field mapping/);
+  assert.throws(() => adlc.jiraBacklogPlan({ ...config, fields: { signalCount: 'customfield_7', distinctUsers: 'customfield_7' } }),
+    /Jira backlog field mapping/);
+  assert.match(jiraSkill, /every configured field ID to be distinct/i);
+});
+
+test('Jira skill treats a label match without the stored ID as a conflict', () => {
+  assert.match(jiraSkill, /label match whose stored ID is empty or different is a conflict/i);
+  assert.match(jiraSkill, /never create a new Item after a label match/i);
+  assert.match(jiraSkill, /before adding or changing any field mapping, including `sourceEventId`/i);
+});
+
+test('Jira skill pins a pending Signal to its recorded target Item', () => {
+  assert.match(jiraSkill, /before the first comment write, record the target Item key/i);
+  assert.match(jiraSkill, /never rematches a pending Signal/i);
+  assert.match(jiraSkill, /escalate it to a human/i);
+  assert.match(jiraSkill, /the single writer/i);
+});
+
 test('Jira skill checks the priority field pair and restricts writes to Agent Priority', () => {
   assert.match(jiraSkill, /both priority fields.*different field IDs/i);
   assert.match(jiraSkill, /agents write only Agent Priority/i);
@@ -79,7 +100,7 @@ test('Jira skill requires source labels and exact matches for configured source 
   assert.match(jiraSkill, /jiraDedupeJql/);
   assert.match(jiraSkill, /compare the stored ID.*exact equality/i);
   assert.doesNotMatch(jiraSkill, /cf\[N\] ~/);
-  assert.match(jiraSkill, /backfill.*before changing any other field mapping/i);
+  assert.match(jiraSkill, /backfill existing Items before adding or changing any field mapping/i);
 });
 
 test('Jira confirms source IDs by trimmed, case-sensitive exact equality', () => {
@@ -93,6 +114,7 @@ test('Jira treats missing or invalid stored source IDs as nonmatches', () => {
   for (const issueValue of [undefined, null, 17, {}, '', ' \t\n ']) {
     assert.equal(adlc.jiraSourceEventMatches(issueValue, 'webhook:17'), false);
   }
+  assert.throws(() => adlc.jiraSourceEventMatches(null, '   '), /Source Event ID/);
 });
 
 test('Jira maps all PolyForge priority levels to built-in names', () => {
@@ -193,6 +215,8 @@ test('Jira refuses replacement when a signals header does not parse as the final
     signalsBlock + '\n\n' + signalsBlock, signalsBlock.replace('12', '9007199254740993')]) {
     assert.throws(() => adlc.replaceJiraSignalsBlock(description, counts), /malformed Jira signals block/i);
   }
+  assert.equal(adlc.parseJiraSignalsBlock(malformed + '\n\n' + signalsBlock), null);
+  assert.equal(adlc.parseJiraSignalsBlock(signalsBlock + '\n\n' + signalsBlock), null);
 });
 
 test('Jira skill halts on a malformed signals block', () => {
