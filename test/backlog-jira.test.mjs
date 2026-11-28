@@ -52,14 +52,17 @@ test('Jira rejects any shared custom field ID across data', () => {
 });
 
 test('Jira skill treats a label match without the stored ID as a conflict', () => {
-  assert.match(jiraSkill, /label match whose stored ID is empty or different is a conflict/i);
+  assert.match(jiraSkill, /When that field is configured, a label match whose stored ID is empty or different is a conflict/i);
+  assert.match(jiraSkill, /In native mode, reuse the Item on a single label match/i);
   assert.match(jiraSkill, /never create a new Item after a label match/i);
-  assert.match(jiraSkill, /before adding or changing any field mapping, including `sourceEventId`/i);
+  assert.match(jiraSkill, /before adding, changing or removing any field mapping, including `sourceEventId`/i);
+  assert.match(jiraSkill, /Escalate every halt that a later run cannot resolve to a human/i);
 });
 
 test('Jira skill pins a pending Signal to its recorded target Item', () => {
   assert.match(jiraSkill, /before the first comment write, record the target Item key/i);
-  assert.match(jiraSkill, /never rematches a pending Signal/i);
+  assert.match(jiraSkill, /never retargets a pending Signal/i);
+  assert.match(jiraSkill, /Write only to the recorded target/i);
   assert.match(jiraSkill, /escalate it to a human/i);
   assert.match(jiraSkill, /the single writer/i);
 });
@@ -100,7 +103,7 @@ test('Jira skill requires source labels and exact matches for configured source 
   assert.match(jiraSkill, /jiraDedupeJql/);
   assert.match(jiraSkill, /compare the stored ID.*exact equality/i);
   assert.doesNotMatch(jiraSkill, /cf\[N\] ~/);
-  assert.match(jiraSkill, /backfill existing Items before adding or changing any field mapping/i);
+  assert.match(jiraSkill, /backfill existing Items before adding, changing or removing any field mapping/i);
 });
 
 test('Jira confirms source IDs by trimmed, case-sensitive exact equality', () => {
