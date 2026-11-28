@@ -8,7 +8,7 @@ import { targetWorkflowGraphs, productSeats } from './target-workflow-graphs.mjs
 import { lifecycleGraphs } from './lifecycle-graphs.mjs';
 import { architectureDeliveryGraphs } from './architecture-delivery-graphs.mjs';
 import { designAssuranceGraphs } from './design-assurance-graphs.mjs';
-import { createWorkflowCompositionGraphs } from './workflow-composition-graphs.mjs';
+import { workflowCompositionGraphs } from './workflow-composition-graphs.mjs';
 import { roleCatalog } from './roles/catalog.mjs';
 import { skillCatalog } from './skills/catalog.mjs';
 export { createAdlcHostApi } from './runtime/host-api.mjs';
@@ -69,7 +69,7 @@ function loadRole(spec) {
 
 const roles = Object.fromEntries(roleCatalog.map(spec => [spec.id, loadRole(spec)]));
 const packVersion = '0.3.19';
-const graphs = [lifecycleGraphs[0], lifecycleGraphs[1], ...engineeringGraphs, ...lifecycleGraphs.slice(2), ...architectureDeliveryGraphs, ...designAssuranceGraphs, ...createWorkflowCompositionGraphs(packVersion), ...targetWorkflowGraphs, ...targetTechnicalGraphs];
+const graphs = [lifecycleGraphs[0], lifecycleGraphs[1], ...engineeringGraphs, ...lifecycleGraphs.slice(2), ...architectureDeliveryGraphs, ...designAssuranceGraphs, ...workflowCompositionGraphs, ...targetWorkflowGraphs, ...targetTechnicalGraphs];
 const operatingPolicies = readText(resolve(root, 'OPERATING_POLICIES.md'));
 const evidenceContracts = readText(resolve(root, 'docs/EVIDENCE_CONTRACTS.md'));
 const decisionRules = Object.values(roles).flatMap(role => role.decisionModel.rules.flatMap(rule =>

@@ -12,7 +12,7 @@ Version 0.3.11 pins QA, security and regression report attempts to the current c
 
 Version 0.3.11 also publishes `implementation@0.1.7`, which carries the threat-model readiness check first shipped in 0.3.5. Earlier releases kept the `0.1.6` label for that changed text, so cite the pack version with any `implementation@0.1.6` reference. The small-change submission check now also accepts a new file at an exact admitted path.
 
-`architecture-review-composed@1.0.2` pins its child to ADLC 0.3.19. Version 1.0.1 in ADLC 0.3.19 retains its child pin to ADLC 0.3.18.
+`architecture-review-composed@1.0.2` pins its child to ADLC 0.3.19. Version 1.0.1 in ADLC 0.3.19 retains its child pin to ADLC 0.3.18. Use `architecture-review-composed@1.0.2` because current Core cannot start `architecture-review-composed@1.0.1`, which remains registered for history and pins a child release with no trusted adapter.
 
 Version 0.3.10 requires the discovery brief to cite the exact ID and version of both Product Manager-accepted research reports in `product-discovery@0.2.2`. The CPO sends synthesis back for rework if either citation is missing, wrong, or stale. This Graph requires the Core `review-source-refs@^1.0.0` capability. See the [discovery citation contract](docs/EVIDENCE_CONTRACTS.md#product-discovery-and-decision-artifacts).
 
@@ -148,7 +148,7 @@ Pin `technical-design@0.1.3` for G-T1, `implementation@0.1.8` for G-T2, `verific
 
 G-T3 verification takes `pr_head` with `repository`, `pullNumber` and `headSha`, and `verification_scope` with approved `expectedScenarios` and execution `dimensions`. The host calls the project verification entry for that SHA. The human exception records the owner's disposition of unverified gaps and returns for verification. G5 requires a human owner and a passing manifest. Start a fresh verification run whenever the head changes.
 
-Use the ADLC host API for the W3 Graph versions. Its `inspectImplementationPull` service supplies the fresh `headSha`, `upToDate`, `checksPassed`, `currentPins`, `prPins`, `changedFiles`, `majorDependencyBump` and `neverAutoMerge` from trusted project and PR sources. The host resolves the immutable manifest revision in each publication request, invokes the corresponding Core merge action and passes the G5 request to code delivery to prove the observed merge. The W3 seat declarations describe vendor constraints for implementation EGM and advisory council. The host resolves seats and fallback profiles.
+Use the ADLC host API for the W3 Graph versions. Its `inspectImplementationPull` service supplies the fresh `headSha`, `upToDate`, `checksPassed`, `currentPins`, `prPins`, `changedFiles`, `majorDependencyBump` and `neverAutoMerge` from trusted project and PR sources. For product, design and technical contract publications, Core verifies the publication and reports a commit status. A human or GitHub auto-merge merges the PR. For G5, the host resolves the immutable manifest revision, invokes the Core implementation merge action and passes the G5 request to code delivery to prove the observed merge. The W3 seat declarations describe vendor constraints for implementation EGM and advisory council. The host resolves seats and fallback profiles.
 
 ### W4 approval modes and improvement workflows
 

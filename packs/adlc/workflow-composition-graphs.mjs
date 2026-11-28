@@ -96,7 +96,7 @@ const architectureReviewComposed = (version, packVersion) => ({
   edges: [edge('architecture-review', 'architecture-composed')]
 });
 
-export const createWorkflowCompositionGraphs = packVersion => [
+export const workflowCompositionGraphs = [
   architectureWorkflow, codeDeliveryWorkflow,
-  architectureReviewComposed('1.0.2', packVersion), architectureReviewComposed('1.0.1', '0.3.18')
+  architectureReviewComposed('1.0.2', '0.3.19'), architectureReviewComposed('1.0.1', '0.3.18')
 ];

@@ -114,7 +114,7 @@ WP2.1 through WP2.5 are included in ADLC 0.3.14 and Creative Team 0.3.4. The hos
 | WP3.5 | Core | 契约失效检查：新版产品契约合入时暂停受影响工单、阻止旧 PR 合并；owner 紧急冻结 |
 | WP3.6 | Core | 动态席位解析与 fallback（仅基础设施错误切换、每次重查厂商约束、等待截止时间） |
 
-WP3.1 through WP3.4 ship in ADLC 0.3.15 under explicit Graph version pins. Core delivers the technical merge event, resolves the immutable G4 and G5 manifests, and executes the authorized merges. The host supplies current PR evidence and the project verification entry. WP3.5 and WP3.6 are Core work.
+WP3.1 through WP3.4 ship in ADLC 0.3.15 under explicit Graph version pins. For product, design and technical contract publications, Core verifies the publication and reports a commit status. A human or GitHub auto-merge merges the PR. Core delivers the technical merge event, resolves the immutable G5 manifest and executes authorized G5 implementation merges. The host supplies current PR evidence and the project verification entry. WP3.5 and WP3.6 are Core work.
 
 ## W4 · P3–P4
 

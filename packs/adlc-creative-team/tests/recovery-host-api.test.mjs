@@ -45,6 +45,21 @@ test('Creative recovery validates the exact current artifact snapshot read-only'
   assert.ok(missingDecisions.issues.some(issue=>issue.code==='decision-snapshot-missing'));
 });
 
+test('Creative recovery requires contract pins for G3 versions after the legacy versions',async()=>{
+  const api=createApi({engine:new GraphEngine()});
+  const current=pack.graphs.find(graph=>graph.id==='g3-visual-contract'&&graph.version==='0.1.2');
+  const run={packId:pack.id,graph:{...current,version:'0.1.3'},input:{},nodeStates:{}};
+  const inputIssue=async run=>(await api.validateRun({run,decisions:[]})).issues.find(issue=>issue.code==='start-input-invalid');
+
+  assert.match((await inputIssue(run))?.message??'',/contract_pins/);
+  run.input.contract_pins=[{contractId:'C1',section:'product',commit:'a'.repeat(40)}];
+  assert.equal(await inputIssue(run),undefined);
+
+  for(const graph of pack.graphs.filter(graph=>graph.id===current.id&&['0.1.0','0.1.1'].includes(graph.version))) {
+    assert.equal(await inputIssue({...run,graph,input:{}}),undefined);
+  }
+});
+
 test('Creative graph service requirements are source-owned and fail closed without fictitious image generation',()=>{
   assert.ok(creativeRequiredServicesByGraph['concept-sprint'].includes('hasImageProvider'));
   assert.ok(creativeRequiredServicesByGraph['concept-sprint'].includes('decodeImage'));

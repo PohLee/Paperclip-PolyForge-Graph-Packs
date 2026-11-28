@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 import { readFile, realpath, readdir } from 'node:fs/promises';
 import path from 'node:path';
-import { graphs, productDesignGraphs, adlcHandoffGraphs, automatedVisualVersion, designPublication } from '../graphs/catalog.mjs';
+import { graphs, productDesignGraphs, adlcHandoffGraphs, designPublication } from '../graphs/catalog.mjs';
 import { brandGraphs } from '../graphs/brand-catalog.mjs';
 import { compositionGraphs } from '../graphs/composition-catalog.mjs';
 import { inspectLogoSvg } from '../adapters/brand-tools/svg.mjs';
@@ -24,7 +24,7 @@ function records(run) {
 }
 const exactRecord=(run,ref)=>createArtifactLineage(run).exactRecord(ref);
 const automatedVisual = graph => graph.id === designPublication.graphId && designPublication.versions.includes(graph.version);
-const pinnedVisual = graph => graph.id === designPublication.graphId && graph.version === automatedVisualVersion;
+const pinnedVisual = graph => graph.id === designPublication.graphId && !['0.1.0', '0.1.1'].includes(graph.version);
 
 function automationMode(mode, project = {}) {
   const normalize = value => value === 'full-auto' ? 'autonomous' : value;
