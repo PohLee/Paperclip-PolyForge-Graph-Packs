@@ -58,8 +58,8 @@ test('isolated package imports with filesystem reads confined to shipped files a
     import { spawnSync } from 'node:child_process';
     const {pack,loadPack,createCreativeHostApi}=await import(${JSON.stringify(pathToFileURL(join(temp,'index.mjs')).href)});
     assert.equal(pack,loadPack());
-    assert.equal(pack.version,'0.3.6');
-    assert.equal(pack.graphs.length,24);
+    assert.equal(pack.version,'0.3.7');
+    assert.equal(pack.graphs.length,26);
     assert.equal(Object.keys(pack.skills).length,26);
     assert.equal(typeof createCreativeHostApi,'function');
     assert.equal(pack.methodReferences.runtimeRequired,false);

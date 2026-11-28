@@ -14,7 +14,7 @@ import {
   technicalValidators, technicalVersions, validateTechnicalInputs
 } from './technical-workflow.mjs';
 
-import { architectureDesignVersion, automatedVerificationVersion, retrospectiveSources } from '../target-technical-graphs.mjs';
+import { architectureDesignVersions, automatedVerificationVersion, retrospectiveSources } from '../target-technical-graphs.mjs';
 import { assessW4ImplementationRisk, automationMode, canAgentApproveMerge, mergeEvidenceComplete } from './technical-workflow.mjs';
 
 import { assessSmallChangeAdmission, inspectSmallChangeSubmission } from './small-change.mjs';
@@ -79,11 +79,13 @@ export function createAdlcHostApi({engine,resolveActor,runValidationDigest,servi
     return digest;
   };
   const automatedMerge = run => run.graph.id === 'verification' && run.graph.version === automatedVerificationVersion;
-  const architectureDesign = run => run.graph.id === 'technical-design' && run.graph.version === architectureDesignVersion;
+  const architectureDesign = run => run.graph.id === 'technical-design' && architectureDesignVersions.includes(run.graph.version);
   const improvement = run => run.graph.id === 'architecture-improvement' && run.graph.version === '0.1.0';
   const retrospective = run => run.graph.id === 'retro-correct' && run.graph.version === '0.1.0';
-  const technicalRun = run => automatedMerge(run) || architectureDesign(run) || improvement(run) || retrospective(run) ||
-    technicalVersions[run.graph.id] === run.graph.version;
+  const pinnedTechnicalRun = run => automatedMerge(run) || architectureDesign(run) ||
+    technicalVersions[run.graph.id] === run.graph.version ||
+    (run.graph.id === 'technical-design' && run.graph.version === '0.1.1');
+  const technicalRun = run => pinnedTechnicalRun(run) || improvement(run) || retrospective(run);
   const projectConfig = async ({ input }) => {
     if (typeof input?.projectId !== 'string' || !input.projectId.trim()) {
       throw new Error('verification@0.1.9 requires projectId');
@@ -450,7 +452,7 @@ export function createAdlcHostApi({engine,resolveActor,runValidationDigest,servi
       if (!graph) throw new Error('Graph not found in pinned Pack');
       const target = { graph };
       if (automatedMerge(target)) request.mode = automationMode(args.mode, await projectConfig(args));
-      if (automatedMerge(target) || architectureDesign(target) || technicalVersions[graph.id] === graph.version) {
+      if (pinnedTechnicalRun(target)) {
         validateTechnicalInputs(args.graphId, args.input);
         if (args.graphId === 'implementation') {
           const receipt = args.input.contract_merge_receipt;

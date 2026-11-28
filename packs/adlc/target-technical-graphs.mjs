@@ -183,9 +183,9 @@ const improvement = {
   ]
 };
 
-export const architectureDesignVersion = '0.1.2';
+export const architectureDesignVersion = '0.1.4';
 const architectureDesign = {
-  ...technicalDesign, version: architectureDesignVersion, start: 'draft-technical-design',
+  ...technicalDesign, version: '0.1.2', start: 'draft-technical-design',
   description: 'G-T1 technical design entered through CTO architecture improvement authorization.',
   requiredRunInputs: ['contract_pins', 'architecture_authorization'],
   nodes: technicalDesign.nodes.filter(node => !['review-prd', 'prd-route', 'clarification-request'].includes(node.id) &&
@@ -196,6 +196,17 @@ const architectureDesign = {
   edges: technicalDesign.edges.filter(edge => !['review-prd', 'prd-route', 'clarification-request'].includes(edge.from) &&
     !edge.from.startsWith('clarification'))
 };
+
+export const architectureDesignVersions = [architectureDesign.version, architectureDesignVersion];
+
+const updateTechnicalPublication = (base, version) => ({
+  ...base,
+  version,
+  nodes: base.nodes.map(node => node.id === 'publish-technical' ? {
+    ...node,
+    purpose: 'Open a separate technical contract PR citing contract_pins. Emit a technical_publication_request with section technical, runId, pullNumber, G4 decisionId, approved manifest { id, revisionId } and contract_pins. Core verifies the publication and reports its status. A human or GitHub auto-merge merges the PR.'
+  } : node)
+});
 
 export const retrospectiveSources = ['run_logs', 'decision_records', 'review_findings', 'reverts', 'bugs', 'human_intervention_ledger'];
 const retrospective = {
@@ -223,7 +234,8 @@ const retrospective = {
 };
 
 export const targetTechnicalGraphs = [technicalDesign, build, verify, observe, bug, automatedVerify,
-  improvement, architectureDesign, retrospective];
+  improvement, architectureDesign, retrospective,
+  updateTechnicalPublication(technicalDesign, '0.1.3'), updateTechnicalPublication(architectureDesign, architectureDesignVersion)];
 export const technicalDecisionRules = Object.entries({
   'technical-routing': [['principal-engineer', 'product-owner', 'cpo'], 'routing_evidence'],
   'architecture-improvement-authorization': [['cto'], 'architecture_authorization'],

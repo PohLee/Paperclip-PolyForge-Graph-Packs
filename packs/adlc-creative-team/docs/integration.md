@@ -72,7 +72,7 @@ For final artifacts, the wrapper validates schemas and exact links against the r
 
 ### Contracted entries (C01–C02)
 
-The exact child pin is `creative-team@0.3.3 / brand-foundation-contract@1.0.0`. The parent `brand-foundation-composed@1.0.0` calls that child and returns the same `foundation` object. A valid example input is:
+The exact child pin is `creative-team@0.3.7 / brand-foundation-contract@1.0.0`. The parent `brand-foundation-composed@1.0.1` calls that child and returns the same `foundation` object. A valid example input is:
 
 ```json
 {

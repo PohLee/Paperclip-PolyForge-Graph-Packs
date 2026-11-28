@@ -126,4 +126,4 @@ WP3.1 through WP3.4 ship in ADLC 0.3.15 under explicit Graph version pins. Core 
 
 每个波次开始前先给一项指标建立基线（gate 等待时间、rework 率、首次 CI 通过率、自动合并后的 revert 率），一次只加一个自动触发器。
 
-WP4.1 ships with ADLC 0.3.16 and Creative Team 0.3.5. Pin verification 0.1.9 for mode-aware G5 and g3-visual-contract 0.1.1 for mode-aware G3. WP4.2 adds the manually started architecture-improvement and retro-correct graphs and a CTO-authorized technical-design 0.1.2 entry. WP4.3 exports the metric definitions and project settings. The rollout still requires a measured baseline and explicit project opt-in for full-auto.
+WP4.1 ships with ADLC 0.3.16 and Creative Team 0.3.5. Pin verification 0.1.9 for mode-aware G5 and g3-visual-contract 0.1.2 for mode-aware G3. WP4.2 adds the manually started architecture-improvement and retro-correct graphs and a CTO-authorized technical-design 0.1.2 entry. Pin technical-design 0.1.4 when starting from that authorization today. WP4.3 exports the metric definitions and project settings. The rollout still requires a measured baseline and explicit project opt-in for full-auto.

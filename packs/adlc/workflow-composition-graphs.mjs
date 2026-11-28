@@ -78,8 +78,8 @@ const codeDeliveryWorkflow = {
     edge('delivery-gate', 'delivery-merged', 'merged'), edge('delivery-gate', 'delivery-held', 'hold'), edge('delivery-gate', 'delivery-human', 'human')]
 };
 
-const architectureReviewComposed = packVersion => ({
-  id: 'architecture-review-composed', version: '1.0.1', start: 'architecture-review',
+const architectureReviewComposed = (version, packVersion) => ({
+  id: 'architecture-review-composed', version, start: 'architecture-review',
   description: 'Compose the contracted architecture baseline under the parent workflow identity and return its accepted artifact.',
   workflowContract: { version: 1, inputSchema: architectureInput, outputSchema: architectureOutput,
     outputMapping: { architectureBaseline: { source: 'node', nodeId: 'architecture-review', path: ['architectureBaseline'] } } },
@@ -97,5 +97,6 @@ const architectureReviewComposed = packVersion => ({
 });
 
 export const createWorkflowCompositionGraphs = packVersion => [
-  architectureWorkflow, codeDeliveryWorkflow, architectureReviewComposed(packVersion)
+  architectureWorkflow, codeDeliveryWorkflow,
+  architectureReviewComposed('1.0.2', packVersion), architectureReviewComposed('1.0.1', '0.3.18')
 ];

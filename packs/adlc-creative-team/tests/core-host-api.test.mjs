@@ -243,7 +243,7 @@ test('Creative host starts both ADLC handoff graphs', async t => {
   t.after(dispose);
   const ref = { id: 'fixture', version: '1' };
   for (const graphId of ['pre-g2-interaction', 'g3-visual-contract']) {
-    const result = await api.startRun({ packId: pack.id, packVersion: pack.version, graphId, mode: 'manual',
+    const result = await api.startRun({ packId: pack.id, packVersion: pack.version, graphId, graphVersion: '0.1.0', mode: 'manual',
       input: { draft_product_intent: ref, approved_product_contract: ref, design_baseline: ref } });
     assert.equal(result.graph.id, graphId);
   }

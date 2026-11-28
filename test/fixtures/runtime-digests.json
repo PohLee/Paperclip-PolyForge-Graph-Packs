@@ -164,5 +164,28 @@
     "packs/adlc/runtime/host-api.mjs": "528a401bfaf9de4e25476377f1fc30406eb696a612d0ae29c4c17994b93c5677",
     "packs/adlc/runtime/small-change.mjs": "e9ec2b3240b0a6e58b1bf39c83b868a3c2f2b398fcb4142ad850457bb4a701b8",
     "packs/adlc/runtime/technical-workflow.mjs": "091bfb830724c089baecfc15248fe6b183d8d857da4d44ba25910c88b0e301eb"
+  },
+  "adlc@0.3.19": {
+    "packs/adlc-creative-team/contracts/contract-pins.mjs": "34dec33d09c876eab237c1514dc9b1565372fdf1b2a6eaee6520a9e5f1162561",
+    "packs/adlc/backlog.mjs": "001cb113c2cb944c82fd6134843bf41953241f6006bfa41dc93f00a003065684",
+    "packs/adlc/merge-producers.mjs": "d7640088f774907dc59c257e3b4b505d812bb7c1ed9628c0215e5c88fd863b3a",
+    "packs/adlc/product-method-contracts.mjs": "bf6dd9b84943bf65fc41ef17cabf109b4be48e8bf2d6ba5f2ec011d4357d5be8",
+    "packs/adlc/product-review.mjs": "6add371e7d69fe7a49c93d3953d944a4961564bd0daf19bfdbfb08715c06131c",
+    "packs/adlc/runtime/host-api.mjs": "19fd133b691d4e9db8d6e6e512d23b926d2f2038d052c23dc0a3e02a27c6a65b",
+    "packs/adlc/runtime/small-change.mjs": "e9ec2b3240b0a6e58b1bf39c83b868a3c2f2b398fcb4142ad850457bb4a701b8",
+    "packs/adlc/runtime/technical-workflow.mjs": "29655ec8fde815526173054de7625e2de36a54bbbcfd410da50731f742b0981a"
+  },
+  "creative-team@0.3.7": {
+    "packs/adlc-creative-team/adapters/brand-tools/context.mjs": "81a525e700e399ab7c22e69c94b89bb1bbac18ae211525e1a676d15259863bce",
+    "packs/adlc-creative-team/adapters/brand-tools/palette.mjs": "85ae3ec12c464eef58593063628035769471b883c984f9e9e02bb9c89fcff473",
+    "packs/adlc-creative-team/adapters/brand-tools/svg.mjs": "9ce41bc26d87392d32d9223fa7ee5a3bcbab4ca825bef620d2fffc0cdf767600",
+    "packs/adlc-creative-team/adapters/concept-gallery/index.mjs": "c8aec5405937dd4c1c5395e9452c8bfdfafb6905eb0b0ef24c0b8080684f02d8",
+    "packs/adlc-creative-team/adapters/image-provider/index.mjs": "da70d95a41e4c25dba1458f050fca469deba20fa803624bc9f4bf24b30b9a7f2",
+    "packs/adlc-creative-team/adapters/interview/index.mjs": "068aef77e86ae871a880e1ad12f8080434160754f7e61b565f5995c1a61875e3",
+    "packs/adlc-creative-team/contracts/contract-pins.mjs": "34dec33d09c876eab237c1514dc9b1565372fdf1b2a6eaee6520a9e5f1162561",
+    "packs/adlc-creative-team/contracts/validate.mjs": "1eb2135e9fdee6228b8c7e7f8b057672f94af23ff4cf576479abfdc4143f311e",
+    "packs/adlc-creative-team/graphs/design-publication.mjs": "ef4ce47e7e4a66a0696f5e93e7b25366676d4fccb1e1ed5fc74dc7658f5dc42d",
+    "packs/adlc-creative-team/runtime/artifact-lineage.mjs": "f2bb7662e17bd796d8f7cfa0c9572e2eed734a874fe73b11ba7312251e8f26af",
+    "packs/adlc-creative-team/runtime/host-api.mjs": "c61ba175f106249cad25a0c2e317377e5eefd262597f27e438023267746c920f"
   }
 }

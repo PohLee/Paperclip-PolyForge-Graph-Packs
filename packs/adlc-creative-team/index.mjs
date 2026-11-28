@@ -108,13 +108,13 @@ export function resolveOrganization(activePacks=[]) {
 }
 
 export const pack = Object.freeze({
-  id:'creative-team',version:'0.3.6',schemaVersion:1,
+  id:'creative-team',version:'0.3.7',schemaVersion:1,
   compatibility:{coreRange:'>=0.8.9 <0.9.0',contracts:{graph:1,decision:1,evidence:1},requiredCapabilities:{'workflow-composition':'^1.0.0'}},
   graphStartRoles:{'pre-g2-interaction':['product-designer','interaction-designer','human-owner'],'g3-visual-contract':['product-designer','design-director','human-owner'],'brand-foundation-contract':['human-owner'],'brand-foundation-composed':['human-owner']},
   organization,graphs:allGraphs,roles,skills,decisionRules,policyDocuments,policyDocumentDigests,methodReferences,brandMethods,runtimeRequirements,
   policies:{decisionTraceRequired:false,artifactValidation:'host-callable-pack-validator',review:{independentExecutionRequired:true},
     conceptSprint:{minCount:3,maxCount:5,completionRequiresRealImages:true,oneGallery:true}},
-  release:{digest:'sha256:599bf6b60d24696224d7b628e8d7240b2353e89e0261a835697713762c0b85d2',builtAt:'2026-11-27T00:00:00.000Z',status:'candidate'},
+  release:{digest:'sha256:be4ad11cdc4b71e0ed9e14b809102ab07a22d48f2cbcea2973866756563e7b62',builtAt:'2026-11-27T00:00:00.000Z',status:'candidate'},
 });
 
 export function loadPack() { return pack; }
