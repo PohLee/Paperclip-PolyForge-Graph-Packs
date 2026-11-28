@@ -114,7 +114,7 @@ WP2.1 through WP2.5 are included in ADLC 0.3.14 and Creative Team 0.3.4. The hos
 | WP3.5 | Core | 契约失效检查：新版产品契约合入时暂停受影响工单、阻止旧 PR 合并；owner 紧急冻结 |
 | WP3.6 | Core | 动态席位解析与 fallback（仅基础设施错误切换、每次重查厂商约束、等待截止时间） |
 
-WP3.1 through WP3.4 ship in ADLC 0.3.15 under explicit Graph version pins. Core delivers the technical merge event, resolves the immutable G4 and G5 manifests, and executes the authorized merges. The host supplies current PR evidence and the project verification entry. WP3.5 and WP3.6 are Core work.
+WP3.1 through WP3.4 ship in ADLC 0.3.15 under explicit Graph version pins. For product, design and technical contract publications, Core verifies the publication and reports a commit status. A human or GitHub auto-merge merges the PR. Core delivers the technical merge event, resolves the immutable G5 manifest and executes authorized G5 implementation merges. The host supplies current PR evidence and the project verification entry. WP3.5 and WP3.6 are Core work.
 
 ## W4 · P3–P4
 
@@ -126,4 +126,4 @@ WP3.1 through WP3.4 ship in ADLC 0.3.15 under explicit Graph version pins. Core 
 
 每个波次开始前先给一项指标建立基线（gate 等待时间、rework 率、首次 CI 通过率、自动合并后的 revert 率），一次只加一个自动触发器。
 
-WP4.1 ships with ADLC 0.3.16 and Creative Team 0.3.5. Pin verification 0.1.9 for mode-aware G5 and g3-visual-contract 0.1.1 for mode-aware G3. WP4.2 adds the manually started architecture-improvement and retro-correct graphs and a CTO-authorized technical-design 0.1.2 entry. WP4.3 exports the metric definitions and project settings. The rollout still requires a measured baseline and explicit project opt-in for full-auto.
+WP4.1 ships with ADLC 0.3.16 and Creative Team 0.3.5. Pin verification 0.1.9 for mode-aware G5 and g3-visual-contract 0.1.2 for mode-aware G3. WP4.2 adds the manually started architecture-improvement and retro-correct graphs and a CTO-authorized technical-design 0.1.2 entry. Pin technical-design 0.1.4 when starting from that authorization today. WP4.3 exports the metric definitions and project settings. The rollout still requires a measured baseline and explicit project opt-in for full-auto.

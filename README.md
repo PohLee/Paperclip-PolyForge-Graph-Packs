@@ -4,9 +4,9 @@ The official collection exports independently versioned Packs for [PolyForge Gra
 
 | Pack | Version | Scope |
 | --- | --- | --- |
-| [ADLC](packs/adlc/README.md) | `adlc@0.3.18` | Product discovery through observed software release and monitoring |
+| [ADLC](packs/adlc/README.md) | `adlc@0.3.19` | Product discovery through observed software release and monitoring |
 | [Marketing](packs/marketing/README.md) | `marketing@0.0.5` | Acquisition planning and sourced outcome review |
-| [ADLC Creative Team](packs/adlc-creative-team/README.md) | `creative-team@0.3.6` | Creative intake, brand strategy, naming, logo, identity, guidelines, packaging, rollout, concept and design workflows |
+| [ADLC Creative Team](packs/adlc-creative-team/README.md) | `creative-team@0.3.7` | Creative intake, brand strategy, naming, logo, identity, guidelines, packaging, rollout, concept and design workflows |
 
 ```js
 import { packs, packCatalog } from '@paperclip-polyforge/packs';

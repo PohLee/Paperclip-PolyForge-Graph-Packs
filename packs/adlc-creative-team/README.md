@@ -1,8 +1,8 @@
 # ADLC Creative Team Pack
 
-Standalone, versioned Pack for design and creative workflows. Pack ID `creative-team`, version `0.3.6`, supplies nineteen legacy DAGs, two opt-in contracted workflows and two ADLC design handoff workflows, 14 role definitions, 26 skills, evidence and artifact contracts, offline interview/gallery helpers, brand tools, and a trusted host wrapper that enforces pack-specific checks against Core run state and real files.
+Standalone, versioned Pack for design and creative workflows. Pack ID `creative-team`, version `0.3.7`, supplies nineteen legacy DAGs, two opt-in contracted workflows and two ADLC design handoff workflows, 14 role definitions, 26 skills, evidence and artifact contracts, offline interview/gallery helpers, brand tools, and a trusted host wrapper that enforces pack-specific checks against Core run state and real files.
 
-Version 0.3.6 adds English-language authoring guidance for G3 contract deliverables.
+Version 0.3.7 adds the pinned G3 publication workflow and updates the child pack pin for the composed brand foundation workflow.
 
 The pack loads and registers locally. It does not install agents, activate itself, generate images, connect to browser/Figma/BE services, publish content, or register an ADLC bridge. A host must provide authenticated identity, capability dispatch, immutable artifact storage, and the trusted evidence services described in [Core integration](docs/integration.md).
 
@@ -33,6 +33,8 @@ The pack loads and registers locally. It does not install agents, activate itsel
 | C02 | `brand-foundation-composed` | Parent workflow that invokes C01 and returns its validated package |
 
 Legacy graphs remain independently started and keep their existing input shape. C01 and C02 are opt-in workflow-contract entries using Core's exact-version composition node. Their business input is under `input.workflowInput`; company, project, issue, delivery, and authenticated identity remain in the trusted run envelope. C01 returns a brand foundation package only on the accepted path; needs-evidence and direction-pending outcomes produce `rework_required`, which blocks C02. The returned references and decision evidence are data; Core contracts do not attest them. The existing trusted adapter must still validate each task artifact and human decision. G03 creates static visual-concept images; G10/G11 create product structure and representative UI candidates; G04 expands a selected concept into a full responsive website. These outputs have separate contracts. G03 defaults to three concepts when no count is supplied; counts outside 3–5 and conflicting count inputs are rejected. An incomplete concept set cannot become gallery-ready.
+
+Use `brand-foundation-composed@1.0.1` because current Core cannot start `brand-foundation-composed@1.0.0`, which remains registered for history and pins a child release with no trusted adapter.
 
 ## Role structure
 
@@ -85,4 +87,4 @@ Run pre-g2-interaction@0.1.0 from draft product intent. The versioned interactio
 
 After G2, run g3-visual-contract@0.1.0. Its visual_manifest pins the product contract, interaction revision, design-system baseline, token and component changes, asset versions and SHA-256 digests, and system scope. Include at least one publication deliverable with a key and a bare lowercase SHA-256 digest. An independent visual_audit references the exact manifest, includes its canonical JSON SHA-256 as manifestDigest, and records behavior changes and findings. W2 uses human owner approval for G3, including all out-of-system changes. Route behavior changes back to the PM to revise BDD and repeat G2. Publish approved visuals under the contract design section through the merge host.
 
-Pin `g3-visual-contract@0.1.1` for mode-aware G3. The design director can approve in assisted mode or explicitly enabled full-auto mode when the exact manifest is in-system, behavior is unchanged, and the audit has zero P0/P1 findings. Manual runs and out-of-system manifests go to the human owner. Behavior changes return to G2. The host reads project settings from its trusted project configuration.
+Pin `g3-visual-contract@0.1.2` for mode-aware G3. Supply `contract_pins` with exactly one `product` pin for the approved product contract the visual manifest implements. The design director can approve in assisted mode or explicitly enabled full-auto mode when the exact manifest is in-system, behavior is unchanged, and the audit has zero P0/P1 findings. Manual runs and out-of-system manifests go to the human owner. Behavior changes return to G2. The host reads project settings from its trusted project configuration.

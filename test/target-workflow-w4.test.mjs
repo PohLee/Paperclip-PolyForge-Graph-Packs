@@ -1,5 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
+import { execFileSync } from 'node:child_process';
 import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -86,11 +88,13 @@ test('WP4.2 G-T1 verifies current CTO authorization against its original project
   const engine = { getRun: async id => id === source.id ? source : null, startRun: async args => args,
     listDecisions: async () => [{ id: 'decision', status: 'decided', outcome: 'accept', actor: { ...agent, roles: ['cto'] } }] };
   const api = createAdlcHostApi({ engine, resolveActor: ({ claimedActor }) => claimedActor, runValidationDigest: () => 'digest' });
-  const args = { packId: 'adlc', graphId: 'technical-design', graphVersion: '0.1.2', actor: owner,
+  const args = { packId: 'adlc', graphId: 'technical-design', actor: owner,
     input: { projectId: 'project', contract_pins: [{ contractId: 'C1', section: 'product', commit: 'a'.repeat(40) }],
       architecture_authorization: { ...authorization, runId: source.id, decisionId: 'decision' } } };
-  assert.equal((await api.startRun(args)).graphVersion, '0.1.2');
-  await assert.rejects(api.startRun({ ...args, input: { ...args.input, projectId: 'other' } }), /same-project CTO/);
+  for (const graphVersion of ['0.1.2', '0.1.4']) {
+    assert.equal((await api.startRun({ ...args, graphVersion })).graphVersion, graphVersion);
+    await assert.rejects(api.startRun({ ...args, graphVersion, input: { ...args.input, projectId: 'other' } }), /same-project CTO/);
+  }
   assert.throws(() => technicalValidators.tech_debt_items({ items: [{ ...authorization, type: 'feature' }] }), /tech-debt/);
 });
 
@@ -258,8 +262,22 @@ async function readyG3(project, systemScope = 'out-of-system', options = {}) {
         { kind: 'visual_manifest', payload: manifest, subjectRefs: [manifestSubject] },
         { kind: 'visual_audit', payload: audit, subjectRefs: options.citeAudit === false ? [manifestSubject] : [manifestSubject, { artifactId: audit.id, version: audit.version }] }
       ] } });
-  const run = await api.startRun({ packId: creativePack.id, packVersion: creativePack.version, graphId: 'g3-visual-contract',
-    graphVersion: '0.1.1', actor: owner, input: { projectId: 'project', approved_product_contract: ref, design_baseline: ref } });
+  const start = { packId: creativePack.id, packVersion: creativePack.version, graphId: 'g3-visual-contract', actor: owner,
+    input: { projectId: 'project', approved_product_contract: ref, design_baseline: ref } };
+  let run;
+  if (options.useDefault) {
+    await assert.rejects(api.startRun(start), /contract_pins/);
+    const contract_pins = [{ contractId: 'C1', section: 'product', commit: 'a'.repeat(40) }];
+    await assert.rejects(api.startRun({ ...start, input: { ...start.input,
+      contract_pins: [...contract_pins, { ...contract_pins[0], contractId: 'C2' }] } }), /exactly one product/);
+    const state = await engine.store.read();
+    state.audit.push({ kind: 'contract.merged', projectId: 'project', ...contract_pins[0], mergeCommitSha: contract_pins[0].commit });
+    await engine.store.write(state, state.revision);
+    run = await api.startRun({ ...start, input: { ...start.input, contract_pins } });
+    assert.equal(run.graph.version, '0.1.2');
+  } else {
+    run = await api.startRun({ ...start, graphVersion: '0.1.1' });
+  }
   await completePrelude(engine, run, {
     'prepare-visual-manifest': completedArtifact('creativeArtifacts', 'visual_manifest', manifest),
     'design-audit': completedArtifact('creativeArtifacts', 'visual_audit', audit)
@@ -464,6 +482,7 @@ test('G2 publication validates the request and its exact approval on submission 
 });
 
 test('merge producers match the published graph definitions', () => {
+  execFileSync(process.execPath, ['scripts/sync-design-publication.mjs', '--check']);
   assert.deepEqual(designPublication, mergeProducers.find(row => row.packId === 'creative-team'));
   for (const row of mergeProducers) {
     const source = row.packId === pack.id ? pack : creativePack;
@@ -478,6 +497,36 @@ test('merge producers match the published graph definitions', () => {
   assert.deepEqual(pack.graphs.filter(item =>
     item.nodes.some(node => node.produces?.includes('contract_publication_request'))).map(item => [item.id, item.version]),
   [['requirements-baseline', '0.1.2']]);
+});
+
+const graphDigest = graph => createHash('sha256').update(JSON.stringify(graph)).digest('hex');
+
+test('G3 0.1.2 requires contract pins and keeps the 0.1.1 graph immutable', () => {
+  assert.equal(graphDigest(graph('g3-visual-contract', '0.1.1', creativePack)),
+    '646f62dc32c8edf0ab9826f882fadd5d5e6049cf1f7843038307c1ba51bf1ab2');
+  assert.deepEqual(designPublication.versions, ['0.1.1', '0.1.2']);
+  const g3 = graph('g3-visual-contract', '0.1.2', creativePack);
+  assert.deepEqual(g3.requiredRunInputs, ['contract_pins']);
+  assert.ok(g3.nodes.filter(node => node.type === 'task').every(node => node.requiredInputs.includes('contract_pins')));
+  assert.match(g3.nodes.find(node => node.id === 'publish-design').purpose,
+    /contract_pins copied exactly from the run input.*exactly one product pin/);
+});
+
+test('technical publication text is corrected in both new versions and legacy graphs are immutable', () => {
+  assert.deepEqual(mergeProducers.find(row => row.section === 'technical').versions, ['0.1.1', '0.1.2', '0.1.3', '0.1.4']);
+  const purpose = 'Open a separate technical contract PR citing contract_pins. Emit a technical_publication_request with section technical, runId, pullNumber, G4 decisionId, approved manifest { id, revisionId } and contract_pins. Core verifies the publication and reports its status. A human or GitHub auto-merge merges the PR.';
+  for (const [before, after, digest] of [
+    ['0.1.1', '0.1.3', 'ae06e337b65f72eb310b1eb639ae4d5684a0570a2a3b1af119b0508628e90e12'],
+    ['0.1.2', '0.1.4', 'f07b6b8035ff5bc8b759745ca1be5eb788d6589f72962876b11523a5d96ad5e3']
+  ]) {
+    const legacy = graph('technical-design', before);
+    assert.equal(graphDigest(legacy), digest);
+    assert.deepEqual(graph('technical-design', after), {
+      ...legacy,
+      version: after,
+      nodes: legacy.nodes.map(node => node.id === 'publish-technical' ? { ...node, purpose } : node)
+    });
+  }
 });
 
 function designRequest({ api, runId, manifest, audit }, decisionId) {
@@ -509,6 +558,20 @@ for (const route of ['owner', 'director', 'escalation']) {
     assert.equal((await engine.getRun(runId)).nodeStates['publish-design'].status, 'completed');
   });
 }
+
+test('G3 0.1.2 validates publication pins against the run input', async () => {
+  const fixture = await readyG3({ automationMode: 'assisted' }, 'in-system', { useDefault: true });
+  const { api, engine, runId, nodeId } = fixture;
+  const { decision } = await api.decideNode({ runId, nodeId, actor: { ...agent, roles: ['design-director'] },
+    outcome: 'approve', reason: 'Approve the audited design' });
+  const { submit } = designRequest(fixture, decision.id);
+  const { contract_pins } = (await engine.getRun(runId)).input;
+  await assert.rejects(submit(), /contract_pins/);
+  await assert.rejects(submit({ contract_pins: [{ ...contract_pins[0], commit: 'invalid' }] }), /contract_pins/);
+  await assert.rejects(submit({ contract_pins: [{ ...contract_pins[0], commit: 'b'.repeat(40) }] }), /match the run input/);
+  await submit({ contract_pins });
+  assert.equal((await engine.getRun(runId)).nodeStates['publish-design'].status, 'completed');
+});
 
 test('G3 publication refuses a changed manifest at the approved ID and version', async () => {
   const fixture = await readyG3({ automationMode: 'manual' });

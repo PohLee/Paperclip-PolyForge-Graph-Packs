@@ -2,7 +2,7 @@
 
 Versioned Agentic Development Life Cycle domain pack for the separate [PolyForge Graph core](../../../Paperclip-PolyForge-Graph). Import `pack` from `index.mjs`, register it with `GraphEngine.registerPack(pack)`, and bind its role IDs to real Paperclip agents or authenticated human operations in the host. The pack contains no agent UUIDs or installed-tool claims.
 
-The current source is `adlc@0.3.18` and targets Core `>=0.8.5 <0.9.0` with `workflow-composition@^1.0.0`. UI and interaction design workflows belong to the Creative Team Pack. Every artifact-producing task requires an attempt-bound work Decision Record. Implementation and verification pin `versioned_requirement` and `acceptance_criteria` as their delivery contract; verification also pins a versioned `verification_plan`. See [evidence contracts and input examples](docs/EVIDENCE_CONTRACTS.md), [Product Manager Skills adaptation](docs/PRODUCT_MANAGER_SKILLS_ADAPTATION.md), [method/agent mapping](docs/FACTORY_BLUEPRINT_ADAPTATION.md), [MCode adaptation](docs/MCODE_STACK_ADAPTATION.md), [Matt/pstack adaptation](docs/MATT_PSTACK_ADAPTATION.md), and [Elephant Goldfish research](docs/ELEPHANT_GOLDFISH_RESEARCH.md).
+The current source is `adlc@0.3.19` and targets Core `>=0.8.5 <0.9.0` with `workflow-composition@^1.0.0`. UI and interaction design workflows belong to the Creative Team Pack. Every artifact-producing task requires an attempt-bound work Decision Record. Implementation and verification pin `versioned_requirement` and `acceptance_criteria` as their delivery contract; verification also pins a versioned `verification_plan`. See [evidence contracts and input examples](docs/EVIDENCE_CONTRACTS.md), [Product Manager Skills adaptation](docs/PRODUCT_MANAGER_SKILLS_ADAPTATION.md), [method/agent mapping](docs/FACTORY_BLUEPRINT_ADAPTATION.md), [MCode adaptation](docs/MCODE_STACK_ADAPTATION.md), [Matt/pstack adaptation](docs/MATT_PSTACK_ADAPTATION.md), and [Elephant Goldfish research](docs/ELEPHANT_GOLDFISH_RESEARCH.md).
 
 Version 0.3.17 adds the v2 contract directory helpers and validators, defaults `contractsRoot` to `knowledge/contracts`, and accepts an optional `contract: { type, slug }` in the G2 approval manifest. See the [contract directory rules](docs/CONTRACT_DIRECTORY.md).
 
@@ -12,7 +12,7 @@ Version 0.3.11 pins QA, security and regression report attempts to the current c
 
 Version 0.3.11 also publishes `implementation@0.1.7`, which carries the threat-model readiness check first shipped in 0.3.5. Earlier releases kept the `0.1.6` label for that changed text, so cite the pack version with any `implementation@0.1.6` reference. The small-change submission check now also accepts a new file at an exact admitted path.
 
-`architecture-review-composed` pins its child to the same ADLC pack version that contains it. Its content therefore differs between pack releases under one graph version. Core resolves a Graph by pack ID and pack version, so identify it by `adlc@<packVersion>` plus the graph version.
+`architecture-review-composed@1.0.2` pins its child to ADLC 0.3.19. Version 1.0.1 in ADLC 0.3.19 retains its child pin to ADLC 0.3.18. Use `architecture-review-composed@1.0.2` because current Core cannot start `architecture-review-composed@1.0.1`, which remains registered for history and pins a child release with no trusted adapter.
 
 Version 0.3.10 requires the discovery brief to cite the exact ID and version of both Product Manager-accepted research reports in `product-discovery@0.2.2`. The CPO sends synthesis back for rework if either citation is missing, wrong, or stale. This Graph requires the Core `review-source-refs@^1.0.0` capability. See the [discovery citation contract](docs/EVIDENCE_CONTRACTS.md#product-discovery-and-decision-artifacts).
 
@@ -49,7 +49,7 @@ Version 0.3.4 adds repository preflight to readiness, traces cross-layer accepta
 | `design-drift@0.1.0` | `design_code_reconciled` or `design_code_drift_held` | optional accepted-design versus pinned-code comparison with sourced drift rows |
 | `system-architecture-workflow@1.0.1` | validated `architectureBaseline` projection after graph completion | callable equivalent architecture baseline with explicit `workflowInput` schema and existing CTO acceptance gate |
 | `code-delivery-workflow@1.0.0` | validated `deliveryReport` projection after graph completion | callable final PR-head evidence workflow with explicit `workflowInput` schema and existing CTO decision gate |
-| `architecture-review-composed@1.0.1` | accepted `architectureBaseline` from its exact contracted child workflow | parent orchestration of `system-architecture-workflow@1.0.1`; human gate, adapter binding and evidence checks are retained |
+| `architecture-review-composed@1.0.2` | accepted `architectureBaseline` from its exact contracted child workflow | parent orchestration of `system-architecture-workflow@1.0.1`; human gate, adapter binding and evidence checks are retained |
 
 Design and implementation use bounded `reworkTarget` resets that keep prior attempts and decisions. Verification `rework_required` is a distinct terminal status that hands work back for a changed candidate and new verification run. Old reports remain attached to the version they actually assessed. Human escalation pauses a run.
 
@@ -72,7 +72,7 @@ The contracted entry graphs use the Core workflow runtime or the authenticated `
 // system-architecture-workflow@1.0.1
 { workflowInput: { system_id: 'billing-api', architecture_brief: 'Split invoice writes from payment capture; preserve idempotency.' } }
 
-// architecture-review-composed@1.0.1 (same business input; child receives only this mapped object)
+// architecture-review-composed@1.0.2 (same business input; child receives only this mapped object)
 { workflowInput: { system_id: 'billing-api', architecture_brief: 'Split invoice writes from payment capture; preserve idempotency.' } }
 
 // code-delivery-workflow@1.0.0
@@ -144,17 +144,17 @@ G2 approves the exact manifest as the existing human requirements-acceptance dec
 
 ## Target technical workflow
 
-Pin `technical-design@0.1.1` for G-T1, `implementation@0.1.8` for G-T2, `verification@0.1.8` and `code-delivery@0.1.1` for G-T3, and `bug-fast-lane@0.1.0` for G-T4. Each takes `contract_pins` as a list of `{ contractId, section, commit }` records. Start G-T2 from the recorded technical `contract.merged` event with its exact `contract_merge_receipt`. Bind the configured CTO to the `cto` role for G4 and retain the existing `cto-caio` implementation role.
+Pin `technical-design@0.1.3` for G-T1, `implementation@0.1.8` for G-T2, `verification@0.1.8` and `code-delivery@0.1.1` for G-T3, and `bug-fast-lane@0.1.0` for G-T4. Each takes `contract_pins` as a list of `{ contractId, section, commit }` records. Start G-T2 from the recorded technical `contract.merged` event with its exact `contract_merge_receipt`. Bind the configured CTO to the `cto` role for G4 and retain the existing `cto-caio` implementation role.
 
 G-T3 verification takes `pr_head` with `repository`, `pullNumber` and `headSha`, and `verification_scope` with approved `expectedScenarios` and execution `dimensions`. The host calls the project verification entry for that SHA. The human exception records the owner's disposition of unverified gaps and returns for verification. G5 requires a human owner and a passing manifest. Start a fresh verification run whenever the head changes.
 
-Use the ADLC host API for the W3 Graph versions. Its `inspectImplementationPull` service supplies the fresh `headSha`, `upToDate`, `checksPassed`, `currentPins`, `prPins`, `changedFiles`, `majorDependencyBump` and `neverAutoMerge` from trusted project and PR sources. The host resolves the immutable manifest revision in each publication request, invokes the corresponding Core merge action and passes the G5 request to code delivery to prove the observed merge. The W3 seat declarations describe vendor constraints for implementation EGM and advisory council. The host resolves seats and fallback profiles.
+Use the ADLC host API for the W3 Graph versions. Its `inspectImplementationPull` service supplies the fresh `headSha`, `upToDate`, `checksPassed`, `currentPins`, `prPins`, `changedFiles`, `majorDependencyBump` and `neverAutoMerge` from trusted project and PR sources. For product, design and technical contract publications, Core verifies the publication and reports a commit status. A human or GitHub auto-merge merges the PR. For G5, the host resolves the immutable manifest revision, invokes the Core implementation merge action and passes the G5 request to code delivery to prove the observed merge. The W3 seat declarations describe vendor constraints for implementation EGM and advisory council. The host resolves seats and fallback profiles.
 
 ### W4 approval modes and improvement workflows
 
 Pin `verification@0.1.9` for conditional G5 approval. The default mode is `manual`. In `assisted`, an independent CTO/CAIO can approve a low-risk PR after review and verification pass. A project must set `allowFullAuto: true` to use `full-auto`, which permits the same approver at higher risk when all evidence is complete. Protected risk categories route to the owner. The trusted PR snapshot supplies the changed paths, dependency changes and author identity. The project can add CI paths and risk rules through `ciPaths` and `riskRules`. Establish the baseline with the four exported `metricDefinitions` before enabling automation.
 
-Start `architecture-improvement@0.1.0` manually to produce tech-debt Items. The CTO ranks candidates with roughly 20% capacity and authorizes the selected Item with affected invariant IDs and regression standards. Pass the current authorization and its run and decision IDs to `technical-design@0.1.2`.
+Start `architecture-improvement@0.1.0` manually to produce tech-debt Items. The CTO ranks candidates with roughly 20% capacity and authorizes the selected Item with affected invariant IDs and regression standards. Pass the current authorization and its run and decision IDs to `technical-design@0.1.4`.
 
 Start `retro-correct@0.1.0` manually with run logs, Decision Records, review findings, reverts, bugs and the intervention ledger. The host resolves two distinct model identities for the independent attribution passes and inspects the exact correction PR head. Ordinary corrections follow the architecture, types, lint, tests, then docs and agent rules order. Each new check cites a historical error and failure evidence. PRs enter G-T3. Reports containing changes to Graphs, roles or model routing are referred to the human owner.
 An owner-accepted verification exception ends the verification run with

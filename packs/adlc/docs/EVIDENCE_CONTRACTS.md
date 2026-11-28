@@ -129,7 +129,7 @@ Optional `system-architecture` starts with `system_id` and `architecture_brief`.
 
 CTO acceptance is separate from proposed/partial/implemented status. Every invariant has a stable INV-ID, rule, enforcement, proof and active/retired status. For revision supply `previous_architecture` using the context below; preserve old IDs and provide `changeReason` on rule changes or retirement.
 
-The additive contracted `system-architecture-workflow@1.0.1` and `architecture-review-composed@1.0.1` accept the same business keys inside `workflowInput`; the composed parent maps only these keys to the exact child contract:
+The additive contracted `system-architecture-workflow@1.0.1` and `architecture-review-composed@1.0.2` accept the same business keys inside `workflowInput`; the composed parent maps only these keys to the exact child contract:
 
 ```json
 {"workflowInput":{"system_id":"orders","architecture_brief":"Define bounded order ownership and write paths."}}

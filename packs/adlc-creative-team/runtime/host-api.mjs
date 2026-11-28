@@ -1,13 +1,14 @@
 import { createHash } from 'node:crypto';
 import { readFile, realpath, readdir } from 'node:fs/promises';
 import path from 'node:path';
-import { graphs, productDesignGraphs, adlcHandoffGraphs, automatedVisualVersion, designPublication } from '../graphs/catalog.mjs';
+import { graphs, productDesignGraphs, adlcHandoffGraphs, designPublication } from '../graphs/catalog.mjs';
 import { brandGraphs } from '../graphs/brand-catalog.mjs';
 import { compositionGraphs } from '../graphs/composition-catalog.mjs';
 import { inspectLogoSvg } from '../adapters/brand-tools/svg.mjs';
 import { buildBrandContextSnapshot } from '../adapters/brand-tools/context.mjs';
 import { renderGalleryHtml, validateConceptSet, validateSelection, validateStaticImage } from '../adapters/concept-gallery/index.mjs';
 import { assertCreativeArtifact, validateCreativeArtifact } from '../contracts/validate.mjs';
+import { validateContractPins } from '../contracts/contract-pins.mjs';
 import { createArtifactLineage } from './artifact-lineage.mjs';
 
 const digest=bytes=>createHash('sha256').update(bytes).digest('hex');
@@ -22,7 +23,8 @@ function records(run) {
   return run.graph.nodes.flatMap(node=>(run.nodeStates[node.id]?.attempts??[]).flatMap(attempt=>(attempt.artifacts??[]).map(item=>({item,attempt,node, payload:attempt.output?.creativeArtifacts?.[item.kind]}))));
 }
 const exactRecord=(run,ref)=>createArtifactLineage(run).exactRecord(ref);
-const automatedVisual = graph => graph.id === 'g3-visual-contract' && graph.version === automatedVisualVersion;
+const automatedVisual = graph => graph.id === designPublication.graphId && designPublication.versions.includes(graph.version);
+const pinnedVisual = graph => graph.id === designPublication.graphId && !['0.1.0', '0.1.1'].includes(graph.version);
 
 function automationMode(mode, project = {}) {
   const normalize = value => value === 'full-auto' ? 'autonomous' : value;
@@ -230,9 +232,9 @@ export function createCreativeHostApi({engine,artifactRootForRun,hasImageProvide
     }
     return {path:realCandidate,root:realRoot};
   }
-  async function visualProject(input) {
+  async function visualProject(input, graph) {
     if (typeof input?.projectId !== 'string' || !input.projectId.trim()) {
-      throw new Error('g3-visual-contract@0.1.1 requires projectId');
+      throw new Error(`${graph.id}@${graph.version} requires projectId`);
     }
     return await services.getProjectConfig?.(input.projectId) ?? {};
   }
@@ -386,7 +388,7 @@ export function createCreativeHostApi({engine,artifactRootForRun,hasImageProvide
   async function validateArtifact(run,artifact,payload,actor) {
         if(!payload) throw new Error(`Payload required for ${artifact.kind}`);
         if(payload.id!==artifact.id||payload.version!==artifact.version) throw new Error(`Artifact envelope identity differs from ${artifact.kind} payload`);
-        assertCreativeArtifact(/^concept_image_\d\d$/.test(artifact.kind)?'concept_candidate':artifact.kind,payload);
+        assertCreativeArtifact(/^concept_image_\d\d$/.test(artifact.kind)?'concept_candidate':artifact.kind,payload,{ requireContractPins: pinnedVisual(run.graph) });
         if(/^concept_image_\d\d$/.test(artifact.kind)) await verifyImage(run,artifact.kind,payload);
         if(artifact.kind==='concept_set') {
           for(const candidate of payload.candidates) await verifyImage(run,'concept_set',candidate);
@@ -484,6 +486,9 @@ export function createCreativeHostApi({engine,artifactRootForRun,hasImageProvide
       }
       if (automatedVisual(run.graph) && nodeId === designPublication.nodeId) {
         const request = enrichedPayloads[designPublication.kind];
+        if (pinnedVisual(run.graph) && stableJson(request.contract_pins) !== stableJson(run.input.contract_pins)) {
+          throw new Error('Design publication contract_pins must match the run input exactly');
+        }
         const lineage = createArtifactLineage(run);
         const manifest = lineage.current({ id: request.manifest.id, version: request.manifest.revisionId },
           designPublication.candidateNodeId, designPublication.candidateKind, 'Publication must cite the current visual manifest');
@@ -498,7 +503,7 @@ export function createCreativeHostApi({engine,artifactRootForRun,hasImageProvide
             audited.digest !== digest(stableJson(audit))) throw new Error('Publication must bind the current G3 approval and approved audit');
       }
       if(run.graph.id==='g3-visual-contract') {
-        if(run.graph.version===automatedVisualVersion&&nodeId==='prepare-visual-manifest'&&typeof payloads.visual_manifest.behaviorChanged!=='boolean') {
+        if(automatedVisual(run.graph)&&nodeId==='prepare-visual-manifest'&&typeof payloads.visual_manifest.behaviorChanged!=='boolean') {
           throw new Error('Visual manifest must declare whether observable behavior changed');
         }
         if(nodeId==='design-audit') {
@@ -596,6 +601,9 @@ export function createCreativeHostApi({engine,artifactRootForRun,hasImageProvide
 
   async function validateStartInput(run,{actor=null,enrich=false}={}) {
     const input=run.input??{},graphId=run.graph?.id;
+    if (pinnedVisual(run.graph) && validateContractPins(input.contract_pins).filter(pin => pin.section === 'product').length !== 1) {
+      throw new Error('G3 requires exactly one product contract pin');
+    }
     if(input.creative_brief) assertCreativeArtifact('creative_brief',input.creative_brief);
     const surfaceRequired=['concept-sprint','concept-to-web-design','saas-feature-design','minor-ui-change','product-design-discovery','ui-candidate-sprint','ui-prototype-experiment'].includes(graphId);
     if(surfaceRequired&&!['persuade','operate','read','experience'].includes(input.creative_brief?.surfaceMode)) throw new Error(`${graphId} requires a concrete creative_brief.surfaceMode`);
@@ -737,7 +745,7 @@ export function createCreativeHostApi({engine,artifactRootForRun,hasImageProvide
             continue;
           }
           try {
-            assertCreativeArtifact(/^concept_image_\d\d$/.test(kind)?'concept_candidate':kind,payload);
+            assertCreativeArtifact(/^concept_image_\d\d$/.test(kind)?'concept_candidate':kind,payload,{ requireContractPins: pinnedVisual(run.graph) });
             validatedSubjectRefs.push({id:artifact.id,version:artifact.version,kind});
           } catch(error) { addIssue('artifact-schema-invalid',`nodeStates.${node.id}.attempts.current.output.creativeArtifacts.${kind}`,String(error.message??error),'Repair the payload and submit a new artifact version.'); }
           collectRefs(payload,kind,`nodeStates.${node.id}.output.${kind}`);
@@ -829,7 +837,7 @@ export function createCreativeHostApi({engine,artifactRootForRun,hasImageProvide
       if(!graph) throw new Error(`Unknown creative graph: ${args.graphId}`);
       const input={...(args.input??{})};
       await validateStartInput({...args,graph,input},{actor,enrich:true});
-      const mode=automatedVisual(graph)?automationMode(args.mode,await visualProject(input)):args.mode;
+      const mode=automatedVisual(graph)?automationMode(args.mode,await visualProject(input,graph)):args.mode;
       return engine.startRun({...args,input,actor,mode});
     },
 
@@ -861,7 +869,7 @@ export function createCreativeHostApi({engine,artifactRootForRun,hasImageProvide
         if(outcome==='human'&&actor.roles.includes('design-director')) {
           return engine.decideNode({runId,nodeId,actor,outcome,...rest,evidence:[],expectedRunDigest:snapshotDigest(run)});
         }
-        automationMode(run.mode,await visualProject(run.input));
+        automationMode(run.mode,await visualProject(run.input,run.graph));
       }
       if(nodeId==='g3'&&!(actor.kind==='human'&&actor.roles.includes('human-owner'))) {
         const manifest=latestPayload(run,'prepare-visual-manifest','visual_manifest');
@@ -870,7 +878,7 @@ export function createCreativeHostApi({engine,artifactRootForRun,hasImageProvide
         const currentAudit=auditState?.status==='completed'&&
           auditState.attempts?.at(-1)?.output?.creativeArtifacts?.visual_audit===audit;
         const assisted=['assisted','autonomous'].includes(run.mode);
-        if(run.graph.version!==automatedVisualVersion||!assisted||actor.kind!=='agent'||
+        if(!automatedVisual(run.graph)||!assisted||actor.kind!=='agent'||
           !actor.roles.includes('design-director')||
           (outcome!=='approve'||!canAgentApproveVisual(manifest,audit)||!currentAudit)) {
           throw new Error('G3 requires an authenticated human owner for this manifest');

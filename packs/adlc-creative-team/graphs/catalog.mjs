@@ -33,10 +33,10 @@ export const adlcHandoffGraphs = [
     edge('g3', 'visual-approved', 'approve'), edge('g3', 'behavior-changed', 'return-to-g2'), edge('g3', 'visual-held', 'hold')])
 ];
 
-export const [automatedVisualVersion] = designPublication.versions;
-adlcHandoffGraphs.push({
+export const automatedVisualVersion = designPublication.versions.at(-1);
+const legacyVisual = {
   ...adlcHandoffGraphs[1],
-  version: automatedVisualVersion,
+  version: designPublication.versions[0],
   nodes: [...adlcHandoffGraphs[1].nodes.map(node => node.id === 'g3'
     ? { ...node, decisionType: 'g3-visual-auto-approval', outcomes: [...node.outcomes, 'human'], purpose: 'The design director can approve an exact clean in-system audit with unchanged behavior in assisted or enabled full-auto mode. Send other decisions to the owner.' }
     : node.id === 'prepare-visual-manifest'
@@ -49,7 +49,24 @@ adlcHandoffGraphs.push({
   ],
   edges: [...adlcHandoffGraphs[1].edges.map(link => link.from === 'g3' && link.when === 'approve'
     ? { ...link, to: designPublication.nodeId } : link), edge(designPublication.nodeId, 'visual-approved')]
-});
+};
+
+const pinnedVisual = {
+  ...legacyVisual,
+  version: automatedVisualVersion,
+  requiredRunInputs: ['contract_pins'],
+  nodes: legacyVisual.nodes.map(node => node.type === 'task' ? {
+    ...node,
+    requiredInputs: ['contract_pins', ...node.requiredInputs],
+    ...(node.id === designPublication.nodeId && {
+      purpose: node.purpose + ' Include contract_pins copied exactly from the run input. The pins must contain exactly one product pin identifying the approved product contract that the visual manifest implements.'
+    })
+  } : node)
+};
+
+// Unversioned starts select the first matching graph.
+adlcHandoffGraphs.splice(1, 0, pinnedVisual);
+adlcHandoffGraphs.push(legacyVisual);
 
 export const graphs = [
   graph('creative-intake', 'read-context', [

@@ -1,3 +1,4 @@
+import { validateContractPins } from '../../adlc-creative-team/contracts/contract-pins.mjs';
 import { retrospectiveSources } from '../target-technical-graphs.mjs';
 import {
   assessDeterministicRisk, judgeVerificationManifest, validateCompletionLedger, validateReturnRequest,
@@ -6,25 +7,17 @@ import {
 
 const sha = value => typeof value === 'string' && /^[a-f0-9]{40}$/.test(value);
 const nonempty = value => typeof value === 'string' && Boolean(value.trim());
-const sections = ['product', 'design', 'technical'];
 const dimensions = ['security', 'performance', 'logic', 'data-migration', 'tests', 'api-maintainability'];
 const blocking = ['interrogate', 'deep-review', 'edge-cases', 'security-review'];
 const riskLevels = ['low', 'medium', 'high'];
 const assert = (ok, message) => { if (!ok) throw new Error(message); };
 
 export const technicalVersions = {
-  'technical-design': '0.1.1', implementation: '0.1.8', verification: '0.1.8',
+  'technical-design': '0.1.3', implementation: '0.1.8', verification: '0.1.8',
   'code-delivery': '0.1.1', 'bug-fast-lane': '0.1.0'
 };
 
-export function validateContractPins(pins) {
-  assert(Array.isArray(pins) && pins.length && pins.every(pin =>
-    nonempty(pin?.contractId) && sections.includes(pin.section) && sha(pin.commit)),
-  'Expected contract_pins with contract IDs, sections and merge commits');
-  const keys = pins.map(pin => JSON.stringify([pin.contractId, pin.section]));
-  assert(new Set(keys).size === keys.length, 'Duplicate contract pin');
-  return pins;
-}
+export { validateContractPins };
 
 const pinKey = ({ contractId, section, commit }) => JSON.stringify([contractId, section, commit]);
 export function samePins(pins, expected) {

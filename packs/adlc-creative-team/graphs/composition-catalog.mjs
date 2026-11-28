@@ -50,8 +50,8 @@ const child = {
   ],
 };
 
-const parent = {
-  id: 'brand-foundation-composed', version: '1.0.0', start: 'foundation',
+const parent = (version, packVersion) => ({
+  id: 'brand-foundation-composed', version, start: 'foundation',
   workflowContract: {
     version: 1, inputSchema: foundationInput,
     outputSchema: { type: 'object', properties: { foundation: foundationSchema }, required: ['foundation'], additionalProperties: false },
@@ -59,7 +59,7 @@ const parent = {
   },
   nodes: [{
     id: 'foundation', type: 'workflow',
-    workflow: { packId: 'creative-team', packVersion: '0.3.6', graphId: child.id, graphVersion: child.version },
+    workflow: { packId: 'creative-team', packVersion, graphId: child.id, graphVersion: child.version },
     inputMapping: {
       brandName: { source: 'input', path: ['brandName'] }, category: { source: 'input', path: ['category'] },
       targetAudience: { source: 'input', path: ['targetAudience'] }, brandPromise: { source: 'input', path: ['brandPromise'] },
@@ -67,6 +67,6 @@ const parent = {
     },
   }, end('foundation-composed', 'brand_foundation_composed')],
   edges: [edge('foundation', 'foundation-composed')],
-};
+});
 
-export const compositionGraphs = [child, parent];
+export const compositionGraphs = [child, parent('1.0.1', '0.3.7'), parent('1.0.0', '0.3.6')];

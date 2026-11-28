@@ -1,5 +1,6 @@
 import { validateConceptSet } from '../adapters/concept-gallery/index.mjs';
 import { validateInterviewArtifact } from '../adapters/interview/index.mjs';
+import { validateContractPins } from './contract-pins.mjs';
 
 const text = value => typeof value === 'string' && value.trim().length > 0;
 const object = value => value !== null && typeof value === 'object' && !Array.isArray(value);
@@ -97,7 +98,7 @@ export function validateDesignPublicationRequest(payload) {
     Number.isSafeInteger(payload.pullNumber) && payload.pullNumber > 0;
 }
 
-export function validateCreativeArtifact(kind, payload) {
+export function validateCreativeArtifact(kind, payload, { requireContractPins = false } = {}) {
   if (!text(kind)) return { valid:false,errors:['kind must be a non-empty string'] };
   if (!object(payload)) return { valid:false,errors:['payload must be an object'] };
   if (kind === 'concept_set') return validateConceptSet(payload);
@@ -114,6 +115,10 @@ export function validateCreativeArtifact(kind, payload) {
   const errors=[];
   if (kind==='design_publication_request' && !validateDesignPublicationRequest(payload)) {
     errors.push('Design publication needs section design, runId, decisionId, manifest and audit revisions, and a positive pullNumber');
+  }
+  if (kind==='design_publication_request' && requireContractPins) {
+    try { validateContractPins(payload.contract_pins); }
+    catch (error) { errors.push(error.message); }
   }
   if (kind==='interaction_design' && (!Array.isArray(payload.suppliedDesigns) ||
       payload.suppliedDesigns.some(item => !ref(item?.designRef) || !['reference','must-follow'].includes(item.use)))) {
@@ -186,8 +191,8 @@ export function validateCreativeArtifact(kind, payload) {
   return { valid:errors.length===0,errors };
 }
 
-export function assertCreativeArtifact(kind,payload) {
-  const result=validateCreativeArtifact(kind,payload);
+export function assertCreativeArtifact(kind,payload,options) {
+  const result=validateCreativeArtifact(kind,payload,options);
   if (!result.valid) throw new Error(`Invalid ${kind} artifact: ${result.errors.join('; ')}`);
   return payload;
 }

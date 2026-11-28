@@ -29,6 +29,7 @@ export const installedReleasePaths = Object.freeze([
   ['adlc', '0.3.16'],
   ['adlc', '0.3.17'],
   ['adlc', '0.3.18'],
+  ['adlc', '0.3.19'],
   ['marketing', '0.0.1'],
   ['marketing', '0.0.3'],
   ['marketing', '0.0.4'],
@@ -41,6 +42,7 @@ export const installedReleasePaths = Object.freeze([
   ['creative-team', '0.3.4'],
   ['creative-team', '0.3.5'],
   ['creative-team', '0.3.6'],
+  ['creative-team', '0.3.7'],
 ].map(pair => Object.freeze(pair)));
 const root = fileURLToPath(new URL('.', import.meta.url));
 

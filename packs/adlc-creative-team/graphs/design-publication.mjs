@@ -4,7 +4,8 @@ export const designPublication = Object.freeze({ ...{
   "packId": "creative-team",
   "graphId": "g3-visual-contract",
   "versions": [
-    "0.1.1"
+    "0.1.1",
+    "0.1.2"
   ],
   "nodeId": "publish-design",
   "gateNodeId": "g3",
@@ -13,4 +14,4 @@ export const designPublication = Object.freeze({ ...{
   "section": "design",
   "auditKind": "visual_audit",
   "auditNodeId": "design-audit"
-}, versions: Object.freeze(["0.1.1"]) });
+}, versions: Object.freeze(["0.1.1","0.1.2"]) });
