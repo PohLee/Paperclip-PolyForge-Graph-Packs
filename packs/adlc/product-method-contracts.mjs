@@ -574,6 +574,25 @@ function objectSchema(properties, requiredFields = Object.keys(properties)) {
   return { type: 'object', properties, required: requiredFields, additionalProperties: false };
 }
 
+const jiraFieldId = { type: 'string', pattern: '^customfield_[0-9]+$' };
+export const jiraBacklogConfigSchema = objectSchema({
+  provider: { const: 'jira' },
+  site: { type: 'string', pattern: '^[a-z0-9.-]+$' },
+  projectKey: { type: 'string', pattern: '^[A-Z][A-Z0-9_]+$' },
+  issueType: nonemptyString,
+  fields: {
+    ...objectSchema({
+      agentPriority: jiraFieldId,
+      humanPriority: jiraFieldId,
+      sourceEventId: jiraFieldId,
+      signalCount: jiraFieldId,
+      distinctUsers: jiraFieldId,
+      itemType: jiraFieldId
+    }, []),
+    dependentRequired: { humanPriority: ['agentPriority'] }
+  }
+}, ['provider', 'site', 'projectKey', 'issueType']);
+
 const profileSettings = {
   harness: nonemptyString,
   model: nonemptyString,
@@ -591,18 +610,20 @@ export const adlcProjectConfigSchema = {
     riskRules: { type: 'array', items: objectSchema({ id: nonemptyString, pathPattern: nonemptyString,
       floor: { enum: ['low', 'medium', 'high'] }, neverAutoMerge: nonemptyString }, ['id', 'pathPattern', 'floor']) },
     contractsRoot: { ...nonemptyString, pattern: '^[\\x20-\\x7e]+$', default: defaultContractsRoot },
-    backlog: objectSchema({
-      provider: { const: 'github-projects' },
-      owner: nonemptyString,
-      projectNumber: positiveIntegerSchema,
-      fields: objectSchema({
-        agentPriority: nonemptyString,
-        humanPriority: nonemptyString,
-        sourceEventId: nonemptyString,
-        signalCount: nonemptyString,
-        distinctUsers: nonemptyString
-      })
-    }),
+    backlog: {
+      oneOf: [objectSchema({
+        provider: { const: 'github-projects' },
+        owner: nonemptyString,
+        projectNumber: positiveIntegerSchema,
+        fields: objectSchema({
+          agentPriority: nonemptyString,
+          humanPriority: nonemptyString,
+          sourceEventId: nonemptyString,
+          signalCount: nonemptyString,
+          distinctUsers: nonemptyString
+        })
+      }), jiraBacklogConfigSchema]
+    },
     approvers: objectSchema({
       g2: nonemptyString,
       g3OutOfSystem: nonemptyString,

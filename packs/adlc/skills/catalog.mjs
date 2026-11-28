@@ -6,6 +6,7 @@ const entry = (description, triggers, nonTriggers, inputs, outputs) => ({
 
 export const skillCatalog = {
   'backlog-github-projects': entry('Reconcile and write the GitHub Projects backlog.', ['backlog read or mutation'], ['implementation tracking'], ['project mapping, source event'], ['auditable backlog change']),
+  'backlog-jira': entry('Reconcile and write the Jira backlog.', ['backlog read or mutation with the Jira provider'], ['implementation tracking'], ['Jira project mapping, source event'], ['auditable backlog change']),
   'target-product-workflow': entry('Run Grill, scoped PRD drafting, EGM and G2.', ['target product workflow task'], ['technical specification'], ['prior evidence'], ['versioned product evidence']),
   'incoming-request-advisor': entry('Separate a literal ask from the underlying problem and issue a versioned RequestBrief.', ['new request before work breakdown'], ['already accepted fixed scope'], ['source request and history'], ['validated RequestBrief']),
   'autonomous-investigation': entry('Investigate a bounded product question with classified, sourced claims and contrary evidence.', ['uncertain product claim'], ['unsourced opinion only'], ['question, source access, decision context'], ['validated evidence ledger']),

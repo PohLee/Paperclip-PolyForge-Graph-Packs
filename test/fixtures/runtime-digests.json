@@ -155,5 +155,14 @@
     "packs/adlc-creative-team/graphs/design-publication.mjs": "7a017cfb1e084fcb739bfe123f5af539da9922cd837468e211a716a022ba32f5",
     "packs/adlc-creative-team/runtime/artifact-lineage.mjs": "f2bb7662e17bd796d8f7cfa0c9572e2eed734a874fe73b11ba7312251e8f26af",
     "packs/adlc-creative-team/runtime/host-api.mjs": "6edfd798922cace4c689248f4ea91ac6a1e31ab650cc0ff1bca4647a1cf71674"
+  },
+  "adlc@0.3.18": {
+    "packs/adlc/backlog.mjs": "05babbbbc2e60901506bf72dc23b445b725f61d763e6f524d949b7b7eca215d7",
+    "packs/adlc/merge-producers.mjs": "06dd8b5126b9b2191c81622c6d2a9b70e1ac27696e3316c73d386a1814881395",
+    "packs/adlc/product-method-contracts.mjs": "22f4b8cde155b94383b5d63211ff47686bc316a2aa78f2080636dc369b95f8b1",
+    "packs/adlc/product-review.mjs": "6add371e7d69fe7a49c93d3953d944a4961564bd0daf19bfdbfb08715c06131c",
+    "packs/adlc/runtime/host-api.mjs": "528a401bfaf9de4e25476377f1fc30406eb696a612d0ae29c4c17994b93c5677",
+    "packs/adlc/runtime/small-change.mjs": "e9ec2b3240b0a6e58b1bf39c83b868a3c2f2b398fcb4142ad850457bb4a701b8",
+    "packs/adlc/runtime/technical-workflow.mjs": "091bfb830724c089baecfc15248fe6b183d8d857da4d44ba25910c88b0e301eb"
   }
 }
