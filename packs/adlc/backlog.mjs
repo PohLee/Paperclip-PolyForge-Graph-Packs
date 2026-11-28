@@ -31,7 +31,8 @@ export function jiraBacklogPlan(config) {
   if (!fields || typeof fields !== 'object' || Array.isArray(fields) ||
       Object.entries(fields).some(([key, value]) =>
         !Object.hasOwn(jiraFieldProperties, key) || typeof value !== 'string' || !jiraFieldIdPattern.test(value)) ||
-      (Object.hasOwn(fields, 'humanPriority') && !Object.hasOwn(fields, 'agentPriority'))) {
+      Object.hasOwn(fields, 'agentPriority') !== Object.hasOwn(fields, 'humanPriority') ||
+      (Object.hasOwn(fields, 'agentPriority') && fields.agentPriority === fields.humanPriority)) {
     throw new Error('Invalid Jira backlog field mapping');
   }
 
@@ -42,25 +43,21 @@ export function jiraBacklogPlan(config) {
 
 export function jiraSourceLabel(sourceEventId) {
   const id = dedupeKey(sourceEventId);
-  if (/^[A-Za-z0-9._:-]{1,200}$/.test(id)) return 'pf-src-' + id;
+  if (/^[A-Za-z0-9._:-]{1,200}$/.test(id) && !id.startsWith('h-')) return 'pf-src-' + id;
   return 'pf-src-h-' + createHash('sha256').update(id).digest('hex').slice(0, 40);
 }
 
-export function jiraDedupeJql({ projectKey, sourceEventId, fieldId }) {
+export function jiraDedupeJql({ projectKey, sourceEventId }) {
   if (typeof projectKey !== 'string' || !jiraProjectKeyPattern.test(projectKey)) {
     throw new Error('Invalid Jira project key');
   }
-  const scope = 'project = "' + projectKey + '"';
-  if (fieldId === undefined) return scope + ' AND labels = "' + jiraSourceLabel(sourceEventId) + '"';
-  if (typeof fieldId !== 'string' || !jiraFieldIdPattern.test(fieldId)) {
-    throw new Error('Invalid Jira custom field ID');
-  }
-  const escapedId = dedupeKey(sourceEventId).replace(/["\\]/g, '\\$&');
-  return scope + ' AND cf[' + fieldId.slice('customfield_'.length) + '] ~ "' + escapedId + '"';
+  return 'project = "' + projectKey + '" AND labels = "' + jiraSourceLabel(sourceEventId) + '"';
 }
 
 export function jiraSourceEventMatches(issueValue, sourceEventId) {
-  return dedupeKey(issueValue) === dedupeKey(sourceEventId);
+  if (typeof issueValue !== 'string') return false;
+  const storedId = issueValue.trim();
+  return storedId !== '' && storedId === dedupeKey(sourceEventId);
 }
 
 const jiraPriorityNames = new Map([['P0', 'Highest'], ['P1', 'High'], ['P2', 'Medium'], ['P3', 'Low']]);
@@ -71,18 +68,15 @@ export function jiraPriorityName(level) {
 }
 
 export function jiraPriorityLevel(name) {
+  if (name === 'Lowest') return 'P3';
   for (const [level, jiraName] of jiraPriorityNames) {
     if (name === jiraName) return level;
   }
   throw new Error('Unknown Jira priority name');
 }
 
-export function jiraNativePriority({ current, lastAgentWritten }) {
-  const humanOverride = current !== lastAgentWritten;
-  return { effective: current, humanOverride, agentMayWrite: !humanOverride };
-}
-
-const jiraSignalsPattern = /(^|\r?\n)PolyForge signals(\r?\n)Signal Count: (?<signalCount>[0-9]+)\r?\nDistinct Users: (?<distinctUsers>[0-9]+)(?=(?:\r?\n)*$)/;
+const jiraSignalsHeaderPattern = /^PolyForge signals[ \t]*$/m;
+const jiraSignalsPattern = /(^|\r?\n)PolyForge signals[ \t]*(\r?\n)Signal Count: (?<signalCount>[0-9]+)[ \t]*\r?\nDistinct Users: (?<distinctUsers>[0-9]+)[ \t]*(?=(?:\r?\n[ \t]*)*$)/;
 
 export function jiraSignalsBlock({ signalCount, distinctUsers }) {
   if (!Number.isInteger(signalCount) || signalCount < 0 || !Number.isInteger(distinctUsers) || distinctUsers < 0) {
@@ -108,9 +102,11 @@ export function replaceJiraSignalsBlock(description, counts) {
   const block = jiraSignalsBlock(counts);
   if (description == null || description === '') return block;
   if (typeof description !== 'string') throw new Error('Jira description must be text');
-  if (parseJiraSignalsBlock(description)) {
+  const match = jiraSignalsPattern.exec(description);
+  if (match && !jiraSignalsHeaderPattern.test(description.slice(0, match.index)) && parseJiraSignalsBlock(description)) {
     return description.replace(jiraSignalsPattern, (_match, prefix, newline) => prefix + block.replaceAll('\n', newline));
   }
+  if (jiraSignalsHeaderPattern.test(description)) throw new Error('Malformed Jira signals block');
 
   const newline = description.includes('\r\n') ? '\r\n' : '\n';
   let separator = '';

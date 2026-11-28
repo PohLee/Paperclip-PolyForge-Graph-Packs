@@ -271,7 +271,7 @@ test('project schema declares project-owned settings and safe defaults', () => {
   const { fields } = jira.properties;
   assert.deepEqual(fields.required, []);
   assert.equal(fields.additionalProperties, false);
-  assert.deepEqual(fields.dependentRequired, { humanPriority: ['agentPriority'] });
+  assert.deepEqual(fields.dependentRequired, { agentPriority: ['humanPriority'], humanPriority: ['agentPriority'] });
   const jiraFieldNames = ['agentPriority', 'humanPriority', 'sourceEventId', 'signalCount', 'distinctUsers', 'itemType'];
   assert.deepEqual(Object.keys(fields.properties), jiraFieldNames);
   for (const field of jiraFieldNames) {

@@ -589,7 +589,7 @@ export const jiraBacklogConfigSchema = objectSchema({
       distinctUsers: jiraFieldId,
       itemType: jiraFieldId
     }, []),
-    dependentRequired: { humanPriority: ['agentPriority'] }
+    dependentRequired: { agentPriority: ['humanPriority'], humanPriority: ['agentPriority'] }
   }
 }, ['provider', 'site', 'projectKey', 'issueType']);
 

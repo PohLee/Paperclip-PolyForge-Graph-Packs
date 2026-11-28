@@ -231,7 +231,7 @@ export {
 } from './product-method-contracts.mjs';
 export { effectivePriority, dedupeKey, routeIssue, grillSla, validateIntelTrigger, validateLegalSignal } from './backlog.mjs';
 export { jiraBacklogPlan, jiraSourceLabel, jiraDedupeJql, jiraSourceEventMatches } from './backlog.mjs';
-export { jiraPriorityName, jiraPriorityLevel, jiraNativePriority } from './backlog.mjs';
+export { jiraPriorityName, jiraPriorityLevel } from './backlog.mjs';
 export { jiraSignalsBlock, parseJiraSignalsBlock, replaceJiraSignalsBlock } from './backlog.mjs';
 
 export { mergeProducers } from './merge-producers.mjs';
